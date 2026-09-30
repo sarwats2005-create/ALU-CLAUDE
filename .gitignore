@@ -8,3 +8,4 @@ next-env.d.ts
 .unlazy
 .unlazy-hook-state.json
 tests/out
+.neon

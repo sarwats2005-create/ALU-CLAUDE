@@ -5,7 +5,7 @@
 // Env: LOCAL_PG_DIR (default .local-pg), LOCAL_PG_PORT (default 54329), LOCAL_PG_DB (default alu_factory)
 // Production uses Neon: set DATABASE_URL in .env and never run this script there.
 import EmbeddedPostgres from 'embedded-postgres';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +14,26 @@ const dir = resolve(process.env.LOCAL_PG_DIR || '.local-pg');
 const port = Number(process.env.LOCAL_PG_PORT || 54329);
 const dbName = process.env.LOCAL_PG_DB || 'alu_factory';
 const cmd = process.argv[2] || 'start';
+
+// `npm run dev` calls this automatically (predev). Only manage the local database when DATABASE_URL
+// points at this machine — with a cloud database (Neon) there is nothing to start, so skip quietly.
+function databaseUrl() {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  try {
+    const m = /^\s*DATABASE_URL\s*=\s*["']?([^"'\r\n]+)/m.exec(readFileSync(resolve('.env'), 'utf8'));
+    return m ? m[1] : '';
+  } catch {
+    return '';
+  }
+}
+if (cmd === 'start') {
+  const url = databaseUrl();
+  const host = /@([^:/?]+)/.exec(url)?.[1] ?? '';
+  if (url && !['localhost', '127.0.0.1', '::1'].includes(host)) {
+    console.log(`LOCAL_PG_SKIPPED (DATABASE_URL points to ${host})`);
+    process.exit(0);
+  }
+}
 
 function binDir() {
   const pkg = {
