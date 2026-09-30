@@ -1,0 +1,360 @@
+// ALU FACTORY — Postgres (Neon in production). Money and weight are always Decimal.
+// Precision: USD money 2 dp, IQD money 0 dp (stored in Decimal(18,2) columns, rounded to whole dinars),
+// costs 4 dp, kg 3 dp, rates 4 dp.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Lang {
+  en
+  ku
+}
+
+enum Currency {
+  USD
+  IQD
+}
+
+enum StockState {
+  RAW
+  FINISHED
+}
+
+enum TxnKind {
+  SALE
+  PURCHASE
+  CUSTOMER_PAYMENT
+  CUSTOMER_REFUND
+  BENEFICIARY_PAYMENT
+  BENEFICIARY_REFUND
+  VAULT_DEPOSIT
+  VAULT_WITHDRAWAL
+  VAULT_TRANSFER
+  PROCESSING
+}
+
+enum Direction {
+  IN
+  OUT
+}
+
+enum LossMethod {
+  PERCENT
+  KG
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  isOwner      Boolean   @default(false)
+  active       Boolean   @default(true)
+  lang         Lang      @default(en)
+  /// Extensible permission keys: "page:<name>" and "action:<name>" (e.g. "action:canEditExchangeRate").
+  permissions  String[]  @default([])
+  /// Per-user UI preferences (e.g. remembered export columns per table).
+  prefs        Json      @default("{}")
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sessions     Session[]
+}
+
+model Session {
+  id        String   @id // sha256 of the cookie token
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model LoginAttempt {
+  id        Int      @id @default(autoincrement())
+  key       String
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+}
+
+model CompanyProfile {
+  id         Int      @id @default(1)
+  name       String   @default("ALU FACTORY")
+  logo       String? // data URL; null = built-in logo
+  address    String   @default("")
+  phones     String   @default("")
+  footerNote String   @default("")
+  updatedAt  DateTime @updatedAt
+}
+
+model AppSettings {
+  id                 Int      @id @default(1)
+  exchangeRate       Decimal  @default(1480) @db.Decimal(18, 4)
+  lowStockKg         Decimal  @default(100) @db.Decimal(18, 3)
+  alertCustomerDue   Boolean  @default(true)
+  customerDueUsd     Decimal  @default(1000) @db.Decimal(18, 2)
+  alertBeneficiaryDue Boolean @default(true)
+  beneficiaryDueUsd  Decimal  @default(1000) @db.Decimal(18, 2)
+  alertLowStock      Boolean  @default(true)
+  alertVault         Boolean  @default(true)
+  vaultMinUsd        Decimal  @default(0) @db.Decimal(18, 2)
+  vaultMinIqd        Decimal  @default(0) @db.Decimal(18, 2)
+  alertOverdue       Boolean  @default(true)
+  overdueDays        Int      @default(30)
+  updatedAt          DateTime @updatedAt
+}
+
+model ExchangeRateLog {
+  id        Int      @id @default(autoincrement())
+  oldRate   Decimal  @db.Decimal(18, 4)
+  newRate   Decimal  @db.Decimal(18, 4)
+  userId    String
+  userName  String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// Gap-safe document counters. Incremented inside the business transaction (never MAX()+1).
+model Counter {
+  key   String @id // INV, PUR, RCV, PAY, VLT, PRC
+  value Int    @default(0)
+}
+
+model AluminumType {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  isDemo    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  products  Product[]
+}
+
+model Product {
+  id         String       @id @default(cuid())
+  name       String
+  sku        String       @unique
+  typeId     String
+  type       AluminumType @relation(fields: [typeId], references: [id])
+  lowStockKg Decimal?     @db.Decimal(18, 3)
+  isDemo     Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  lines      TxnLine[]
+  stock      StockEntry[]
+  processing Txn[]        @relation("ProcessingProduct")
+
+  @@index([name])
+  @@index([typeId])
+}
+
+model Customer {
+  id          String       @id @default(cuid())
+  name        String
+  nameKey     String       @unique // lower-cased, whitespace-collapsed name for uniqueness
+  phone       String       @default("")
+  address     String       @default("")
+  avatar      String? // data URL (square crop, rendered as circle)
+  isDemo      Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  txns        Txn[]
+  ledger      PartyEntry[]
+
+  @@index([name])
+}
+
+model Beneficiary {
+  id        String       @id @default(cuid())
+  name      String
+  nameKey   String       @unique
+  phone     String       @default("")
+  address   String       @default("")
+  isDemo    Boolean      @default(false)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  txns      Txn[]
+  ledger    PartyEntry[]
+
+  @@index([name])
+}
+
+/// Every business document (sale, purchase, payment, refund, vault op, processing).
+/// Deleted documents are kept as tombstones (deletedAt) so their number is never reused
+/// and the append-only ledger rows keep a valid source.
+model Txn {
+  id            String      @id @default(cuid())
+  number        String      @unique
+  kind          TxnKind
+  date          DateTime    @db.Date
+  customerId    String?
+  customer      Customer?   @relation(fields: [customerId], references: [id])
+  beneficiaryId String?
+  beneficiary   Beneficiary? @relation(fields: [beneficiaryId], references: [id])
+
+  currency      Currency    @default(USD)
+  /// Exchange-rate snapshot (1 USD = rate IQD) at the moment of the transaction.
+  rate          Decimal     @db.Decimal(18, 4)
+  /// Document total in transaction currency (sales/purchases: Σ lines; payments/vault ops: amount).
+  total         Decimal     @db.Decimal(18, 2)
+  totalUsd      Decimal     @db.Decimal(18, 2)
+  cashPaid      Decimal     @default(0) @db.Decimal(18, 2)
+  cashPaidUsd   Decimal     @default(0) @db.Decimal(18, 2)
+
+  vault         Currency?
+  /// Amount moved in/out of `vault`, in the vault's currency.
+  vaultAmount   Decimal     @default(0) @db.Decimal(18, 2)
+  /// Vault transfer only: destination vault + amount credited there + rate used for this operation.
+  toVault       Currency?
+  toAmount      Decimal?    @db.Decimal(18, 2)
+
+  /// Sales: Σ COGS (USD, 4 dp). Processing: cost of raw consumed (USD, 4 dp).
+  cogsUsd       Decimal     @default(0) @db.Decimal(18, 4)
+
+  /// Processing
+  productId     String?
+  product       Product?    @relation("ProcessingProduct", fields: [productId], references: [id])
+  inputKg       Decimal?    @db.Decimal(18, 3)
+  lossKg        Decimal?    @db.Decimal(18, 3)
+  outputKg      Decimal?    @db.Decimal(18, 3)
+  lossMethod    LossMethod?
+  lossPercent   Decimal?    @db.Decimal(9, 4)
+
+  /// Vault deposit source / withdrawal reason label.
+  label         String      @default("")
+  notes         String      @default("")
+  isDemo        Boolean     @default(false)
+
+  createdAt     DateTime    @default(now())
+  createdById   String?
+  createdByName String      @default("")
+  updatedAt     DateTime    @updatedAt
+  updatedById   String?
+  updatedByName String      @default("")
+  deletedAt     DateTime?
+
+  lines         TxnLine[]
+  vaultEntries  VaultEntry[]
+  partyEntries  PartyEntry[]
+  stockEntries  StockEntry[]
+
+  @@index([date])
+  @@index([kind, date])
+  @@index([customerId])
+  @@index([beneficiaryId])
+  @@index([vault])
+  @@index([deletedAt])
+  @@index([productId])
+}
+
+model TxnLine {
+  id           String     @id @default(cuid())
+  txnId        String
+  txn          Txn        @relation(fields: [txnId], references: [id], onDelete: Cascade)
+  position     Int        @default(0)
+  productId    String
+  product      Product    @relation(fields: [productId], references: [id])
+  state        StockState
+  kg           Decimal    @db.Decimal(18, 3)
+  unitPrice    Decimal    @db.Decimal(18, 4) // transaction currency, per kg
+  lineTotal    Decimal    @db.Decimal(18, 2) // transaction currency
+  lineTotalUsd Decimal    @db.Decimal(18, 4)
+  /// Purchases: unit cost USD. Sales: average cost/kg of that stock state at the moment of sale.
+  unitCostUsd  Decimal    @db.Decimal(18, 4)
+  /// Sales only: COGS = kg × avg cost (stored).
+  cogsUsd      Decimal    @default(0) @db.Decimal(18, 4)
+
+  @@index([txnId])
+  @@index([productId])
+}
+
+/// Append-only vault ledger. Edits/deletes write reversal rows; rows are never updated or removed.
+model VaultEntry {
+  id           Int        @id @default(autoincrement())
+  vault        Currency
+  direction    Direction
+  amount       Decimal    @db.Decimal(18, 2) // positive, vault currency
+  balanceAfter Decimal    @db.Decimal(18, 2)
+  txnId        String
+  txn          Txn        @relation(fields: [txnId], references: [id])
+  sourceType   TxnKind
+  /// Business date of the effect (reversals carry the original document's date).
+  date         DateTime   @db.Date
+  isReversal   Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+
+  @@index([vault, id])
+  @@index([vault, date])
+  @@index([txnId])
+  @@index([sourceType])
+}
+
+model PartyEntry {
+  id            Int          @id @default(autoincrement())
+  customerId    String?
+  customer      Customer?    @relation(fields: [customerId], references: [id])
+  beneficiaryId String?
+  beneficiary   Beneficiary? @relation(fields: [beneficiaryId], references: [id])
+  amountUsd     Decimal      @db.Decimal(18, 2) // signed: + increases what the party owes (customer) / what factory owes (beneficiary)
+  txnId         String
+  txn           Txn          @relation(fields: [txnId], references: [id])
+  sourceType    TxnKind
+  date          DateTime     @db.Date
+  isReversal    Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+
+  @@index([customerId, date])
+  @@index([beneficiaryId, date])
+  @@index([txnId])
+}
+
+model StockEntry {
+  id          Int        @id @default(autoincrement())
+  productId   String
+  product     Product    @relation(fields: [productId], references: [id])
+  state       StockState
+  kg          Decimal    @db.Decimal(18, 3) // signed
+  unitCostUsd Decimal    @db.Decimal(18, 4)
+  valueUsd    Decimal    @db.Decimal(18, 4) // signed
+  txnId       String
+  txn         Txn        @relation(fields: [txnId], references: [id])
+  sourceType  TxnKind
+  date        DateTime   @db.Date
+  isReversal  Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+
+  @@index([productId, state])
+  @@index([txnId])
+  @@index([date])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    String?
+  userName  String   @default("")
+  action    String // create | update | delete | login | login_failed | logout | permission | rate | export | settings
+  module    String
+  reference String   @default("")
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([module])
+  @@index([action])
+}
+
+model AlertRead {
+  userId   String
+  alertKey String
+  readAt   DateTime @default(now())
+
+  @@id([userId, alertKey])
+}

@@ -1,0 +1,286 @@
+@import 'tailwindcss';
+
+/* Class-based dark mode (html.dark), driven by the user's theme choice. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ───────────────────────── Colour tokens ─────────────────────────
+   Every colour in the product comes from these variables. Components use token classes
+   (bg-surface, text-ink, border-line, text-danger…) — never arbitrary hex values — so light and dark
+   themes can never produce white-on-white again. */
+:root {
+  color-scheme: light;
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --surface-2: #f4f8ff; /* row stripe */
+  --tint: #e8f0fb; /* light blue tint */
+  --tint-2: #d0e1f9; /* mid blue */
+  --line: #d8e6f7; /* border */
+  --line-soft: #e8eef7;
+  --ink: #1a1f36; /* text primary */
+  --muted: #6b7280; /* text muted */
+  --brand: #1b5db1; /* Royal Blue */
+  --brand-strong: #143f7a; /* Dark Blue */
+  --brand-ink: #1b5db1;
+  --on-brand: #ffffff;
+  --success: #1e8a44;
+  --success-ink: #1a7a3c;
+  --success-tint: #e6f4ec;
+  --danger: #d93025;
+  --danger-ink: #c5221f;
+  --danger-tint: #fdecea;
+  --warning: #d97706;
+  --warning-ink: #9a5b05;
+  --warning-tint: #fdf3e2;
+  --sidebar: #1b5db1;
+  --sidebar-ink: #ffffff;
+  --sidebar-muted: rgba(255, 255, 255, 0.78);
+  --sidebar-active: rgba(255, 255, 255, 0.16);
+  --overlay: rgba(16, 24, 40, 0.42);
+  --shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  --shadow-pop: 0 12px 32px rgba(16, 24, 40, 0.16), 0 2px 6px rgba(16, 24, 40, 0.08);
+  --focus: rgba(27, 93, 177, 0.45);
+  --bar-glass: rgba(245, 247, 250, 0.82);
+  /* Chart marks (validated: lightness band, chroma floor, ≥3:1 vs surface). Profit/loss also
+     encodes sign by direction from the zero line, so colour is never the only channel. */
+  --chart-series: #1b5db1;
+  --chart-pos: #1e8a44;
+  --chart-neg: #d93025;
+  --chart-grid: #e8eef7;
+}
+
+:root.dark {
+  color-scheme: dark;
+  --bg: #0f1726;
+  --surface: #152036;
+  --surface-2: #19263f;
+  --tint: #1b2c4a;
+  --tint-2: #233a60;
+  --line: #273a5c;
+  --line-soft: #1f2f4c;
+  --ink: #e7ecf5;
+  --muted: #9aa6ba;
+  --brand: #3d7fd6;
+  --brand-strong: #8db8f2;
+  --brand-ink: #7fb0ef;
+  --on-brand: #ffffff;
+  --success: #3fb26a;
+  --success-ink: #5fcf88;
+  --success-tint: #16301f;
+  --danger: #f0645a;
+  --danger-ink: #ff8a80;
+  --danger-tint: #3a1d1d;
+  --warning: #f2a541;
+  --warning-ink: #f5b95e;
+  --warning-tint: #3a2a12;
+  --sidebar: #12305d;
+  --sidebar-ink: #ffffff;
+  --sidebar-muted: rgba(255, 255, 255, 0.74);
+  --sidebar-active: rgba(255, 255, 255, 0.12);
+  --overlay: rgba(0, 0, 0, 0.55);
+  --shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 16px 40px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --focus: rgba(127, 176, 239, 0.55);
+  --bar-glass: rgba(15, 23, 38, 0.8);
+  --chart-series: #3d7fd6;
+  --chart-pos: #2fa05a;
+  --chart-neg: #e4574d;
+  --chart-grid: #22314e;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-tint: var(--tint);
+  --color-tint-2: var(--tint-2);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-ink: var(--brand-ink);
+  --color-on-brand: var(--on-brand);
+  --color-success: var(--success);
+  --color-success-ink: var(--success-ink);
+  --color-success-tint: var(--success-tint);
+  --color-danger: var(--danger);
+  --color-danger-ink: var(--danger-ink);
+  --color-danger-tint: var(--danger-tint);
+  --color-warning: var(--warning);
+  --color-warning-ink: var(--warning-ink);
+  --color-warning-tint: var(--warning-tint);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-ink: var(--sidebar-ink);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-overlay: var(--overlay);
+  --color-glass: var(--bar-glass);
+
+  --font-sans: 'Inter', 'Vazirmatn', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --radius-ctl: 8px;
+  --radius-card: 12px;
+  --shadow-card: var(--shadow);
+  --shadow-pop: var(--shadow-pop);
+
+  /* Type scale (after Bringhurst's classic scale, in px) */
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-meta: 13px;
+  --text-meta--line-height: 18px;
+  --text-body: 14px;
+  --text-body--line-height: 21px;
+  --text-lead: 16px;
+  --text-lead--line-height: 24px;
+  --text-title: 18px;
+  --text-title--line-height: 24px;
+  --text-heading: 21px;
+  --text-heading--line-height: 26px;
+  --text-large: 28px;
+  --text-large--line-height: 32px;
+  --text-figure: 36px;
+  --text-figure--line-height: 40px;
+  --text-hero: 60px;
+  --text-hero--line-height: 60px;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    font-feature-settings: 'cv11', 'ss01';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  html[dir='rtl'] body {
+    font-family: 'Vazirmatn', 'Inter', ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: normal;
+  }
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  button,
+  [role='button'] {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+  ::selection {
+    background: var(--tint-2);
+  }
+  /* Names, product names, notes: mixed-direction text stays readable. */
+  .bidi {
+    unicode-bidi: plaintext;
+  }
+  .select-chevron {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%236b7280' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 10px center;
+    background-size: 16px;
+    background-repeat: no-repeat;
+  }
+  [dir='rtl'] .select-chevron {
+    background-position: left 10px center;
+  }
+}
+
+@layer utilities {
+  /* Numbers and amounts always render left-to-right, tabular, even inside RTL layouts. */
+  .num {
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum', 'cv11';
+    font-family: 'Inter', 'Vazirmatn', ui-sans-serif, system-ui, sans-serif;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Large standalone figures: LTR, proportional digits (tabular only belongs in columns). */
+  .fig {
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-variant-numeric: proportional-nums;
+    font-family: 'Inter', 'Vazirmatn', ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.025em;
+  }
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Skeleton shimmer — disabled when the user prefers reduced motion. */
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--line-soft) 0px, var(--surface-2) 120px, var(--line-soft) 240px);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: 6px;
+}
+
+/* User-triggered motion only: sheets, dialogs, toasts. */
+@keyframes sheet-in {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.anim-sheet {
+  animation: sheet-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.anim-fade {
+  animation: fade-in 160ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .skeleton {
+    animation: none;
+  }
+}

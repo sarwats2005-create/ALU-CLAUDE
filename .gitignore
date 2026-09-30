@@ -1,0 +1,10 @@
+node_modules
+.next
+.local-pg
+.local-pg-test
+.env
+*.tsbuildinfo
+next-env.d.ts
+.unlazy
+.unlazy-hook-state.json
+tests/out
