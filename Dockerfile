@@ -14,7 +14,10 @@ COPY prisma ./prisma
 RUN npm ci --ignore-scripts
 
 COPY . .
-# DATABASE_URL is not needed at build time: every page/API is dynamic and no route prerenders data.
+# prisma generate validates the schema and resolves env("DATABASE_URL"), so it needs a value even though
+# no connection is made at build time. Placeholder is safe: every page/API is dynamic, nothing prerenders data,
+# and the runtime stage gets the real DATABASE_URL from Railway. Remove this if you add a prerendered DB page.
+ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
 RUN npx prisma generate \
  && npx next build --no-lint
 

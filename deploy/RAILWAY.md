@@ -14,9 +14,10 @@ Railway config ([railway.json](../railway.json)). Deployment is `railway up` —
    ```bash
    railway variables --set "DATABASE_URL=<pooled connection string from .env>"
    ```
-   Copy the **pooled** `DATABASE_URL` from this repo's `.env` (it has `-pooler` in the host). Railway injects
-   `DATABASE_URL` into the build too, but no build step reads it — every route is dynamic, so builds are safe.
-   Never set `INSECURE_COOKIES=1` in production; secure cookies are automatic under `NODE_ENV=production`.
+   Copy the **pooled** `DATABASE_URL` from this repo's `.env` (it has `-pooler` in the host). Note the Docker
+   **build** uses a placeholder `DATABASE_URL` (set inside the Dockerfile) because `prisma generate` validates the
+   schema at build time; the real variable is only needed at **runtime**, and the container start command reads it
+   from Railway. Never set `INSECURE_COOKIES=1` in production; secure cookies are automatic under `NODE_ENV=production`.
 3. **Deploy**:
    ```bash
    railway up
