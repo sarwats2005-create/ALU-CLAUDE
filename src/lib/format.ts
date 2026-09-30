@@ -83,7 +83,8 @@ export function fmtCell(value: unknown, fmt: Fmt | undefined, lang: Lang, row?: 
 /** Balance label with the exact wording required everywhere a balance appears. */
 export function balanceLabel(side: 'customer' | 'beneficiary', balance: string | number, lang: Lang): { text: string; tone: 'danger' | 'success' | 'neutral'; short: string } {
   const d = D(balance).toDecimalPlaces(2);
-  const x = fmtMoney(d.abs());
+  // LTR isolate: keeps "$1,250.00" intact inside right-to-left (Kurdish) sentences.
+  const x = `\u2066${fmtMoney(d.abs())}\u2069`;
   if (d.isZero()) return { text: t('due.settled', lang), tone: 'neutral', short: t('due.settled', lang) };
   if (side === 'customer') {
     return d.gt(0)

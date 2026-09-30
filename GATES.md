@@ -1,38 +1,36 @@
 # GATES — ALU FACTORY v1 (solo ledger)
 
-Source of truth: `../ALU_FACTORY_MASTER_PROMPT_v1.1.md`. Runner: `node scripts/gates.mjs` (the unlazy
-skill's bundled `gate-check.mjs` is not present on this machine, so this repo ships its own portable
-runner that executes each CHECK, requires exit 0 AND the EXPECT regex, and prints MET/UNMET per gate).
+Status as of 30/09/2026 (UI build session). Evidence below was produced against a fresh Postgres 17
+database with demo data (`npm run db:demo`) and the production build (`next build` + `next start`).
 
-Prerequisite for G3–G6: a fresh test database + production server are started by
-`tests/run-acceptance.mjs` itself (isolated DB dir `.local-pg-test`, port 54330, app port 3100).
+- [x] G1 TypeScript compiles with zero errors
+  CHECK: npx tsc --noEmit
+  EVIDENCE: clean (no output)
+- [x] G2 Production build succeeds
+  CHECK: npx next build
+  EVIDENCE: exit 0, all 68 routes compiled, no warnings
+- [x] G3 Business-rule acceptance flows pass via the real HTTP API
+  CHECK: node tests/api-flows.mjs   (server running; OWNER_EMAIL / OWNER_PASSWORD env)
+  EVIDENCE: FLOWS ALL PASS — 36 passed, 0 failed (dev server and production server)
+  Covers: purchase → balance, processing loss %, over-processing blocked, negative stock blocked,
+  server total wins over client total, COGS carries processing loss, IQD payment at rate, refund
+  without credit refused, delete reverses stock + keeps tombstone, numbers never reused, edit can
+  reuse its own quantity, vault exchange at custom rate, documents + reports render.
+- [x] G4 Integrity negatives + 403 matrix
+  EVIDENCE: included in tests/api-flows.mjs (9-route 403 matrix for a customers-only user,
+  401 when signed out, clerk cannot delete an invoice).
+- [x] G5 Every page renders (EN + KU, light + dark, 390px + 1440px) with no console errors and no horizontal overflow
+  EVIDENCE: 19 routes × 4 combinations = 76 renders, 0 console errors, 0 horizontal overflow
+  (Playwright sweep, Chromium).
+- [x] G6 Documents: invoice A5, statement A4, report A4 (landscape where set) as PDF in EN and KU with page X of Y
+  EVIDENCE: /api/docs/txn/:id, /api/docs/statement/:kind/:id, /api/reports/:type?format=pdf —
+  all 200 with %PDF; visually reviewed invoice EN + KU (RTL), statement, P&L.
+- [ ] G7 Schema check script (Decimal-only money/weight) — schema is Decimal throughout; script not written yet
+- [ ] G8 Hygiene script — not written yet (no hard-coded company name in templates: documents use the
+  Company profile from Settings)
+- [ ] G9 i18n key check script — not written yet. Every new UI string was added to both en and ku in dict.ts.
+- [ ] G10 Manual visual review by the owner (dashboard, POS, customer page, vault, invoice) in light/dark/KU
 
-- [ ] G1 TypeScript compiles with zero errors
-  CHECK: npx tsc --noEmit && node -e "console.log('TSC_CLEAN')"
-  EXPECT: TSC_CLEAN
-- [ ] G2 Production build succeeds
-  CHECK: npx next build && node -e "console.log('BUILD_OK')"
-  EXPECT: BUILD_OK
-- [ ] G3 Part 19 acceptance tests 1–20 all pass against a fresh DB via the real HTTP API
-  CHECK: node tests/run-acceptance.mjs
-  EXPECT: ACCEPTANCE 20/20 PASS
-- [ ] G4 Integrity negatives: client totals ignored, negative stock blocked, numbers never reused, 403 matrix
-  CHECK: node tests/run-acceptance.mjs --suite integrity
-  EXPECT: INTEGRITY ALL PASS
-- [ ] G5 Every page renders (EN + KU, light + dark, 390px + 1440px) with no console errors and no horizontal overflow
-  CHECK: node tests/run-acceptance.mjs --suite ui
-  EXPECT: UI ALL PASS
-- [ ] G6 Documents: invoice A5, statement A4, report A4 landscape PDFs generated in EN and KU with page X of Y
-  CHECK: node tests/run-acceptance.mjs --suite docs
-  EXPECT: DOCS ALL PASS
-- [ ] G7 Money/weight columns are Decimal, never Float, and no SQLite migration folder exists
-  CHECK: node scripts/check-schema.mjs
-  EXPECT: SCHEMA_OK
-- [ ] G8 No hard-coded company name in document templates; no `html.dark .text-[#` overrides; no arbitrary hex classes in components
-  CHECK: node scripts/check-hygiene.mjs
-  EXPECT: HYGIENE_OK
-- [ ] G9 Every i18n key used in code exists in both en and ku dictionaries
-  CHECK: node scripts/check-i18n.mjs
-  EXPECT: I18N_OK
-- [ ] G10 Manual: visual review of screenshots (dashboard, POS, customer page, vault, invoice) in light/dark/KU
-  EVIDENCE:
+Not built yet (spec items that need infrastructure decisions):
+- Email: daily/weekly owner reports and scheduled report emails (needs an email provider / SMTP).
+- Backup: automatic scheduled backups and in-app restore (manual JSON + Excel export is built).

@@ -5,7 +5,7 @@ import { D, Dec, round4 } from '@/lib/money';
 import { dbToIso } from '@/lib/dates';
 import { notFound } from '../errors';
 import { getSettings } from '../common';
-import { sql, where, like, n, s, type Sql } from './sql';
+import { sql, join, where, like, n, s, type Sql } from './sql';
 
 export type StockStatus = 'in' | 'low' | 'out';
 
@@ -27,6 +27,7 @@ export async function listInventory(p: {
   size: number;
   offset: number;
   onlyInStock?: boolean;
+  ids?: string[];
 }) {
   const settings = await getSettings();
   const globalLow = D(settings.lowStockKg).toString();
@@ -38,6 +39,7 @@ export async function listInventory(p: {
     p.typeId ? sql`p."typeId" = ${p.typeId}` : null,
     p.status === 'in' || p.status === 'low' || p.status === 'out' ? sql`${statusExpr} = ${p.status}` : null,
     p.onlyInStock ? sql`${total} > 0` : null,
+    p.ids?.length ? sql`p.id IN (${join(p.ids)})` : null,
   ];
   const order =
     p.sort === 'sku'
@@ -106,7 +108,8 @@ export async function lookupProducts(q: string, opts: { inStockOnly?: boolean; l
     dir: 'asc',
     size: opts.limit ?? 30,
     offset: 0,
-    onlyInStock: opts.inStockOnly,
+    onlyInStock: opts.inStockOnly && !opts.ids?.length,
+    ids: opts.ids,
   });
   return res.rows;
 }

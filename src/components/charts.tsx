@@ -278,7 +278,7 @@ export function LineChart({
           <path d={area} fill="var(--chart-series)" fillOpacity={0.1} />
           <path d={line} fill="none" stroke="var(--chart-series)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
           {data.map((d, i) =>
-            i % every === 0 || i === last ? (
+            (i % every === 0 && last - i >= every * 0.6) || i === last ? (
               <text key={d.key} x={xAt(i)} y={height - 8} textAnchor="middle" className="fill-muted text-[11px]">
                 {d.label}
               </text>

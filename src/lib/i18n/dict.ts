@@ -718,6 +718,25 @@ export const dict = {
   'audit.export': ['Export', 'هەناردە'],
   'audit.settings': ['Settings change', 'گۆڕینی ڕێکخستن'],
   'audit.mismatch': ['Total mismatch corrected', 'ناکۆکی کۆی گشتی ڕاستکرایەوە'],
+
+  // Added in the UI build
+  'pos.payFull': ['Paid in full', 'هەمووی دراوە'],
+  'pur.beneficiary': ['Beneficiary', 'دابینکەر'],
+  'doc.amountDue': ['Amount due', 'بڕی ماوە'],
+  'doc.overpaid': ['Overpaid', 'زیادە دراو'],
+  'doc.period': ['Period', 'ماوە'],
+  'doc.totalDebit': ['Total debits', 'کۆی قەرز'],
+  'doc.totalCredit': ['Total credits', 'کۆی پێدراو'],
+  'set.demoInUse': ['{n} real transactions use demo customers, beneficiaries or products, so demo data can’t be removed. Delete or change those transactions first.', '{n} مامەڵەی ڕاستەقینە کڕیار، دابینکەر یان بەرهەمی نموونە بەکاردەهێنن، بۆیە زانیاری نموونە لاناچێت. سەرەتا ئەو مامەڵانە بسڕەوە یان بیگۆڕە.'],
+  'set.section': ['Settings section', 'بەشی ڕێکخستنەکان'],
+  'set.typeInUse': ['{n} products', '{n} بەرهەم'],
+  'set.productThresholdDefault': ['Default ({kg})', 'بنەڕەت ({kg})'],
+  'set.auditDetails': ['Before and after', 'پێش و دوای'],
+  'set.lastLoginNever': ['Never signed in', 'هەرگیز نەچووەتە ژوورەوە'],
+  'set.userInactive': ['Inactive users can’t sign in.', 'بەکارهێنەری ناچالاک ناتوانێت بچێتە ژوورەوە.'],
+  'set.allAccess': ['Full access', 'دەسەڵاتی تەواو'],
+  'set.pagesCount': ['{n} pages', '{n} پەڕە'],
+  'set.backupNote': ['Keep the JSON file somewhere safe — it is a complete backup of every record.', 'فایلی JSON لە شوێنێکی پارێزراو هەڵبگرە — پاشەکەوتێکی تەواوی هەموو تۆمارەکانە.'],
 } as const satisfies Record<string, readonly [string, string]>;
 
 export type DictKey = keyof typeof dict;

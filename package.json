@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "db:push": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
-    "test:acceptance": "tsx tests/acceptance.ts"
+    "test:acceptance": "tsx tests/acceptance.ts",
+    "db:demo": "tsx --conditions=react-server prisma/demo.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
