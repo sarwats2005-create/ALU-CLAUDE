@@ -2,17 +2,21 @@
   "name": "alu-factory",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "db:start": "node scripts/local-db.mjs",
     "dev": "next dev --turbopack -p 3000",
     "dev:webpack": "next dev -p 3000",
     "build": "prisma generate && next build",
-    "start": "next start -p 3000",
+    "start": "next start",
     "typecheck": "tsc --noEmit",
     "db:push": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "test:acceptance": "tsx tests/acceptance.ts",
-    "db:demo": "tsx --conditions=react-server prisma/demo.ts"
+    "db:demo": "tsx --conditions=react-server prisma/demo.ts",
+    "db:deploy": "node scripts/migrate.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -28,10 +32,12 @@
     "exceljs": "^4.4.0",
     "lucide-react": "^1.49.0",
     "next": "^15.5.27",
+    "prisma": "^6.19.3",
     "puppeteer-core": "^25.12.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "server-only": "^0.0.1",
+    "tsx": "^4.23.15",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -42,9 +48,7 @@
     "@types/react-dom": "^19.3.0",
     "embedded-postgres": "^17.10.0-beta.17",
     "pg": "^8.23.1",
-    "prisma": "^6.19.3",
     "tailwindcss": "^4.3.3",
-    "tsx": "^4.23.15",
     "typescript": "^5.9.3"
   },
   "allowScripts": {

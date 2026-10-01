@@ -1,0 +1,11 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "buildAptPackages": ["openssl"],
+  "deploy": {
+    "aptPackages": ["chromium", "openssl", "ca-certificates", "fonts-dejavu-core"],
+    "variables": {
+      "CHROME_PATH": "/usr/bin/chromium",
+      "NEXT_TELEMETRY_DISABLED": "1"
+    }
+  }
+}

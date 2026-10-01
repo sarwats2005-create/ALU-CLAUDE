@@ -1,53 +1,41 @@
-# Deploying alu-factory to Railway with Neon
+# Deploying ALU FACTORY on Railway + Neon (no Docker)
 
-The repo ships a production [Dockerfile](../Dockerfile) (Node 22 + Chromium + Noto fonts, non-root) and
-Railway config ([railway.json](../railway.json)). Deployment is `railway up` — no other tooling needed.
+Railway builds this repo with **Railpack** (its default builder) — no Dockerfile is used.
+
+| File | What it does |
+|---|---|
+| `railway.json` | Builder = RAILPACK, start command, health check `/api/health`, restart on failure |
+| `railpack.json` | Adds Chromium + fonts to the runtime image (PDF invoices/statements/reports) and sets `CHROME_PATH` |
+| `package.json` | `engines.node = 22.x`; `build` = `prisma generate && next build`; `start` = `next start` (listens on Railway's `PORT`) |
+| `scripts/migrate.mjs` | `npm run db:deploy`: runs `prisma migrate deploy` over Neon's **direct** connection, then the idempotent seed |
 
 ## One-time setup
 
-1. **Link Railway** (in the repo root):
-   ```bash
-   npm i -g @railway/cli@latest && railway login
-   railway init            # or: railway link  (pick an existing project)
-   ```
-2. **Set the Neon variable** on the service:
-   ```bash
-   railway variables --set "DATABASE_URL=<pooled connection string from .env>"
-   ```
-   Copy the **pooled** `DATABASE_URL` from this repo's `.env` (it has `-pooler` in the host). Note the Docker
-   **build** uses a placeholder `DATABASE_URL` (set inside the Dockerfile) because `prisma generate` validates the
-   schema at build time; the real variable is only needed at **runtime**, and the container start command reads it
-   from Railway. Never set `INSECURE_COOKIES=1` in production; secure cookies are automatic under `NODE_ENV=production`.
-3. **Deploy**:
-   ```bash
-   railway up
-   ```
+1. **Neon** — use the project's `production` branch. Copy the **pooled** connection string
+   (host contains `-pooler`, ends with `?sslmode=require`). Region: Frankfurt (`eu-central-1`).
+2. **Railway** → New Project → *Deploy from GitHub repo* → pick this repository.
+3. Service → **Settings → Region**: *EU West (Amsterdam)* — closest to Neon Frankfurt.
+4. Service → **Variables**:
+   - `DATABASE_URL` = the Neon pooled string (required)
+   - `DIRECT_URL` = Neon's direct (non-pooler) string — optional; if unset it is derived by removing `-pooler` from the host
+5. Service → **Settings → Networking → Generate Domain**.
+6. Deploy. Each deploy: `npm ci` → `npm run build` → start = `npm run db:deploy && npm start`
+   (migrations + seed, then the app). The deploy goes live once `/api/health` returns 200.
 
-## What happens on every deploy
+## Every update
 
-The container start command (`railway.json`) runs, in order:
+Commit and push to the connected branch — Railway rebuilds and redeploys automatically.
+New Prisma migrations are applied on start; nothing to run by hand.
 
-1. `npx prisma migrate deploy` — applies pending migrations to the Neon **production** branch (idempotent).
-2. `npx tsx prisma/seed.ts` — idempotent seed: settings row, company profile, the 5 aluminum types.
-3. `npx next start -p ${PORT}` — serves on Railway's `PORT` (healthchecked at `/api/health`).
+## Checks
 
-The healthcheck ([src/app/api/health/route.ts](../src/app/api/health/route.ts)) pings Neon with `SELECT 1`;
-Railway keeps the deploy in "waiting" until it returns 200, then switches traffic.
+- `https://<your-domain>/api/health` → `{"ok":true,"db":true}`
+- Build logs show `[db:deploy] migrating via ep-….eu-central-1.aws.neon.tech` (no `-pooler`)
+- Print an invoice PDF once to confirm Chromium works
 
-## PDF rendering (invoices/statements/reports)
+## Troubleshooting
 
-The image installs Debian's `chromium` and Noto fonts (Arabic-script for Kurdish Sorani + Latin + CJK fallbacks).
-[src/lib/server/docs/pdf.ts](../src/lib/server/docs/pdf.ts) finds it via `CHROME_PATH=/usr/bin/chromium` (set in
-the Dockerfile) and launches with `--no-sandbox`, which is correct for a container. Documents embed their fonts,
-so rendering is identical to local.
-
-## Notes
-
-- **Scale to zero / restarts**: Railway restarts the container on failure (see `restartPolicyType`). Migrate +
-  seed re-run harmlessly on every boot.
-- **Multiple replicas**: keep `numReplicas = 1` unless you verify the document counters and stock logic against
-  concurrent writers — they're transaction-safe but were validated single-instance.
-- **Migrations from your machine**: if you prefer to migrate manually instead of on boot, remove the migrate
-  step from the start command and run `DATABASE_URL=<unpooled string> npx prisma migrate deploy` locally.
-- **Costs**: one Railway service + Neon's free plan covers this workload; Railway bills by usage, so check the
-  usage page after the first deploy.
+- **Health check fails / 503** — `DATABASE_URL` missing or wrong; check the variable and that `sslmode=require` is present.
+- **Migration hangs or fails with advisory-lock errors** — it is going through the pooler; set `DIRECT_URL` explicitly.
+- **PDF error "Chrome not found"** — confirm `railpack.json` is in the repo root and redeploy (it installs `chromium`).
+- Secure cookies are automatic in production (`NODE_ENV=production`), so always use the HTTPS Railway domain.
