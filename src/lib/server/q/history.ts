@@ -30,6 +30,8 @@ export type TxnRow = {
   unitPrice: string;
   label: string;
   isDemo: boolean;
+  createdAt: string;
+  createdByName: string;
 };
 
 export type HistoryFilters = {
@@ -44,9 +46,13 @@ export type HistoryFilters = {
   customerId?: string;
   beneficiaryId?: string;
   kinds?: TxnKind[];
+  /** Created at or after this moment (still inside the invoice edit window). */
+  createdFrom?: Date;
+  /** Created before this moment (edit window over). */
+  createdBefore?: Date;
 };
 
-export const HISTORY_SORT = ['number', 'date', 'kind', 'party', 'total', 'currency', 'vault', 'kg'];
+export const HISTORY_SORT = ['number', 'date', 'kind', 'party', 'total', 'currency', 'vault', 'kg', 'created'];
 
 export function historyWhere(f: HistoryFilters): Sql {
   const conds: (Sql | null)[] = [sql`t."deletedAt" IS NULL`];
@@ -62,6 +68,8 @@ export function historyWhere(f: HistoryFilters): Sql {
                     OR EXISTS (SELECT 1 FROM "Product" p WHERE p.id = t."productId" AND p."typeId" = ${f.typeId}))`);
   if (isValidIsoDate(f.from)) conds.push(sql`t.date >= ${f.from}::date`);
   if (isValidIsoDate(f.to)) conds.push(sql`t.date <= ${f.to}::date`);
+  if (f.createdFrom) conds.push(sql`t."createdAt" >= ${f.createdFrom}`);
+  if (f.createdBefore) conds.push(sql`t."createdAt" < ${f.createdBefore}`);
   const q = (f.q ?? '').trim();
   if (q) {
     const L = like(q);
@@ -95,7 +103,7 @@ const FROM = sql`
 const SELECT = sql`
   SELECT t.id, t.number, t.date, t.kind, t."customerId", t."beneficiaryId", c.name AS cname, b.name AS bname,
          t.currency, t.total, t."totalUsd", t."cashPaid", t.vault, t."vaultAmount", t."toVault", t."toAmount", t.rate,
-         t.label, t."isDemo", t."inputKg", t."outputKg", t."createdAt",
+         t.label, t."isDemo", t."inputKg", t."outputKg", t."createdAt", t."createdByName",
          lx.products, lx.skus, lx.types, lx.kg, lx.price_min, lx.price_max,
          pp.name AS proc_name, pp.sku AS proc_sku, pty.name AS proc_type`;
 
@@ -143,6 +151,8 @@ export function mapTxnRow(r: Record<string, unknown>): TxnRow {
     unitPrice: r.price_min !== null && r.price_min !== undefined && s(r.price_min) === s(r.price_max) ? s(r.price_min) : '',
     label: String(r.label ?? ''),
     isDemo: !!r.isDemo,
+    createdAt: (r.createdAt as Date).toISOString(),
+    createdByName: String(r.createdByName ?? ''),
   };
 }
 
@@ -163,7 +173,9 @@ export async function listHistory(f: HistoryFilters, p: { sort: string; dir: 'as
                 ? sql`t.vault ${dir} NULLS LAST, t.date DESC`
                 : p.sort === 'kg'
                   ? sql`COALESCE(lx.kg, t."inputKg", 0) ${dir}`
-                  : sql`t.date ${dir}, t."createdAt" ${dir}`;
+                  : p.sort === 'created'
+                    ? sql`t."createdAt" ${dir}`
+                    : sql`t.date ${dir}, t."createdAt" ${dir}`;
   const w = historyWhere(f);
   const [rows, count] = await Promise.all([
     prisma.$queryRaw<Record<string, unknown>[]>`${SELECT} ${FROM} ${LATERALS} ${w} ORDER BY ${order}, t.id DESC LIMIT ${p.size} OFFSET ${p.offset}`,

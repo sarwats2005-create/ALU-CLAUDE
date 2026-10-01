@@ -71,7 +71,22 @@ export function fmtPrice(v: DecLike, cur: Cur = 'USD'): string {
 export const fmtKg = (v: DecLike): string => `${NFKG.format(Number(D(v).toDecimalPlaces(3).toString()))} kg`;
 export const fmtKgPlain = (v: DecLike): string => NF2.format(Number(D(v).toDecimalPlaces(2).toString()));
 export const fmtNum = (v: DecLike, dp = 2): string => nf(dp, dp).format(Number(D(v).toDecimalPlaces(dp).toString()));
-export const fmtRate = (v: DecLike): string => nf(0, 4).format(Number(D(v).toString()));
+/**
+ * Exchange rates are STORED per 1 USD (so every conversion stays exact and unchanged) but SHOWN and
+ * TYPED per 100 USD, e.g. "100 USD = 148,000 IQD". Convert at the edges with these helpers.
+ */
+export const RATE_UNIT = 100;
+/** Stored rate → the per-100 figure for an input box. */
+export const rateToDisplay = (v: DecLike): string => D(v).times(RATE_UNIT).toDecimalPlaces(2).toString();
+/** Typed per-100 figure → the per-1 rate the server stores. Unparseable input is passed through for validation. */
+export const rateFromDisplay = (v: string): string => {
+  const d = parseDec(v);
+  return d ? d.div(RATE_UNIT).toString() : v;
+};
+/** Stored rate → "148,000" (the IQD amount for 100 USD). */
+export const fmtRate = (v: DecLike): string => nf(0, 2).format(Number(D(v).times(RATE_UNIT).toDecimalPlaces(2).toString()));
+/** Stored rate → "100 USD = 148,000 IQD". */
+export const rateLine = (v: DecLike): string => `${RATE_UNIT} USD = ${fmtRate(v)} IQD`;
 export const fmtPct = (v: DecLike): string => `${NF2.format(Number(D(v).toDecimalPlaces(2).toString()))}%`;
 
 /** Decimal → JSON-safe string. */

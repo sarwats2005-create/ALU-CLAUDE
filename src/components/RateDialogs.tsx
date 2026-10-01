@@ -4,7 +4,7 @@ import { useApp } from '@/lib/client/app-context';
 import { api } from '@/lib/client/api';
 import { useRemote } from '@/lib/client/use-remote';
 import { fmtDateTime } from '@/lib/dates';
-import { D, fmtRate } from '@/lib/money';
+import { D, fmtRate, rateFromDisplay, rateLine, rateToDisplay } from '@/lib/money';
 import { cx } from '@/lib/cx';
 import { Dialog } from './Dialog';
 import { Button, Field, Input, Skeleton } from './ui';
@@ -14,12 +14,12 @@ import { useToast } from './Toast';
 export function RateEditDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t, rate, setRate, bump } = useApp();
   const toast = useToast();
-  const [value, setValue] = useState(rate);
+  const [value, setValue] = useState(rateToDisplay(rate));
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (open) {
-      setValue(rate);
+      setValue(rateToDisplay(rate));
       setError(undefined);
     }
   }, [open, rate]);
@@ -27,13 +27,13 @@ export function RateEditDialog({ open, onClose }: { open: boolean; onClose: () =
   async function save(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
-    const res = await api<{ rate: string }>('/api/settings', { method: 'PUT', body: { exchangeRate: value } });
+    const res = await api<{ rate: string }>('/api/settings', { method: 'PUT', body: { exchangeRate: rateFromDisplay(value) } });
     setBusy(false);
     if (!res.ok) return setError(res.fieldErrors?.rate ?? res.error);
     setRate(res.data.rate);
     bump();
     onClose();
-    toast.success(t('toast.rateUpdated', { rate: fmtRate(res.data.rate) }));
+    toast.success(t('toast.rateUpdated', { rate: rateLine(res.data.rate) }));
   }
 
   return (
@@ -57,7 +57,7 @@ export function RateEditDialog({ open, onClose }: { open: boolean; onClose: () =
       <form id="rate-edit-form" onSubmit={save} noValidate>
         <Field label={t('vault.newRate')} htmlFor="rate-edit" error={error} required>
           <div className="flex items-center gap-2">
-            <span className="num shrink-0 text-body text-muted">1 USD =</span>
+            <span className="num shrink-0 text-body text-muted">100 USD =</span>
             <Input id="rate-edit" numeric value={value} onChange={(e) => setValue(e.target.value)} invalid={!!error} data-autofocus />
             <span className="shrink-0 text-body text-muted">IQD</span>
           </div>

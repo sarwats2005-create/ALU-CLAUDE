@@ -1,5 +1,5 @@
 // Extensible permission model: page keys + action keys, stored as strings on the user.
-export const PAGES = ['dashboard', 'customers', 'beneficiaries', 'inventory', 'pos', 'vault', 'reports', 'settings'] as const;
+export const PAGES = ['dashboard', 'customers', 'beneficiaries', 'inventory', 'pos', 'invoices', 'vault', 'reports', 'settings'] as const;
 export type Page = (typeof PAGES)[number];
 
 export const ACTIONS = ['canEditExchangeRate'] as const;
@@ -35,6 +35,7 @@ export const PAGE_HREF: Record<Page, string> = {
   beneficiaries: '/beneficiaries',
   inventory: '/inventory',
   pos: '/pos',
+  invoices: '/invoices',
   vault: '/vault',
   reports: '/reports',
   settings: '/settings',

@@ -8,14 +8,17 @@ import { api } from '@/lib/client/api';
 import { downloadFile, printDocument } from '@/lib/client/print';
 import { conversionText } from '@/lib/conversion';
 import { fmtDate, fmtDateTime } from '@/lib/dates';
-import { D, fmtCost, fmtKg, fmtMoney, fmtPct, fmtPrice, fmtRate } from '@/lib/money';
+import { D, fmtCost, fmtKg, fmtMoney, fmtPct, fmtPrice, rateLine } from '@/lib/money';
 import { KIND_PAGE, editHref, type Kind } from '@/lib/kinds';
 import { cx } from '@/lib/cx';
+import { isInvoiceKind, isLocked, remaining } from '@/lib/lock';
+import { removeInvoiceFile } from '@/lib/client/invoice-folder';
 import { Dialog } from './Dialog';
 import { Badge, Button, Skeleton } from './ui';
 import { useToast } from './Toast';
 
-type Ctx = { open: (id: string) => void };
+type OpenOpts = { confirmDelete?: boolean };
+type Ctx = { open: (id: string, opts?: OpenOpts) => void };
 const PanelCtx = createContext<Ctx>({ open: () => {} });
 export const useTxnPanel = () => useContext(PanelCtx);
 
@@ -29,10 +32,11 @@ export function TxnPanelProvider({ children }: { children: ReactNode }) {
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState<'delete' | 'print' | 'pdf' | null>(null);
 
-  const open = useCallback(async (txnId: string) => {
+  const open = useCallback(async (txnId: string, opts: OpenOpts = {}) => {
     setId(txnId);
     setData(null);
     setError(null);
+    setConfirm(!!opts.confirmDelete);
     const res = await api<TxnDetail>(`/api/txns/${txnId}`);
     if (res.ok) setData(res.data);
     else setError(res.error);
@@ -44,7 +48,8 @@ export function TxnPanelProvider({ children }: { children: ReactNode }) {
   };
 
   const kind = data?.kind as Kind | undefined;
-  const mayEdit = !!kind && can(KIND_PAGE[kind]) && !data?.deletedAt;
+  // Sale and purchase invoices lock 24 hours after creation (the server refuses changes after that too).
+  const mayEdit = !!kind && can(KIND_PAGE[kind]) && !data?.deletedAt && !isLocked(kind, data!.createdAt);
   const partyId = data?.customer?.id ?? data?.beneficiary?.id ?? null;
 
   async function doDelete() {
@@ -58,6 +63,7 @@ export function TxnPanelProvider({ children }: { children: ReactNode }) {
       return;
     }
     toast.success(t('toast.deleted'));
+    if (isInvoiceKind(data.kind)) void removeInvoiceFile(data.id, data.number);
     window.dispatchEvent(new CustomEvent('alu:txn-deleted', { detail: { id: data.id } }));
     close();
     bump();
@@ -154,6 +160,16 @@ export function TxnPanelProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** Edit-window note for invoices: time left to edit/delete, or locked. */
+export function LockNote({ kind, createdAt }: { kind: string; createdAt: string }) {
+  const { t } = useApp();
+  if (!isInvoiceKind(kind)) return null;
+  const left = remaining(kind, createdAt);
+  if (!left) return <span className="text-meta text-muted">{t('invc.lockNote')}</span>;
+  const time = left.h ? t('invc.hm', { h: left.h, m: left.m }) : t('invc.m', { m: left.m });
+  return <span className="text-meta text-muted">{t('invc.openNote', { time })}</span>;
+}
+
 function PanelSkeleton() {
   return (
     <div className="flex flex-col gap-3" aria-busy="true">
@@ -189,6 +205,7 @@ export function TxnBody({ d }: { d: TxnDetail }) {
       <div className="flex flex-wrap items-center gap-2">
         {d.deletedAt ? <Badge tone="danger">{t('status.deleted')}</Badge> : <Badge tone="brand">{t('status.recorded')}</Badge>}
         {d.isDemo ? <Badge tone="brand">{t('app.demo')}</Badge> : null}
+        {!d.deletedAt ? <LockNote kind={kind} createdAt={d.createdAt} /> : null}
       </div>
 
       {party ? (
@@ -287,7 +304,7 @@ export function TxnBody({ d }: { d: TxnDetail }) {
             </div>
           ) : null}
           <Row label={t('detail.rateSnapshot')}>
-            <span className="num">1 USD = {fmtRate(d.rate)} IQD</span>
+            <span className="num">{rateLine(d.rate)}</span>
           </Row>
           {cur === 'IQD' ? (
             <Row label={t('common.usdEquivalent')}>

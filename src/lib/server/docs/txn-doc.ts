@@ -3,7 +3,7 @@ import { t, type Lang } from '@/lib/i18n';
 import { balanceLabel } from '@/lib/format';
 import { conversionText } from '@/lib/conversion';
 import { fmtDate } from '@/lib/dates';
-import { D, fmtCost, fmtKg, fmtMoney, fmtPct, fmtPrice, fmtRate, type Cur } from '@/lib/money';
+import { D, fmtCost, fmtKg, fmtMoney, fmtPct, fmtPrice, rateLine, type Cur } from '@/lib/money';
 import { docKindOf, type Kind } from '@/lib/kinds';
 import { getCompany } from '../common';
 import { txnDetail } from '../q/history';
@@ -42,7 +42,7 @@ export async function txnDocument(id: string, lang: Lang) {
       </div>
       <div class="box"><p class="lbl">${esc(L('common.currency'))} · ${esc(L('doc.vaultUsed'))}</p>
         <div class="val">${esc(L(`cur.${cur}`))}${d.vault ? ` · ${esc(L(`vault.${d.vault}` as 'vault.USD'))}` : ''}</div>
-        <div class="s m">${esc(L('doc.rateApplied'))}: ${num(`1 USD = ${fmtRate(d.rate)} IQD`)}</div>
+        <div class="s m">${esc(L('doc.rateApplied'))}: ${num(rateLine(d.rate))}</div>
       </div>
     </section>`);
   }
@@ -86,7 +86,7 @@ export async function txnDocument(id: string, lang: Lang) {
             : ''
       }
     </section>
-    <p class="s m block">${esc(L('doc.rateApplied'))}: ${num(`1 USD = ${fmtRate(d.rate)} IQD`)}</p>`);
+    <p class="s m block">${esc(L('doc.rateApplied'))}: ${num(rateLine(d.rate))}</p>`);
   }
 
   if (kind === 'PROCESSING' && d.product) {

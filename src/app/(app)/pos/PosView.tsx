@@ -19,6 +19,7 @@ import { DateInput } from '@/components/DateInput';
 import { EditingBanner, Dialog } from '@/components/Dialog';
 import { PartyFormDialog } from '@/components/PartyForm';
 import { useToast } from '@/components/Toast';
+import { useInvoiceAutoSave } from '@/components/useInvoiceAutoSave';
 
 type Product = Awaited<ReturnType<typeof lookupProducts>>[number];
 type Customer = { id: string; name: string; phone: string; balance: string; isDemo?: boolean };
@@ -32,6 +33,7 @@ const stockOf = (p: Product | undefined, s: State) => D(s === 'RAW' ? p?.rawKg :
 export function PosView({ edit, customerId }: { edit: TxnDetail | null; customerId: string | null }) {
   const { t, lang, rate: liveRate, bump } = useApp();
   const toast = useToast();
+  const saveToFolder = useInvoiceAutoSave();
   const router = useRouter();
   const seq = useRef(1);
   const newLine = (): Line => ({ key: seq.current++, product: null, state: 'FINISHED', kg: '', price: '' });
@@ -158,6 +160,7 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
     }
     bump();
     toast.success(edit ? t('toast.updated') : t('toast.saleRecorded', { number: res.data.number }));
+    saveToFolder(res.data.id, res.data.number);
     setDone({ ...res.data, updated: !!edit });
   }
 

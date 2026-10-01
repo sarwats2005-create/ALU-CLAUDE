@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { ArrowLeftRight, Pencil } from 'lucide-react';
 import { useApp } from '@/lib/client/app-context';
 import { api } from '@/lib/client/api';
-import { fmtRate } from '@/lib/money';
+import { fmtRate, rateFromDisplay, rateLine, rateToDisplay } from '@/lib/money';
 import { Dialog } from './Dialog';
 import { Button, Field, Input } from './ui';
 import { useToast } from './Toast';
@@ -19,7 +19,7 @@ export function ExchangeRateFab() {
   const [busy, setBusy] = useState(false);
 
   function openDialog() {
-    setValue(rate);
+    setValue(rateToDisplay(rate));
     setError(undefined);
     setOpen(true);
   }
@@ -28,7 +28,7 @@ export function ExchangeRateFab() {
     e.preventDefault();
     setBusy(true);
     setError(undefined);
-    const res = await api<{ rate: string }>('/api/settings', { method: 'PUT', body: { exchangeRate: value } });
+    const res = await api<{ rate: string }>('/api/settings', { method: 'PUT', body: { exchangeRate: rateFromDisplay(value) } });
     setBusy(false);
     if (!res.ok) {
       setError(res.fieldErrors?.rate ?? res.error);
@@ -37,7 +37,7 @@ export function ExchangeRateFab() {
     setRate(res.data.rate);
     bump();
     setOpen(false);
-    toast.success(t('toast.rateUpdated', { rate: fmtRate(res.data.rate) }));
+    toast.success(t('toast.rateUpdated', { rate: rateLine(res.data.rate) }));
   }
 
   return (
@@ -51,19 +51,19 @@ export function ExchangeRateFab() {
         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-on-brand">
           <ArrowLeftRight className="h-3.5 w-3.5" aria-hidden="true" />
         </span>
-        <span className="num">1 USD = {fmtRate(rate)} IQD</span>
+        <span className="num">{rateLine(rate)}</span>
       </button>
 
       <Dialog open={open} onClose={() => setOpen(false)} title={t('vault.editRateTitle')} description={t('vault.rateHint')} size="sm">
         <form id="rate-form" onSubmit={save} noValidate className="flex flex-col gap-4">
           <div className="rounded-ctl bg-tint px-4 py-3">
             <p className="text-caption text-muted">{t('set.rateCurrent')}</p>
-            <p className="num mt-0.5 text-heading font-bold text-ink">1 USD = {fmtRate(rate)} IQD</p>
+            <p className="num mt-0.5 text-heading font-bold text-ink">{rateLine(rate)}</p>
           </div>
           {canEdit ? (
             <Field label={t('vault.newRate')} htmlFor="fab-rate" error={error} required>
               <div className="flex items-center gap-2">
-                <span className="num shrink-0 text-body text-muted">1 USD =</span>
+                <span className="num shrink-0 text-body text-muted">100 USD =</span>
                 <Input id="fab-rate" numeric value={value} onChange={(e) => setValue(e.target.value)} invalid={!!error} />
                 <span className="shrink-0 text-body text-muted">IQD</span>
               </div>

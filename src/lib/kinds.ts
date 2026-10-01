@@ -47,6 +47,7 @@ export function viewPages(kind: Kind): Page[] {
   if (kind.startsWith('CUSTOMER')) extra.push('customers');
   if (kind === 'PURCHASE' || kind.startsWith('BENEFICIARY')) extra.push('beneficiaries', 'inventory');
   if (kind === 'PROCESSING') extra.push('inventory');
+  if (kind === 'SALE' || kind === 'PURCHASE') extra.push('invoices');
   extra.push('vault');
   return [...new Set([own, ...extra])];
 }

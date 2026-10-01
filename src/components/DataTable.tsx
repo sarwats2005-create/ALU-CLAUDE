@@ -14,6 +14,8 @@ export type Column<R> = {
   align?: 'start' | 'end';
   render: (r: R) => ReactNode;
   className?: string;
+  /** Classes for both the header and the cells, e.g. to hide a column on narrower screens. */
+  colClassName?: string;
 };
 
 /** List state shared by every paginated table: search, sort, page, page size and extra filters. */
@@ -137,7 +139,7 @@ export function DataTable<R extends { id: string | number }>({
                     key={c.key}
                     scope="col"
                     aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : undefined}
-                    className={cx('py-2.5 font-semibold whitespace-nowrap', pad, c.align === 'end' ? 'text-end' : 'text-start')}
+                    className={cx('py-2.5 font-semibold whitespace-nowrap', pad, c.align === 'end' ? 'text-end' : 'text-start', c.colClassName)}
                   >
                     {c.sortable && onSort ? (
                       <button
@@ -173,7 +175,7 @@ export function DataTable<R extends { id: string | number }>({
                 {columns.map((c, i) => {
                   const pad = i === 0 ? 'ps-5 pe-3' : i === columns.length - 1 ? 'ps-3 pe-5' : 'px-3';
                   return (
-                    <td key={c.key} className={cx('py-3 align-middle', pad, c.align === 'end' ? 'text-end' : 'text-start', c.className)}>
+                    <td key={c.key} className={cx('py-3 align-middle', pad, c.align === 'end' ? 'text-end' : 'text-start', c.className, c.colClassName)}>
                       {c.render(r)}
                     </td>
                   );

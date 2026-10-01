@@ -1,7 +1,7 @@
 import 'server-only';
 import bcrypt from 'bcryptjs';
 import { prisma, withTx } from '@/lib/db';
-import { D, parseDec, round3, round4 } from '@/lib/money';
+import { D, parseDec, rateLine, round3, round4 } from '@/lib/money';
 import { sanitizePermissions } from '@/lib/permissions';
 import { parseLang } from '@/lib/i18n';
 import { AppError, Validator, conflict, fieldError, notFound } from './errors';
@@ -171,7 +171,7 @@ export async function updateRate(rateInput: unknown, actor: Actor) {
     if (oldRate.eq(newRate)) return { rate: newRate.toString() };
     await tx.appSettings.update({ where: { id: 1 }, data: { exchangeRate: newRate.toString() } });
     await tx.exchangeRateLog.create({ data: { oldRate: oldRate.toString(), newRate: newRate.toString(), userId: actor.id, userName: actor.name } });
-    await audit({ user: actor, action: 'rate', module: 'settings', reference: `1 USD = ${newRate.toString()} IQD`, before: { rate: oldRate.toString() }, after: { rate: newRate.toString() } }, tx);
+    await audit({ user: actor, action: 'rate', module: 'settings', reference: rateLine(newRate), before: { rate: oldRate.toString() }, after: { rate: newRate.toString() } }, tx);
     return { rate: newRate.toString() };
   });
 }

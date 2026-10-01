@@ -8,7 +8,7 @@ import { useApp } from '@/lib/client/app-context';
 import { api } from '@/lib/client/api';
 import { useRemote } from '@/lib/client/use-remote';
 import { fmtDate, localTodayIso } from '@/lib/dates';
-import { D, Dec, convert, fmtMoney, fmtRate, parseDec, roundMoney, type Cur } from '@/lib/money';
+import { D, Dec, convert, fmtMoney, fmtRate, parseDec, rateFromDisplay, rateToDisplay, roundMoney, type Cur } from '@/lib/money';
 import { cx } from '@/lib/cx';
 import { Badge, Button, Card, Field, Input, PageHeader, Segmented, Select, Skeleton, Textarea } from '@/components/ui';
 import { DataTable, Pager, SearchBox, useListState, type Column } from '@/components/DataTable';
@@ -241,7 +241,8 @@ function VaultOpDialog({ kind, edit, balances, onClose }: { kind: OpKind; edit?:
   const [vault, setVault] = useState<Cur>((edit?.vault as Cur) ?? 'USD');
   const [toVault, setToVault] = useState<Cur>((edit?.toVault as Cur) ?? 'IQD');
   const [amount, setAmount] = useState(edit ? D(edit.total).toString() : '');
-  const [opRate, setOpRate] = useState(edit ? D(edit.rate).toString() : liveRate);
+  // Typed per 100 USD; converted back to the stored per-1 rate for maths and saving.
+  const [opRate, setOpRate] = useState(rateToDisplay(edit ? edit.rate : liveRate));
   const [date, setDate] = useState(edit?.date ?? localTodayIso());
   const [label, setLabel] = useState(edit?.label ?? '');
   const [notes, setNotes] = useState(edit?.notes ?? '');
@@ -250,7 +251,7 @@ function VaultOpDialog({ kind, edit, balances, onClose }: { kind: OpKind; edit?:
   const isT = kind === 'VAULT_TRANSFER';
 
   const amt = roundMoney(parseDec(amount) ?? new Dec(0), vault);
-  const r = parseDec(opRate);
+  const r = parseDec(rateFromDisplay(opRate));
   const converted = isT && r && r.gt(0) && amt.gt(0) ? roundMoney(convert(amt, vault, toVault, r), toVault) : null;
   const bal = balances.find((b) => b.vault === vault);
   const after = bal && amt.gt(0) && kind !== 'VAULT_DEPOSIT' ? D(bal.balance).plus(edit ? D(edit.vaultAmount) : 0).minus(amt) : null;
@@ -269,7 +270,7 @@ function VaultOpDialog({ kind, edit, balances, onClose }: { kind: OpKind; edit?:
     setBusy(true);
     const res = await api<{ id: string; number: string }>(edit ? `/api/vault/ops/${edit.id}` : '/api/vault/ops', {
       method: edit ? 'PUT' : 'POST',
-      body: { kind, vault, toVault: isT ? toVault : undefined, amount, rate: isT ? opRate : undefined, date, label, notes },
+      body: { kind, vault, toVault: isT ? toVault : undefined, amount, rate: isT ? rateFromDisplay(opRate) : undefined, date, label, notes },
     });
     setBusy(false);
     if (!res.ok) {
@@ -347,7 +348,7 @@ function VaultOpDialog({ kind, edit, balances, onClose }: { kind: OpKind; edit?:
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label={t('vault.rateForOp')} htmlFor="vop-rate" error={errors.rate} required>
               <div className="flex items-center gap-2">
-                <span className="num shrink-0 text-meta text-muted">1 USD =</span>
+                <span className="num shrink-0 text-meta text-muted">100 USD =</span>
                 <Input id="vop-rate" numeric value={opRate} onChange={(e) => setOpRate(e.target.value)} invalid={!!errors.rate} />
               </div>
             </Field>

@@ -8,6 +8,7 @@ import {
   Truck,
   Boxes,
   ShoppingCart,
+  ReceiptText,
   Vault,
   BarChart3,
   Settings,
@@ -37,11 +38,12 @@ const NAV: Record<Page, { icon: LucideIcon; label: DictKey; short?: DictKey }> =
   beneficiaries: { icon: Truck, label: 'nav.beneficiaries' },
   inventory: { icon: Boxes, label: 'nav.inventory' },
   pos: { icon: ShoppingCart, label: 'nav.pos', short: 'nav.posShort' },
+  invoices: { icon: ReceiptText, label: 'nav.invoices' },
   vault: { icon: Vault, label: 'nav.vault' },
   reports: { icon: BarChart3, label: 'nav.reports' },
   settings: { icon: Settings, label: 'nav.settings' },
 };
-const TAB_PRIORITY: Page[] = ['dashboard', 'customers', 'pos', 'inventory', 'beneficiaries', 'vault', 'reports', 'settings'];
+const TAB_PRIORITY: Page[] = ['dashboard', 'customers', 'pos', 'invoices', 'inventory', 'beneficiaries', 'vault', 'reports', 'settings'];
 
 type Theme = 'light' | 'dark' | 'system';
 

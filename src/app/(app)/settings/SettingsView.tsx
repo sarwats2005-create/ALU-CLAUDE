@@ -8,7 +8,7 @@ import { api, qs } from '@/lib/client/api';
 import { useRemote } from '@/lib/client/use-remote';
 import { downloadFile } from '@/lib/client/print';
 import { fmtDateTime } from '@/lib/dates';
-import { fmtKg, fmtRate } from '@/lib/money';
+import { fmtKg, rateLine } from '@/lib/money';
 import { ACTIONS, PAGES, actionKey, pageKey } from '@/lib/permissions';
 import type { DictKey, Lang } from '@/lib/i18n';
 import { hasKey } from '@/lib/i18n';
@@ -230,7 +230,7 @@ function RateSection() {
     >
       <div className="mb-5 rounded-ctl bg-tint px-4 py-3">
         <p className="text-caption text-muted">{t('set.rateCurrent')}</p>
-        <p className="num text-heading font-bold text-ink">1 USD = {fmtRate(rate)} IQD</p>
+        <p className="num text-heading font-bold text-ink">{rateLine(rate)}</p>
       </div>
       <h3 className="mb-2 flex items-center gap-2 text-body font-semibold text-ink">
         <History className="h-4 w-4 text-muted" aria-hidden="true" />
@@ -597,6 +597,7 @@ const NAV_LABEL: Record<(typeof PAGES)[number], DictKey> = {
   beneficiaries: 'nav.beneficiaries',
   inventory: 'nav.inventory',
   pos: 'nav.pos',
+  invoices: 'nav.invoices',
   vault: 'nav.vault',
   reports: 'nav.reports',
   settings: 'nav.settings',

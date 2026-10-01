@@ -1,4 +1,4 @@
-// "960,000 IQD ÷ 1,480 = $648.65 into USD Vault" — shown live on forms and on saved records/documents.
+// "960,000 IQD × 100 ÷ 148,000 = $648.65 into USD Vault" (rates shown per 100 USD) — shown live on forms and on saved records/documents.
 import { convert, D, fmtMoney, fmtRate, roundMoney, type Cur } from './money';
 import { t, type Lang } from './i18n';
 

@@ -23,6 +23,7 @@ import {
 } from './ledger';
 import { asState, cleanMultiline, cleanText, currentRate, reqCurrency, reqDate, reqNonNegative, reqPositive } from './common';
 import { audit, jsonSafe } from './audit';
+import { isLocked } from '@/lib/lock';
 
 export type Actor = { id: string; name: string };
 type Opts = { isDemo?: boolean };
@@ -38,6 +39,7 @@ async function lockParties(tx: Tx, ids: (string | null | undefined)[]) {
 async function loadForEdit(tx: Tx, id: string, kinds: TxnKind[]) {
   const old = await tx.txn.findUnique({ where: { id }, include: { lines: true } });
   if (!old || old.deletedAt || !kinds.includes(old.kind)) throw notFound();
+  if (isLocked(old.kind, old.createdAt)) throw new AppError(409, 'invc.locked', { number: old.number });
   return old;
 }
 
@@ -626,6 +628,7 @@ export async function deleteTxn(id: string, actor: Actor): Promise<Saved> {
     await lockVaults(tx);
     const t = await tx.txn.findUnique({ where: { id }, include: { lines: true } });
     if (!t || t.deletedAt) throw notFound();
+    if (isLocked(t.kind, t.createdAt)) throw new AppError(409, 'invc.locked', { number: t.number });
     await lockParties(tx, [t.customerId, t.beneficiaryId]);
     await lockProducts(tx, [...t.lines.map((l) => l.productId), ...(t.productId ? [t.productId] : [])]);
     const snap = await snapshotTxn(tx, id);

@@ -19,6 +19,7 @@ import { DateInput } from '@/components/DateInput';
 import { Dialog, EditingBanner } from '@/components/Dialog';
 import { PartyFormDialog } from '@/components/PartyForm';
 import { useToast } from '@/components/Toast';
+import { useInvoiceAutoSave } from '@/components/useInvoiceAutoSave';
 
 type Product = Awaited<ReturnType<typeof lookupProducts>>[number];
 type Ben = { id: string; name: string; phone: string; balance: string };
@@ -31,6 +32,7 @@ const productOption = (p: Product): Option<Product> => ({ id: p.id, label: p.nam
 export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDetail | null; beneficiaryId: string | null; productId: string | null }) {
   const { t, lang, rate: liveRate, bump } = useApp();
   const toast = useToast();
+  const saveToFolder = useInvoiceAutoSave();
   const router = useRouter();
   const line = edit?.lines[0];
   const [ben, setBen] = useState<Option<Ben> | null>(null);
@@ -127,6 +129,7 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
     }
     bump();
     toast.success(edit ? t('toast.updated') : `${t('toast.purchaseRecorded')} ${res.data.number}`);
+    saveToFolder(res.data.id, res.data.number);
     router.push(`/beneficiaries/${ben!.id}`);
   }
 

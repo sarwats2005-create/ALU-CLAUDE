@@ -39,10 +39,14 @@ export const GET = route({ pages: ['dashboard'] }, async ({ url, lang, user }) =
     ['totalUsd', 'common.usdEquivalent', 'money'],
     ['cashPaid', 'common.cashPaid', 'amountCur'],
     ['vault', 'common.vault', 'vault'],
-    ['rate', 'common.rate', 'rate'],
+    ['rate', 'common.rate100', 'rate'],
     ['status', 'common.status', 'text'],
   ] as const;
-  const q = (v: string) => (/[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  const safe = (v: string) => (/^[=@\t\r]/.test(v) || (/^[+-]/.test(v) && /[(=]/.test(v)) ? `'${v}` : v);
+  const q = (raw: string) => {
+    const v = safe(raw);
+    return /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  };
   const lines = [cols.map((c) => q(t(c[1], lang))).join(',')];
   for (const r of res.rows) {
     const row = r as unknown as Record<string, unknown>;
