@@ -489,19 +489,6 @@
   font-size: 0.9375rem;
   color: rgba(255, 255, 255, 0.86) !important;
 }
-.lp-rate {
-  font-family: 'Archivo', system-ui, sans-serif;
-  font-weight: 750;
-  font-stretch: 110%;
-  font-size: 1.5rem;
-  line-height: 1.2;
-  font-variant-numeric: tabular-nums;
-}
-.lp-rate-note {
-  font-size: 0.9375rem;
-  color: rgba(255, 255, 255, 0.78);
-  max-width: 20rem;
-}
 
 /* ── Footer ── */
 .lp-foot {

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
-import { createSession } from '@/lib/server/auth';
+import { createSession, crossSite } from '@/lib/server/auth';
 import { audit } from '@/lib/server/audit';
 import { t, parseLang, type DictKey } from '@/lib/i18n';
 import { ACTIONS, PAGES, actionKey, pageKey } from '@/lib/permissions';
@@ -11,6 +11,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Creates the very first account, which becomes the Owner permanently. Refused once any user exists. */
 export async function POST(req: NextRequest) {
   const lang = parseLang(req.cookies.get('alu_lang')?.value);
+  if (crossSite(req)) return NextResponse.json({ error: t('err.forbidden', lang), code: 'err.forbidden' }, { status: 403 });
   let body: { name?: unknown; email?: unknown; password?: unknown };
   try {
     body = await req.json();

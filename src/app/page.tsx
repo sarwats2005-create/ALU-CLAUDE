@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { getSessionUser, LANG_COOKIE } from '@/lib/server/auth';
-import { getCompany, getSettings } from '@/lib/server/common';
+import { getCompany } from '@/lib/server/common';
 import { firstAllowedHref } from '@/lib/permissions';
 import { parseLang } from '@/lib/i18n';
 import { Landing, type LandingData } from './_landing/Landing';
@@ -11,17 +11,15 @@ import './_landing/landing.css';
 
 export const dynamic = 'force-dynamic';
 
-const DEFAULTS: LandingData = { name: 'ALU FACTORY', logo: null, address: '', phones: [], footerNote: '', rate: null, types: [] };
+const DEFAULTS: LandingData = { name: 'ALU FACTORY', logo: null, address: '', phones: [], footerNote: '', types: [] };
 
 /** Public details for visitors. Contact info comes from Settings → Company; the page still renders if the database is down. */
 async function loadData(): Promise<LandingData> {
   try {
-    const [company, settings, types] = await Promise.all([
+    const [company, types] = await Promise.all([
       getCompany(),
-      getSettings(),
       prisma.aluminumType.findMany({ where: { isDemo: false }, orderBy: { name: 'asc' }, select: { name: true }, take: 24 }),
     ]);
-    const rate = Number(settings.exchangeRate);
     return {
       name: company.name.trim() || DEFAULTS.name,
       logo: company.logo,
@@ -31,7 +29,6 @@ async function loadData(): Promise<LandingData> {
         .map((p) => p.trim())
         .filter((p) => /\d{6,}/.test(p.replace(/\D/g, ''))),
       footerNote: company.footerNote.trim(),
-      rate: Number.isFinite(rate) && rate > 0 ? rate : null,
       types: types.map((t) => t.name),
     };
   } catch {

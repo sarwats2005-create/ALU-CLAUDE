@@ -44,8 +44,36 @@ async function browser(): Promise<Browser> {
   return g.__aluBrowser;
 }
 
+// At most two PDFs render at once; the rest wait their turn. A flood of print requests then queues
+// instead of opening dozens of Chromium pages and running the server out of memory.
+const MAX_RENDERS = 2;
+const MAX_QUEUE = 20;
+const slots = globalThis as unknown as { __aluPdfActive?: number; __aluPdfQueue?: (() => void)[] };
+async function acquire(): Promise<() => void> {
+  slots.__aluPdfActive ??= 0;
+  slots.__aluPdfQueue ??= [];
+  if (slots.__aluPdfActive >= MAX_RENDERS) {
+    if (slots.__aluPdfQueue.length >= MAX_QUEUE) throw new AppError(503, 'err.pdf');
+    await new Promise<void>((resolve) => slots.__aluPdfQueue!.push(resolve));
+  }
+  slots.__aluPdfActive++;
+  return () => {
+    slots.__aluPdfActive!--;
+    slots.__aluPdfQueue!.shift()?.();
+  };
+}
+
 /** Render one of our standalone HTML documents to PDF (page size + page X of Y come from the document's CSS). */
 export async function htmlToPdf(html: string): Promise<Buffer> {
+  const release = await acquire();
+  try {
+    return await render(html);
+  } finally {
+    release();
+  }
+}
+
+async function render(html: string): Promise<Buffer> {
   const b = await browser();
   const page = await b.newPage();
   try {

@@ -1,7 +1,7 @@
 import 'server-only';
 import { NextResponse, type NextRequest } from 'next/server';
 import { Prisma } from '@prisma/client';
-import { getSessionUser, type SessionUser } from './auth';
+import { crossSite, getSessionUser, type SessionUser } from './auth';
 import { AppError } from './errors';
 import { t, type DictKey, type Lang } from '@/lib/i18n';
 import { canAction, canAnyPage, type Action, type Page } from '@/lib/permissions';
@@ -41,6 +41,7 @@ export function route<P = Record<string, string>>(guard: Guard, handler: (ctx: C
   return async (req: NextRequest, ctx: { params: Promise<P> }) => {
     let lang: Lang = 'en';
     try {
+      if (crossSite(req)) throw new AppError(403, 'err.forbidden');
       const user = await getSessionUser();
       if (!user) {
         return NextResponse.json({ error: t('auth.sessionExpired', lang), code: 'auth.sessionExpired' }, { status: 401 });

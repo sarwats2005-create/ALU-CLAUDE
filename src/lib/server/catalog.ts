@@ -7,6 +7,7 @@ import { parseLang } from '@/lib/i18n';
 import { AppError, Validator, conflict, fieldError, notFound } from './errors';
 import { cleanMultiline, cleanText, getSettings, nameKey, phone } from './common';
 import { audit } from './audit';
+import { revokeOtherSessions } from './auth';
 import type { Actor } from './txns';
 
 const IMG = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
@@ -271,12 +272,13 @@ export async function saveUser(input: UserInput, actor: Actor, id?: string) {
         // The owner keeps full access and can never be deactivated; only name/email/password change.
         if (input.active === false || actor.id !== before.id) throw new AppError(409, 'block.ownerLocked');
         const after = await tx.user.update({ where: { id }, data: { name, email, ...(hash ? { passwordHash: hash } : {}) } });
+        if (hash) await revokeOtherSessions(tx, id);
         await audit({ user: actor, action: 'update', module: 'users', reference: email, before: pub(before), after: pub(after) }, tx);
         return pub(after);
       }
       const active = input.active !== false;
       const after = await tx.user.update({ where: { id }, data: { name, email, active, permissions, ...(hash ? { passwordHash: hash } : {}) } });
-      if (!active) await tx.session.deleteMany({ where: { userId: id } });
+      if (!active || hash) await tx.session.deleteMany({ where: { userId: id } });
       const permsChanged = JSON.stringify([...before.permissions].sort()) !== JSON.stringify([...permissions].sort()) || before.active !== active;
       await audit({ user: actor, action: permsChanged ? 'permission' : 'update', module: 'users', reference: email, before: pub(before), after: pub(after) }, tx);
       return pub(after);

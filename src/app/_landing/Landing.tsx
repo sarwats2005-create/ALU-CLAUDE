@@ -10,7 +10,6 @@ export type LandingData = {
   address: string;
   phones: string[];
   footerNote: string;
-  rate: number | null;
   types: string[];
 };
 
@@ -133,7 +132,7 @@ export function Landing({ lang, data }: { lang: Lang; data: LandingData }) {
           </div>
         </section>
 
-        {data.address || data.phones.length || data.rate ? (
+        {data.address || data.phones.length ? (
           <section className="lp-visit" aria-labelledby="lp-visit-title">
             <div className="lp-wrap">
               <h2 id="lp-visit-title">{c.visitTitle}</h2>
@@ -169,17 +168,6 @@ export function Landing({ lang, data }: { lang: Lang; data: LandingData }) {
                           </li>
                         ))}
                       </ul>
-                    </dd>
-                  </div>
-                ) : null}
-                {data.rate ? (
-                  <div>
-                    <dt>{c.rateTitle}</dt>
-                    <dd>
-                      <span className="lp-rate" dir="ltr">
-                        1 USD = {data.rate.toLocaleString('en-US', { maximumFractionDigits: 2 })} IQD
-                      </span>
-                      <span className="lp-rate-note">{c.rateNote}</span>
                     </dd>
                   </div>
                 ) : null}

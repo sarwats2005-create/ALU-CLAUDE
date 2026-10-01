@@ -124,7 +124,13 @@ export async function reportDocument(data: ReportData, lang: Lang) {
 
 /** CSV (UTF-8 with BOM so Excel opens Kurdish text correctly), formatted exactly like the screen. */
 export function reportCsv(data: ReportData, lang: Lang): string {
-  const q = (v: string) => (/[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  // Cells that a spreadsheet would run as a formula (e.g. a customer named "=HYPERLINK(...)") get a leading
+  // apostrophe. Plain negative numbers like "-1,250.00" are left alone.
+  const safe = (v: string) => (/^[=@\t\r]/.test(v) || (/^[+-]/.test(v) && /[(=]/.test(v)) ? `'${v}` : v);
+  const q = (raw: string) => {
+    const v = safe(raw);
+    return /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  };
   const out: string[] = [];
   for (const tb of data.tables) {
     if (tb.title) out.push(q(t(tb.title, lang)));

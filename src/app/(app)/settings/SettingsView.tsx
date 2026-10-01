@@ -22,7 +22,7 @@ import { useToast } from '@/components/Toast';
 
 type Section = 'company' | 'rate' | 'types' | 'products' | 'alerts' | 'language' | 'users' | 'audit' | 'data';
 const SECTIONS: { id: Section; label: DictKey; icon: typeof Building2; owner?: boolean }[] = [
-  { id: 'company', label: 'set.company', icon: Building2 },
+  { id: 'company', label: 'set.company', icon: Building2, owner: true },
   { id: 'rate', label: 'set.rate', icon: ArrowLeftRight },
   { id: 'types', label: 'set.types', icon: Shapes },
   { id: 'products', label: 'set.products', icon: Package },
@@ -37,7 +37,7 @@ export function SettingsView({ initial }: { initial: string }) {
   const { t, user } = useApp();
   const router = useRouter();
   const allowed = SECTIONS.filter((s) => !s.owner || user.isOwner);
-  const [sec, setSec] = useState<Section>(allowed.some((s) => s.id === initial) ? (initial as Section) : 'company');
+  const [sec, setSec] = useState<Section>(allowed.some((s) => s.id === initial) ? (initial as Section) : allowed[0].id);
   const go = (s: Section) => {
     setSec(s);
     router.replace(`/settings?section=${s}`, { scroll: false });
@@ -86,7 +86,7 @@ export function SettingsView({ initial }: { initial: string }) {
           </Card>
         </nav>
         <div className="min-w-0">
-          {sec === 'company' ? <CompanySection /> : null}
+          {sec === 'company' && user.isOwner ? <CompanySection /> : null}
           {sec === 'rate' ? <RateSection /> : null}
           {sec === 'types' ? <TypesSection /> : null}
           {sec === 'products' ? <ProductsSection /> : null}
@@ -166,7 +166,7 @@ function CompanySection() {
   }
 
   return (
-    <Section title={t('set.company')} hint={t('set.companyHint')}>
+    <Section title={t('set.company')} hint={t('set.companyHint')} owner>
       <form onSubmit={save} noValidate className="flex flex-col gap-4">
         <div className="flex items-center gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
