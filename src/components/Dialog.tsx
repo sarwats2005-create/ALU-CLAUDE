@@ -5,6 +5,8 @@ import { X } from 'lucide-react';
 import { cx } from '@/lib/cx';
 import { useT } from '@/lib/client/app-context';
 
+const openStack: object[] = [];
+
 /**
  * Modal dialog: a centred sheet on desktop, a bottom sheet on phones. Traps focus, closes on Escape,
  * restores focus to the opener. Motion only on open (user-triggered), and respects reduced motion.
@@ -34,21 +36,37 @@ export function Dialog({
   const titleId = useId();
   const panel = useRef<HTMLDivElement>(null);
   const opener = useRef<Element | null>(null);
+  // onClose is usually a new function on every render (e.g. typing in a field). Keep it in a ref so the
+  // open/focus setup below runs once per opening — otherwise each keystroke re-ran it and focus jumped
+  // away from the field being typed in.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
     opener.current = document.activeElement;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    // Focus the field marked data-autofocus, else the first field in the body, else the first button.
     const focusFirst = () => {
-      const el = panel.current?.querySelector<HTMLElement>('[data-autofocus], input:not([type=hidden]):not([disabled]), select, textarea, button:not([disabled])');
+      const p = panel.current;
+      if (!p || p.contains(document.activeElement)) return;
+      const el =
+        p.querySelector<HTMLElement>('[data-autofocus]') ??
+        p.querySelector<HTMLElement>('[data-dialog-body] :is(input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled]))') ??
+        p.querySelector<HTMLElement>('[data-dialog-body] button:not([disabled]), [data-dialog-footer] button:not([disabled])') ??
+        p.querySelector<HTMLElement>('button:not([disabled])');
       el?.focus();
     };
     const id = window.setTimeout(focusFirst, 20);
+    const me = {};
+    openStack.push(me);
     const onKey = (e: KeyboardEvent) => {
+      // Only the top-most dialog reacts (a confirm can open above another dialog).
+      if (openStack[openStack.length - 1] !== me) return;
       if (e.key === 'Escape' && dismissible) {
         e.stopPropagation();
-        onClose();
+        closeRef.current();
       }
       if (e.key === 'Tab' && panel.current) {
         const f = [...panel.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')].filter(
@@ -70,10 +88,11 @@ export function Dialog({
     return () => {
       window.clearTimeout(id);
       document.removeEventListener('keydown', onKey);
+      openStack.splice(openStack.indexOf(me), 1);
       document.body.style.overflow = prevOverflow;
       (opener.current as HTMLElement | null)?.focus?.();
     };
-  }, [open, onClose, dismissible]);
+  }, [open, dismissible]);
 
   if (!open || typeof document === 'undefined') return null;
   const width = { sm: 'md:max-w-[420px]', md: 'md:max-w-[560px]', lg: 'md:max-w-[760px]', xl: 'md:max-w-[1040px]' }[size];
@@ -105,8 +124,8 @@ export function Dialog({
           ) : null}
         </div>
         {banner}
-        <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-6">{children}</div>
-        {footer ? <div className="safe-bottom flex flex-col-reverse gap-2 border-t border-line-soft bg-surface px-5 py-3 md:flex-row md:justify-end md:px-6">{footer}</div> : null}
+        <div data-dialog-body className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-6">{children}</div>
+        {footer ? <div data-dialog-footer className="safe-bottom flex flex-col-reverse gap-2 border-t border-line-soft bg-surface px-5 py-3 md:flex-row md:justify-end md:px-6">{footer}</div> : null}
       </div>
     </div>,
     document.body,

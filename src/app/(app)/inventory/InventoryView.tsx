@@ -363,14 +363,14 @@ function ProcessDialog({ row, edit, onClose }: { row: Pick<Row, 'id' | 'name' | 
             <Field label={t('prc.lossPercent')} htmlFor="prc-pct" error={errors.lossPercent} required>
               <div className="relative">
                 <Input id="prc-pct" numeric value={pct} onChange={(e) => setPct(e.target.value)} invalid={!!errors.lossPercent} placeholder="0" className="pe-10" />
-                <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 font-semibold text-muted">%</span>
+                <span className="input-suffix pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 font-semibold text-muted">%</span>
               </div>
             </Field>
           ) : (
             <Field label={t('prc.lossKg')} htmlFor="prc-losskg" error={errors.lossKg} required>
               <div className="relative">
                 <Input id="prc-losskg" numeric value={lossKg} onChange={(e) => setLossKg(e.target.value)} invalid={!!errors.lossKg} placeholder="0.000" className="pe-10" />
-                <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 font-semibold text-muted">kg</span>
+                <span className="input-suffix pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 font-semibold text-muted">kg</span>
               </div>
             </Field>
           )}

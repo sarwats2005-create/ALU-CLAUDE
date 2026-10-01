@@ -3,7 +3,7 @@ import { t, type Lang } from '@/lib/i18n';
 import { balanceLabel } from '@/lib/format';
 import { conversionText } from '@/lib/conversion';
 import { fmtDate } from '@/lib/dates';
-import { D, fmtCost, fmtKg, fmtMoney, fmtPct, fmtPrice, rateLine, type Cur } from '@/lib/money';
+import { D, fmtCost, fmtKg, fmtMoney, fmtNum, fmtPct, fmtPrice, rateLine, type Cur } from '@/lib/money';
 import { docKindOf, type Kind } from '@/lib/kinds';
 import { getCompany } from '../common';
 import { txnDetail } from '../q/history';
@@ -89,6 +89,17 @@ export async function txnDocument(id: string, lang: Lang) {
     <p class="s m block">${esc(L('doc.rateApplied'))}: ${num(rateLine(d.rate))}</p>`);
   }
 
+  if (kind === 'EXPENSE') {
+    const vcur = d.vault as Cur;
+    const unit = d.unitPrice && d.quantity ? `${fmtNum(d.quantity, D(d.quantity).isInteger() ? 0 : 2)} ${d.unitName} × ${fmtPrice(d.unitPrice, vcur)}` : '';
+    parts.push(`<section class="block row">
+      <div class="box"><p class="lbl">${esc(L('exp.category'))}</p><div class="val bidi">${esc(d.label)}</div>${unit ? `<div class="s m">${num(unit)}</div>` : ''}</div>
+      <div class="box"><p class="lbl">${esc(L('exp.vault'))}</p><div class="val">${esc(L(`vault.${vcur}` as 'vault.USD'))}</div>
+        <div class="val neg">${num(`−${fmtMoney(d.vaultAmount, vcur)}`)}</div></div>
+    </section>
+    <p class="s m block">${esc(L('doc.rateApplied'))}: ${num(rateLine(d.rate))}${vcur === 'IQD' ? ` · ${esc(L('common.usdEquivalent'))}: ${num(fmtMoney(d.totalUsd))}` : ''}</p>`);
+  }
+
   if (kind === 'PROCESSING' && d.product) {
     const out = D(d.outputKg);
     parts.push(`<section class="block">
@@ -119,7 +130,7 @@ export async function txnDocument(id: string, lang: Lang) {
   if (d.notes) parts.push(`<section class="block"><p class="lbl s m">${esc(L('common.notes'))}</p><div class="note bidi">${esc(d.notes)}</div></section>`);
   if (kind !== 'PROCESSING') parts.push(`<div class="sign"><div>${esc(L('doc.signature'))}</div><div>${esc(L('doc.receivedBy'))}</div></div>`);
 
-  const heading = kind === 'SALE' ? L('doc.invoice') : kind === 'PURCHASE' || kind === 'PROCESSING' || kind.startsWith('VAULT_') ? L(`kind.${kind}` as 'kind.SALE') : L(HEAD[docKindOf(kind)]);
+  const heading = kind === 'SALE' ? L('doc.invoice') : kind === 'PURCHASE' || kind === 'PROCESSING' || kind === 'EXPENSE' || kind.startsWith('VAULT_') ? L(`kind.${kind}` as 'kind.SALE') : L(HEAD[docKindOf(kind)]);
   const html = await docHtml({
     lang,
     title: `${d.number} · ${company.name}`,

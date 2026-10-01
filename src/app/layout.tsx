@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import './globals.css';
 import { getSessionUser, LANG_COOKIE } from '@/lib/server/auth';
 import { dirOf, parseLang } from '@/lib/i18n';
+import { GlobalLoader } from '@/components/Loader';
 
 export const metadata: Metadata = {
   title: { default: 'ALU FACTORY', template: '%s · ALU FACTORY' },
@@ -38,7 +39,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="stylesheet" href="/fonts/fonts.css" />
         <link rel="apple-touch-icon" href="/app-icon.png" />
       </head>
-      <body className="min-h-dvh bg-bg text-ink">{children}</body>
+      <body className="min-h-dvh bg-bg text-ink">
+        {children}
+        <GlobalLoader />
+      </body>
     </html>
   );
 }

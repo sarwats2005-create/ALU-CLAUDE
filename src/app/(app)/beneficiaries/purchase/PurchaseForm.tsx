@@ -19,6 +19,7 @@ import { DateInput } from '@/components/DateInput';
 import { Dialog, EditingBanner } from '@/components/Dialog';
 import { PartyFormDialog } from '@/components/PartyForm';
 import { useToast } from '@/components/Toast';
+import { useMoneyGuard } from '@/components/MoneyGuard';
 import { useInvoiceAutoSave } from '@/components/useInvoiceAutoSave';
 
 type Product = Awaited<ReturnType<typeof lookupProducts>>[number];
@@ -51,6 +52,7 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
   const [notes, setNotes] = useState(edit?.notes ?? '');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const guard = useMoneyGuard();
   const [addBen, setAddBen] = useState<string | null>(null);
   const [addType, setAddType] = useState<string | null>(null);
   const types = useRemote<Type[]>('/api/lookup/types');
@@ -105,7 +107,7 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
       return;
     }
     setBusy(true);
-    const res = await api<{ id: string; number: string }>(edit ? `/api/purchases/${edit.id}` : '/api/purchases', {
+    const res = await guard.send<{ id: string; number: string }>(edit ? `/api/purchases/${edit.id}` : '/api/purchases', {
       method: edit ? 'PUT' : 'POST',
       body: {
         date,
@@ -123,6 +125,7 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
     });
     setBusy(false);
     if (!res.ok) {
+      if (res.code === 'vault.shortCancelled') return;
       setErrors(res.fieldErrors ?? {});
       toast.error(res.error || t(edit ? 'err.update' : 'err.save'));
       return;
@@ -324,7 +327,7 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
               >
                 <div className="relative">
                   <Input id="pur-cash" numeric value={cash} onChange={(e) => setCash(e.target.value)} placeholder="0" invalid={!!errors.cashPaid} className="pe-14" />
-                  <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">{currency}</span>
+                  <span className="input-suffix pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">{currency}</span>
                 </div>
               </Field>
               {conv ? <p className="num rounded-ctl bg-tint px-3 py-2 text-caption text-ink">{conv}</p> : null}

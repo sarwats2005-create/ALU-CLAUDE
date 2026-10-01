@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Building2, Database, FileDown, FileSpreadsheet, History, Languages, Pencil, Plus, ScrollText, Shapes, Siren, Trash2, Truck, Upload, Users, Package, ArrowLeftRight } from 'lucide-react';
+import { Building2, Database, FileDown, FileSpreadsheet, History, Languages, Pencil, Plus, ScrollText, Shapes, Siren, Trash2, Truck, Upload, Users, Package, ArrowLeftRight, Wallet, KeyRound } from 'lucide-react';
 import { useApp } from '@/lib/client/app-context';
 import { api, qs } from '@/lib/client/api';
 import { useRemote } from '@/lib/client/use-remote';
@@ -20,12 +20,13 @@ import { Pager, SearchBox, useListState } from '@/components/DataTable';
 import { RateEditDialog, RateLogList } from '@/components/RateDialogs';
 import { useToast } from '@/components/Toast';
 
-type Section = 'company' | 'rate' | 'types' | 'products' | 'alerts' | 'language' | 'users' | 'audit' | 'data';
+type Section = 'company' | 'rate' | 'types' | 'products' | 'expenses' | 'alerts' | 'language' | 'users' | 'audit' | 'data';
 const SECTIONS: { id: Section; label: DictKey; icon: typeof Building2; owner?: boolean }[] = [
   { id: 'company', label: 'set.company', icon: Building2, owner: true },
   { id: 'rate', label: 'set.rate', icon: ArrowLeftRight },
   { id: 'types', label: 'set.types', icon: Shapes },
   { id: 'products', label: 'set.products', icon: Package },
+  { id: 'expenses', label: 'set.expenses', icon: Wallet },
   { id: 'alerts', label: 'set.alerts', icon: Siren },
   { id: 'language', label: 'set.language', icon: Languages },
   { id: 'users', label: 'set.users', icon: Users, owner: true },
@@ -90,6 +91,7 @@ export function SettingsView({ initial }: { initial: string }) {
           {sec === 'rate' ? <RateSection /> : null}
           {sec === 'types' ? <TypesSection /> : null}
           {sec === 'products' ? <ProductsSection /> : null}
+          {sec === 'expenses' ? <ExpensesSection /> : null}
           {sec === 'alerts' ? <AlertsSection /> : null}
           {sec === 'language' ? <LanguageSection /> : null}
           {sec === 'users' && user.isOwner ? <UsersSection /> : null}
@@ -105,13 +107,13 @@ function Section({ title, hint, children, action, owner }: { title: string; hint
   const { t } = useApp();
   return (
     <Card className="p-5 md:p-6">
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+      <div className="subline-host mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-title font-semibold text-ink">
             {title}
             {owner ? <Badge>{t('set.ownerOnly')}</Badge> : null}
           </h2>
-          {hint ? <p className="mt-0.5 max-w-2xl text-meta text-muted">{hint}</p> : null}
+          {hint ? <p className="subline mt-0.5 max-w-2xl text-meta text-muted">{hint}</p> : null}
         </div>
         {action}
       </div>
@@ -244,6 +246,174 @@ function RateSection() {
 
 // ─── Aluminum types ────────────────────────────────────────────────────────────────────────────────
 type TypeRow = { id: string; name: string; isDemo: boolean; products: number };
+
+// ─── Expenses ──────────────────────────────────────────────────────────────────────────────────────
+type ExpCat = { id: string; name: string; unitEnabled: boolean; unitName: string; used: number };
+type ExpCfg = { vaultMode: 'ask' | 'USD' | 'IQD'; pinRequired: boolean };
+
+function ExpensesSection() {
+  const { t, user, bump } = useApp();
+  const toast = useToast();
+  const cats = useRemote<ExpCat[]>('/api/expense-categories');
+  const cfg = useRemote<ExpCfg>('/api/settings/expenses');
+  const [edit, setEdit] = useState<{ id?: string; name: string; unitEnabled: boolean; unitName: string } | null>(null);
+  const [errs, setErrs] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [pin, setPin] = useState('');
+  const [pinErr, setPinErr] = useState<string>();
+
+  async function saveCat(e: FormEvent) {
+    e.preventDefault();
+    if (!edit) return;
+    setBusy('cat');
+    const res = await api(edit.id ? `/api/expense-categories/${edit.id}` : '/api/expense-categories', { method: edit.id ? 'PUT' : 'POST', body: edit });
+    setBusy(null);
+    if (!res.ok) {
+      setErrs(res.fieldErrors ?? {});
+      if (!res.fieldErrors) toast.error(res.error);
+      return;
+    }
+    toast.success(t('toast.saved'));
+    setEdit(null);
+    bump();
+  }
+  async function removeCat(c: ExpCat) {
+    const res = await api(`/api/expense-categories/${c.id}`, { method: 'DELETE' });
+    if (!res.ok) return toast.error(res.error);
+    toast.success(t('toast.saved'));
+    bump();
+  }
+  async function setMode(vaultMode: ExpCfg['vaultMode']) {
+    const res = await api<ExpCfg>('/api/settings/expenses', { method: 'PUT', body: { vaultMode } });
+    if (!res.ok) return toast.error(res.error);
+    cfg.setData(res.data);
+    toast.success(t('toast.saved'));
+  }
+  async function savePin(remove: boolean) {
+    if (!remove && !/^\d{4,8}$/.test(pin)) return setPinErr(t('exp.pinFormat'));
+    setBusy(remove ? 'pin-off' : 'pin');
+    const res = await api<ExpCfg>('/api/settings/expenses/pin', { method: 'PUT', body: { pin: remove ? '' : pin } });
+    setBusy(null);
+    if (!res.ok) return setPinErr(res.fieldErrors?.pin ?? res.error);
+    cfg.setData(res.data);
+    setPin('');
+    setPinErr(undefined);
+    toast.success(t('toast.saved'));
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <Section
+        title={t('set.expCategories')}
+        hint={t('set.expensesHint')}
+        action={
+          <Button onClick={() => (setErrs({}), setEdit({ name: '', unitEnabled: false, unitName: '' }))} icon={<Plus className="h-4 w-4" aria-hidden="true" />}>
+            {t('set.addCategory')}
+          </Button>
+        }
+      >
+        {!cats.data ? (
+          <Skeleton className="h-32 w-full" />
+        ) : !cats.data.length ? (
+          <p className="rounded-ctl border border-dashed border-line px-4 py-6 text-center text-meta text-muted">{t('set.expEmpty')}</p>
+        ) : (
+          <ul className="divide-y divide-line-soft rounded-ctl border border-line-soft">
+            {cats.data.map((c) => (
+              <li key={c.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                <span className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="bidi truncate font-semibold text-ink">{c.name}</span>
+                  {c.unitEnabled ? <Badge tone="brand">{t('set.catPerUnit', { unit: c.unitName })}</Badge> : null}
+                  <span className="text-caption text-muted">{t('set.catUsed', { n: c.used })}</span>
+                </span>
+                <span className="flex shrink-0 gap-1">
+                  <Button size="sm" variant="quiet" onClick={() => (setErrs({}), setEdit({ id: c.id, name: c.name, unitEnabled: c.unitEnabled, unitName: c.unitName }))} icon={<Pencil className="h-4 w-4" aria-hidden="true" />}>
+                    {t('common.edit')}
+                  </Button>
+                  <Button size="sm" variant="quiet" disabled={c.used > 0} onClick={() => removeCat(c)} icon={<Trash2 className="h-4 w-4" aria-hidden="true" />} className="hover:text-danger-ink">
+                    {t('common.delete')}
+                  </Button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      <Section title={t('set.expVault')} hint={t('set.expVaultHint')}>
+        {cfg.data ? (
+          <Segmented<ExpCfg['vaultMode']>
+            label={t('set.expVault')}
+            value={cfg.data.vaultMode}
+            onChange={setMode}
+            options={[
+              { value: 'ask', label: t('set.expVaultAsk') },
+              { value: 'USD', label: t('vault.USD') },
+              { value: 'IQD', label: t('vault.IQD') },
+            ]}
+            className="w-full max-w-lg"
+          />
+        ) : (
+          <Skeleton className="h-10 w-full max-w-lg" />
+        )}
+      </Section>
+
+      <Section title={t('set.expPin')} hint={cfg.data?.pinRequired ? t('set.expPinOn') : t('set.expPinOff')} owner>
+        {user.isOwner ? (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <Field label={t('set.expPinNew')} htmlFor="exp-pin-new" error={pinErr} className="sm:w-56">
+              <Input id="exp-pin-new" type="password" inputMode="numeric" autoComplete="new-password" maxLength={8} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} invalid={!!pinErr} className="num tracking-[0.3em]" />
+            </Field>
+            <Button onClick={() => savePin(false)} busy={busy === 'pin'} icon={<KeyRound className="h-4 w-4" aria-hidden="true" />}>
+              {cfg.data?.pinRequired ? t('set.expPinChange') : t('set.expPinSave')}
+            </Button>
+            {cfg.data?.pinRequired ? (
+              <Button variant="quiet" onClick={() => savePin(true)} busy={busy === 'pin-off'} className="hover:text-danger-ink">
+                {t('set.expPinRemove')}
+              </Button>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-meta text-muted">{t('set.ownerOnly')}</p>
+        )}
+      </Section>
+
+      <Dialog
+        open={!!edit}
+        onClose={() => setEdit(null)}
+        size="sm"
+        title={edit?.id ? t('set.editCategory') : t('set.addCategory')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEdit(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button type="submit" form="exp-cat-form" busy={busy === 'cat'}>
+              {t('common.save')}
+            </Button>
+          </>
+        }
+      >
+        <form id="exp-cat-form" onSubmit={saveCat} noValidate className="flex flex-col gap-4">
+          <Field label={t('set.catName')} htmlFor="exp-cat-name" error={errs.name} required>
+            <Input id="exp-cat-name" value={edit?.name ?? ''} onChange={(e) => setEdit((x) => (x ? { ...x, name: e.target.value } : x))} maxLength={60} invalid={!!errs.name} />
+          </Field>
+          <label className="flex items-center gap-3 text-body font-medium text-ink">
+            <Toggle checked={!!edit?.unitEnabled} onChange={(v) => setEdit((x) => (x ? { ...x, unitEnabled: v } : x))} label={t('set.catUnit')} />
+            <span>
+              {t('set.catUnit')}
+              <span className="block text-caption font-normal text-muted">{t('set.catUnitHint')}</span>
+            </span>
+          </label>
+          {edit?.unitEnabled ? (
+            <Field label={t('set.catUnitName')} htmlFor="exp-cat-unit" error={errs.unitName} required>
+              <Input id="exp-cat-unit" value={edit.unitName} placeholder={t('set.catUnitPh')} onChange={(e) => setEdit((x) => (x ? { ...x, unitName: e.target.value } : x))} maxLength={30} invalid={!!errs.unitName} />
+            </Field>
+          ) : null}
+        </form>
+      </Dialog>
+    </div>
+  );
+}
 
 function TypesSection() {
   const { t, bump } = useApp();
@@ -556,7 +726,7 @@ function MoneyIn({ id, value, onChange, suffix, error, label }: { id: string; va
       ) : null}
       <div className="relative w-44">
         <Input id={id} numeric value={value} onChange={(e) => onChange(e.target.value)} invalid={!!error} className="pe-14" aria-label={label ?? suffix} />
-        <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-caption font-semibold text-muted">{suffix}</span>
+        <span className="input-suffix pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-caption font-semibold text-muted">{suffix}</span>
       </div>
       {error ? <p className="text-caption text-danger-ink">{error}</p> : null}
     </div>
@@ -598,6 +768,7 @@ const NAV_LABEL: Record<(typeof PAGES)[number], DictKey> = {
   inventory: 'nav.inventory',
   pos: 'nav.pos',
   invoices: 'nav.invoices',
+  expenses: 'nav.expenses',
   vault: 'nav.vault',
   reports: 'nav.reports',
   settings: 'nav.settings',

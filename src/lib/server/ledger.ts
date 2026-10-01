@@ -1,7 +1,7 @@
 import 'server-only';
 import { Prisma, type Currency, type StockState, type TxnKind } from '@prisma/client';
 import type { Tx } from '@/lib/db';
-import { D, Dec, round4, fmtKg } from '@/lib/money';
+import { D, Dec, round4, fmtKg, fmtMoney } from '@/lib/money';
 import { AppError } from './errors';
 
 // ─── Document numbering ────────────────────────────────────────────────────────────────────────────
@@ -16,6 +16,7 @@ export const COUNTER_FOR: Record<TxnKind, string> = {
   VAULT_WITHDRAWAL: 'VLT',
   VAULT_TRANSFER: 'VLT',
   PROCESSING: 'PRC',
+  EXPENSE: 'EXP',
 };
 
 /**
@@ -77,7 +78,7 @@ export async function beneficiaryBalance(tx: Tx, beneficiaryId: string): Promise
 export type Src = { txnId: string; kind: TxnKind; date: Date };
 
 /** Append a vault movement. Caller must hold lockVaults(). A negative amount flips the direction. */
-export async function vaultMove(tx: Tx, src: Src, vault: Currency, direction: 'IN' | 'OUT', amount: Dec, isReversal = false) {
+export async function vaultMove(tx: Tx, src: Src, vault: Currency, direction: 'IN' | 'OUT', amount: Dec, isReversal = false, dueId?: string) {
   if (amount.isZero()) return;
   let dir = direction;
   let amt = amount;
@@ -97,8 +98,33 @@ export async function vaultMove(tx: Tx, src: Src, vault: Currency, direction: 'I
       sourceType: src.kind,
       date: src.date,
       isReversal,
+      dueId: dueId ?? null,
     },
   });
+}
+
+/**
+ * Money leaving a vault. The vault holds real cash, so it never goes below zero: when it has less than
+ * `amount`, the user must first confirm (allowShortfall) — then whatever is in the vault is paid now and
+ * the rest is recorded as an unpaid VaultDue, to be paid from the vault later. Caller holds lockVaults().
+ */
+export async function payOut(tx: Tx, src: Src, vault: Currency, amount: Dec, allowShortfall: boolean) {
+  if (!amount.gt(0)) return vaultMove(tx, src, vault, 'OUT', amount);
+  const bal = await vaultBalance(tx, vault);
+  if (bal.gte(amount)) return vaultMove(tx, src, vault, 'OUT', amount);
+  const pay = bal.gt(0) ? bal : new Dec(0);
+  const short = amount.minus(pay);
+  if (!allowShortfall) {
+    throw new AppError(409, 'vault.short', { vault: `@@vault.${vault}`, balance: fmtMoney(bal, vault), amount: fmtMoney(amount, vault), pay: fmtMoney(pay, vault), short: fmtMoney(short, vault) });
+  }
+  if (pay.gt(0)) await vaultMove(tx, src, vault, 'OUT', pay);
+  await tx.vaultDue.create({ data: { txnId: src.txnId, vault, amount: short.toString() } });
+}
+
+/** For moves that can't be left half-paid (vault transfers): the vault must hold the full amount. */
+export async function assertCash(tx: Tx, vault: Currency, amount: Dec) {
+  const bal = await vaultBalance(tx, vault);
+  if (bal.lt(amount)) throw new AppError(409, 'vault.notEnough', { vault: `@@vault.${vault}`, balance: fmtMoney(bal, vault), amount: fmtMoney(amount, vault) });
 }
 
 export async function partyMove(
@@ -180,6 +206,9 @@ export type StockKey = { productId: string; state: StockState };
  */
 export async function reverseEffects(tx: Tx, src: Src): Promise<StockKey[]> {
   const rev: Src = { ...src };
+  // Unpaid dues belong to the old version of the document: any part already paid is returned by the vault
+  // reversal below, and the new version records its own shortfall (if any) when it is posted again.
+  await tx.vaultDue.deleteMany({ where: { txnId: src.txnId } });
 
   const vg = await tx.vaultEntry.groupBy({ by: ['vault', 'direction'], where: { txnId: src.txnId }, _sum: { amount: true } });
   const netByVault = new Map<Currency, Dec>();

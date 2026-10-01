@@ -2,7 +2,13 @@
 // Printing uses the exact same HTML document as Preview and PDF: it is fetched from the server,
 // written into a hidden iframe (standalone print document) and printed from there.
 
-export async function printDocument(url: string): Promise<{ ok: boolean; error?: string }> {
+import { track } from './busy';
+
+export function printDocument(url: string): Promise<{ ok: boolean; error?: string }> {
+  return track(printDoc(url));
+}
+
+async function printDoc(url: string): Promise<{ ok: boolean; error?: string }> {
   let html: string;
   try {
     const res = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
@@ -44,7 +50,11 @@ export async function printDocument(url: string): Promise<{ ok: boolean; error?:
 }
 
 /** Trigger a file download from a same-origin URL (PDF / CSV / Excel / JSON). */
-export async function downloadFile(url: string, fallbackName: string): Promise<{ ok: boolean; error?: string }> {
+export function downloadFile(url: string, fallbackName: string): Promise<{ ok: boolean; error?: string }> {
+  return track(download(url, fallbackName));
+}
+
+async function download(url: string, fallbackName: string): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
     if (!res.ok) {

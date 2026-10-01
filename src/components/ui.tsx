@@ -135,6 +135,9 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
       autoComplete={numeric ? 'off' : rest.autoComplete}
       className={cx(INPUT, invalid ? 'border-danger' : 'border-line', numeric && 'num text-left', !numeric && 'bidi', className)}
       {...rest}
+      // Always set (a blank one when none is given) so CSS can tell an empty field from a filled one —
+      // used to hide the unit/currency label inside a field once something is typed.
+      placeholder={rest.placeholder ?? ' '}
     />
   );
 });
@@ -214,19 +217,18 @@ export function Segmented<T extends string>({
   );
 }
 
-export function Toggle({ checked, onChange, label, id }: { checked: boolean; onChange: (v: boolean) => void; label: string; id?: string }) {
+export function Toggle({ checked, onChange, label, id, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; id?: string; disabled?: boolean }) {
+  // Styles: .alu-switch in globals.css. The real checkbox (role="switch") sits on top of the track, so the
+  // switch works on its own and when wrapped in a <label> with its text.
   return (
-    <button
-      id={id}
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={() => onChange(!checked)}
-      className={cx('relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors', checked ? 'bg-success' : 'bg-line')}
-    >
-      <span className={cx('inline-block h-6 w-6 rounded-full bg-white shadow-card transition-transform', checked ? 'translate-x-[22px] rtl:-translate-x-[22px]' : 'translate-x-0.5 rtl:-translate-x-0.5')} />
-    </button>
+    <span className="alu-switch">
+      <input id={id} type="checkbox" role="switch" checked={checked} disabled={disabled} aria-label={label} onChange={(e) => onChange(e.target.checked)} />
+      <span className="slider" aria-hidden="true">
+        <span className="glow" />
+        <span className="icon-on">✓</span>
+        <span className="icon-off">✕</span>
+      </span>
+    </span>
   );
 }
 
@@ -241,11 +243,11 @@ export function Card({ children, className, as: As = 'section', ...rest }: { chi
 
 export function PageHeader({ title, subtitle, actions, back }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; back?: ReactNode }) {
   return (
-    <header className="mb-5 flex flex-col gap-3 md:mb-7 md:flex-row md:items-end md:justify-between">
+    <header className="subline-host mb-5 flex flex-col gap-3 md:mb-7 md:flex-row md:items-end md:justify-between">
       <div className="min-w-0">
         {back}
         <h1 className="bidi text-large font-bold tracking-[-0.02em] text-ink md:text-[34px] md:leading-[40px]">{title}</h1>
-        {subtitle ? <p className="mt-1 text-body text-muted">{subtitle}</p> : null}
+        {subtitle ? <p className="subline mt-1 text-body text-muted">{subtitle}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </header>

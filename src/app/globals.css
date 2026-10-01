@@ -284,3 +284,405 @@
     animation: none;
   }
 }
+
+/* ───────────────────────── Toggle switch ─────────────────────────
+   The owner's chosen switch design (green, ✓ / ✕ icons, "stretch" on press, glow + pulse when turned on).
+   Adapted to this app: scoped under .alu-switch, the knob uses logical inset so it moves the right way in
+   Kurdish (RTL), dark mode follows the app's theme class, and the real checkbox covers the track so the
+   switch works both inside a <label> and on its own. */
+.alu-switch {
+  --button-width: 4em;
+  --button-height: 2.2em;
+  --circle-diameter: 1.8em;
+  --circle-offset: 3px;
+  --button-hue: 120;
+  --button-saturation: 80%;
+  --button-lightness: 40%;
+
+  font-size: 17px;
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  width: var(--button-width);
+  height: var(--button-height);
+  outline: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+.alu-switch:focus-within {
+  outline: 2px solid hsl(var(--button-hue), var(--button-saturation), var(--button-lightness));
+  outline-offset: 3px;
+  border-radius: var(--button-height);
+}
+.alu-switch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 3;
+}
+.alu-switch input:focus-visible {
+  outline: none;
+}
+.alu-switch .slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #e8e8e8, #d4d4d4);
+  border-radius: var(--button-height);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.1),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.1);
+}
+.alu-switch .slider::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%);
+  border-radius: var(--button-height);
+  pointer-events: none;
+}
+.alu-switch .slider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  inset-inline-start: var(--circle-offset);
+  width: var(--circle-diameter);
+  height: var(--circle-diameter);
+  background: linear-gradient(145deg, #ffffff, #f0f0f0);
+  border-radius: 50%;
+  transform: translateY(-50%);
+  transition:
+    inset-inline-start 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55),
+    width 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55),
+    box-shadow 0.4s ease,
+    transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.15),
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.05);
+  will-change: inset-inline-start, width, transform;
+  z-index: 2;
+}
+.alu-switch .glow {
+  position: absolute;
+  top: 50%;
+  inset-inline-start: calc(var(--circle-diameter) / 2 + var(--circle-offset));
+  width: 0;
+  height: 0;
+  background: hsl(var(--button-hue), var(--button-saturation), var(--button-lightness));
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 0.5s ease;
+  opacity: 0;
+  z-index: 1;
+}
+[dir='rtl'] .alu-switch .glow {
+  transform: translate(50%, -50%);
+}
+.alu-switch:hover .slider::before {
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.2),
+    0 2px 4px rgba(0, 0, 0, 0.15),
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.05);
+  transform: translateY(-50%) scale(1.05);
+}
+.alu-switch input:checked + .slider {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--button-hue), var(--button-saturation), calc(var(--button-lightness) + 15%)),
+    hsl(var(--button-hue), var(--button-saturation), var(--button-lightness))
+  );
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.2),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.3),
+    0 2px 8px hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0.3),
+    0 0 20px hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0.1);
+  animation: alu-switch-pulse 0.6s ease-out;
+}
+.alu-switch:hover input:checked + .slider {
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.2),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.3),
+    0 4px 12px hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0.4),
+    0 0 30px hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0.2);
+}
+.alu-switch input:checked + .slider .glow {
+  width: 100%;
+  height: 100%;
+  opacity: 0.3;
+}
+.alu-switch input:checked + .slider::before {
+  inset-inline-start: calc(100% - var(--circle-diameter) - var(--circle-offset));
+  background: linear-gradient(145deg, #ffffff, #f5f5f5);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.2),
+    0 2px 4px rgba(0, 0, 0, 0.15),
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.08);
+}
+/* Press: the knob stretches across the track */
+.alu-switch input:active + .slider::before {
+  width: calc(var(--button-width) - 2 * var(--circle-offset));
+  border-radius: var(--button-height);
+  transition:
+    inset-inline-start 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    border-radius 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.3s ease;
+}
+.alu-switch input:active:not(:checked) + .slider::before,
+.alu-switch input:checked:active + .slider::before {
+  inset-inline-start: var(--circle-offset);
+  width: calc(var(--button-width) - 2 * var(--circle-offset));
+}
+.alu-switch .icon-on,
+.alu-switch .icon-off {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: calc(var(--button-height) * 0.5);
+  line-height: 1;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  color: white;
+}
+.alu-switch .icon-on {
+  inset-inline-start: 12px;
+}
+.alu-switch .icon-off {
+  inset-inline-end: 12px;
+  color: #999;
+}
+.alu-switch input:checked + .slider .icon-on,
+.alu-switch input:not(:checked) + .slider .icon-off {
+  opacity: 1;
+}
+@keyframes alu-switch-pulse {
+  0% {
+    box-shadow: 0 0 0 0 hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0);
+  }
+}
+.alu-switch input:disabled {
+  cursor: not-allowed;
+}
+.alu-switch input:disabled + .slider {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(30%);
+}
+.alu-switch:hover input:disabled + .slider::before {
+  transform: translateY(-50%);
+}
+/* Dark theme (the app's own theme switch, not only the OS setting) */
+:root.dark .alu-switch .slider {
+  background: linear-gradient(135deg, #3a3a3a, #2a2a2a);
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.3),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.3);
+}
+:root.dark .alu-switch .slider::before {
+  background: linear-gradient(145deg, #555, #444);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    inset 0 2px 4px rgba(255, 255, 255, 0.1),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+}
+:root.dark .alu-switch input:checked + .slider {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--button-hue), var(--button-saturation), calc(var(--button-lightness) + 15%)),
+    hsl(var(--button-hue), var(--button-saturation), var(--button-lightness))
+  );
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.4),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.15),
+    0 2px 8px hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0.3),
+    0 0 25px hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0.15);
+}
+@media (prefers-reduced-motion: reduce) {
+  .alu-switch .slider,
+  .alu-switch .slider::before {
+    transition-duration: 0.1s;
+  }
+  .alu-switch input:checked + .slider {
+    animation: none;
+  }
+  .alu-switch .slider::before {
+    will-change: auto;
+  }
+}
+
+/* ───────────────────────── Loader ─────────────────────────
+   The owner's bars-and-ball loader (Uiverse.io, by Nawsome), over a softly blurred page. Shown while pages
+   load and while saves / deletes / PDFs / printing run. Above dialogs, below toasts. */
+.alu-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg) 35%, transparent);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  animation: alu-loader-in 160ms ease-out;
+}
+@keyframes alu-loader-in {
+  from {
+    opacity: 0;
+  }
+}
+.alu-loader {
+  --bar: rgb(0, 0, 0);
+  position: relative;
+  width: 75px;
+  height: 100px;
+}
+:root.dark .alu-loader {
+  --bar: #e7ecf5;
+}
+.alu-loader__bar {
+  position: absolute;
+  bottom: 0;
+  width: 10px;
+  height: 50%;
+  background: var(--bar);
+  transform-origin: center bottom;
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.2);
+}
+.alu-loader__bar:nth-child(1) {
+  left: 0px;
+  transform: scale(1, 0.2);
+  animation: alu-barUp1 4s infinite;
+}
+.alu-loader__bar:nth-child(2) {
+  left: 15px;
+  transform: scale(1, 0.4);
+  animation: alu-barUp2 4s infinite;
+}
+.alu-loader__bar:nth-child(3) {
+  left: 30px;
+  transform: scale(1, 0.6);
+  animation: alu-barUp3 4s infinite;
+}
+.alu-loader__bar:nth-child(4) {
+  left: 45px;
+  transform: scale(1, 0.8);
+  animation: alu-barUp4 4s infinite;
+}
+.alu-loader__bar:nth-child(5) {
+  left: 60px;
+  transform: scale(1, 1);
+  animation: alu-barUp5 4s infinite;
+}
+.alu-loader__ball {
+  position: absolute;
+  bottom: 10px;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  background: rgb(44, 143, 255);
+  border-radius: 50%;
+  animation: alu-ball 4s infinite;
+}
+@keyframes alu-ball {
+  0% { transform: translate(0, 0); }
+  5% { transform: translate(8px, -14px); }
+  10% { transform: translate(15px, -10px); }
+  17% { transform: translate(23px, -24px); }
+  20% { transform: translate(30px, -20px); }
+  27% { transform: translate(38px, -34px); }
+  30% { transform: translate(45px, -30px); }
+  37% { transform: translate(53px, -44px); }
+  40% { transform: translate(60px, -40px); }
+  50% { transform: translate(60px, 0); }
+  57% { transform: translate(53px, -14px); }
+  60% { transform: translate(45px, -10px); }
+  67% { transform: translate(37px, -24px); }
+  70% { transform: translate(30px, -20px); }
+  77% { transform: translate(22px, -34px); }
+  80% { transform: translate(15px, -30px); }
+  87% { transform: translate(7px, -44px); }
+  90% { transform: translate(0, -40px); }
+  100% { transform: translate(0, 0); }
+}
+@keyframes alu-barUp1 {
+  0% { transform: scale(1, 0.2); }
+  40% { transform: scale(1, 0.2); }
+  50% { transform: scale(1, 1); }
+  90% { transform: scale(1, 1); }
+  100% { transform: scale(1, 0.2); }
+}
+@keyframes alu-barUp2 {
+  0% { transform: scale(1, 0.4); }
+  40% { transform: scale(1, 0.4); }
+  50% { transform: scale(1, 0.8); }
+  90% { transform: scale(1, 0.8); }
+  100% { transform: scale(1, 0.4); }
+}
+@keyframes alu-barUp3 {
+  0% { transform: scale(1, 0.6); }
+  100% { transform: scale(1, 0.6); }
+}
+@keyframes alu-barUp4 {
+  0% { transform: scale(1, 0.8); }
+  40% { transform: scale(1, 0.8); }
+  50% { transform: scale(1, 0.4); }
+  90% { transform: scale(1, 0.4); }
+  100% { transform: scale(1, 0.8); }
+}
+@keyframes alu-barUp5 {
+  0% { transform: scale(1, 1); }
+  40% { transform: scale(1, 1); }
+  50% { transform: scale(1, 0.2); }
+  90% { transform: scale(1, 0.2); }
+  100% { transform: scale(1, 1); }
+}
+
+/* ───────────────────────── Sublines ─────────────────────────
+   Grey description lines under page titles, section titles, report names and chart titles stay hidden
+   until the pointer is over their block (or keyboard focus is inside it). They keep their space, so
+   nothing jumps when they appear. Touch screens can't hover, so there they always show. */
+@media (hover: hover) and (pointer: fine) {
+  .subline {
+    opacity: 0;
+    transition: opacity 0.18s ease;
+  }
+  .subline-host:hover .subline,
+  .subline-host:focus-within .subline,
+  .subline:hover {
+    opacity: 1;
+  }
+}
+
+/* Unit / currency labels inside a field (USD, IQD, kg, %) behave like placeholders: shown while the field
+   is empty, gone as soon as the first character is typed. */
+.input-suffix {
+  transition: opacity 0.12s ease;
+}
+:has(> input:not(:placeholder-shown)) > .input-suffix {
+  opacity: 0;
+}

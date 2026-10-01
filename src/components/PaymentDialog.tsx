@@ -2,7 +2,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { TxnDetail } from '@/lib/server/q/history';
 import { useApp } from '@/lib/client/app-context';
-import { api } from '@/lib/client/api';
 import { conversionText } from '@/lib/conversion';
 import { balanceLabel } from '@/lib/format';
 import { localTodayIso } from '@/lib/dates';
@@ -12,6 +11,7 @@ import { Dialog, EditingBanner } from './Dialog';
 import { Button, Field, Input, Segmented, Textarea } from './ui';
 import { DateInput } from './DateInput';
 import { useToast } from './Toast';
+import { useMoneyGuard } from './MoneyGuard';
 
 export type PaymentKind = 'CUSTOMER_PAYMENT' | 'CUSTOMER_REFUND' | 'BENEFICIARY_PAYMENT' | 'BENEFICIARY_REFUND';
 
@@ -53,6 +53,7 @@ export function PaymentDialog({
 }) {
   const { t, lang, rate: liveRate, bump } = useApp();
   const toast = useToast();
+  const guard = useMoneyGuard();
   const side = kind.startsWith('CUSTOMER') ? 'customer' : 'beneficiary';
   const [date, setDate] = useState(localTodayIso());
   const [amount, setAmount] = useState('');
@@ -104,12 +105,13 @@ export function PaymentDialog({
     setErrors(errs);
     if (Object.keys(errs).length) return;
     setBusy(true);
-    const res = await api<{ id: string; number: string }>(edit ? `/api/payments/${edit.id}` : '/api/payments', {
+    const res = await guard.send<{ id: string; number: string }>(edit ? `/api/payments/${edit.id}` : '/api/payments', {
       method: edit ? 'PUT' : 'POST',
       body: { kind, partyId: party.id, date, amount, currency, vault, notes },
     });
     setBusy(false);
     if (!res.ok) {
+      if (res.code === 'vault.shortCancelled') return;
       setErrors(res.fieldErrors ?? {});
       if (!res.fieldErrors) toast.error(res.error || t(edit ? 'err.update' : 'err.save'));
       return;
@@ -117,6 +119,7 @@ export function PaymentDialog({
     toast.success(edit ? t('toast.updated') : t(SIGN[kind] === -1 ? 'toast.paymentRecorded' : 'toast.refundRecorded', { number: res.data.number }));
     bump();
     onClose();
+    if (kind === 'CUSTOMER_PAYMENT' || kind === 'BENEFICIARY_REFUND') guard.afterIncome(vault);
   }
 
   const tone = (x: 'danger' | 'success' | 'neutral') => (x === 'danger' ? 'text-danger-ink' : x === 'success' ? 'text-success-ink' : 'text-muted');
@@ -148,7 +151,7 @@ export function PaymentDialog({
           <Field label={t('common.amount')} htmlFor={`${fid}-amount`} error={errors.amount} required>
             <div className="relative">
               <Input id={`${fid}-amount`} numeric value={amount} onChange={(e) => setAmount(e.target.value)} invalid={!!errors.amount} className="pe-14" data-autofocus />
-              <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">{currency}</span>
+              <span className="input-suffix pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">{currency}</span>
             </div>
           </Field>
           <Field label={t('common.currency')} htmlFor={`${fid}-cur`}>

@@ -1,4 +1,5 @@
 import 'server-only';
+import { duesSummary } from '../dues';
 import type { Currency } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { D, Dec, round2 } from '@/lib/money';
@@ -97,9 +98,14 @@ export async function vaultOverview() {
     totalIn: string;
     totalOut: string;
     series: { date: string; value: string }[];
-    last: { id: number; txnId: string; number: string; kind: string; direction: string; amount: string; date: string; isReversal: boolean; party: string; label: string }[];
+    last: { id: number; txnId: string; number: string; kind: string; direction: string; amount: string; date: string; isReversal: boolean; party: string; label: string; duePayment: boolean }[];
     usdEquivalent: string | null;
+    /** Unpaid dues of this vault, and cash − dues. */
+    dues: string;
+    duesCount: number;
+    net: string;
   }>;
+  const dues = await duesSummary();
   for (const vault of ['USD', 'IQD'] as const) {
     const [nets, before, daily, last] = await Promise.all([
       // Net effect per document: deleted documents net to zero, edited ones to their current effect.
@@ -145,8 +151,12 @@ export async function vaultOverview() {
         isReversal: e.isReversal,
         party: e.txn.customer?.name ?? e.txn.beneficiary?.name ?? '',
         label: e.txn.label,
+        duePayment: !!e.dueId,
       })),
       usdEquivalent: vault === 'IQD' ? round2(bal.div(rate)).toString() : null,
+      dues: dues[vault].total.toString(),
+      duesCount: dues[vault].count,
+      net: bal.minus(dues[vault].total).toString(),
     });
   }
   return { rate: rate.toString(), vaults: out };
@@ -165,7 +175,7 @@ export async function vaultHistory(p: { vault?: string; kind?: string; from?: st
   const base = sql`FROM "VaultEntry" e JOIN "Txn" t ON t.id = e."txnId" LEFT JOIN "Customer" c ON c.id = t."customerId" LEFT JOIN "Beneficiary" b ON b.id = t."beneficiaryId" ${where(conds)}`;
   const [rows, count] = await Promise.all([
     prisma.$queryRaw<Record<string, unknown>[]>`
-      SELECT e.id, e.vault, e.direction, e.amount, e."balanceAfter", e.date, e."isReversal", e."sourceType", e."txnId",
+      SELECT e.id, e.vault, e.direction, e.amount, e."balanceAfter", e.date, e."isReversal", e."sourceType", e."txnId", e."dueId",
              t.number, t.label, t."deletedAt", COALESCE(c.name, b.name, '') AS party
       ${base} ORDER BY ${order} LIMIT ${p.size} OFFSET ${p.offset}`,
     prisma.$queryRaw<{ c: bigint }[]>`SELECT COUNT(*) AS c ${base}`,
@@ -186,6 +196,7 @@ export async function vaultHistory(p: { vault?: string; kind?: string; from?: st
       label: String(r.label ?? ''),
       party: String(r.party ?? ''),
       deleted: !!r.deletedAt,
+      duePayment: !!r.dueId,
     })),
   };
 }

@@ -64,7 +64,7 @@ export function ExchangeRateFab() {
             <Field label={t('vault.newRate')} htmlFor="fab-rate" error={error} required>
               <div className="flex items-center gap-2">
                 <span className="num shrink-0 text-body text-muted">100 USD =</span>
-                <Input id="fab-rate" numeric value={value} onChange={(e) => setValue(e.target.value)} invalid={!!error} />
+                <Input id="fab-rate" numeric value={value} onChange={(e) => setValue(e.target.value)} onFocus={(e) => e.currentTarget.select()} invalid={!!error} />
                 <span className="shrink-0 text-body text-muted">IQD</span>
               </div>
             </Field>

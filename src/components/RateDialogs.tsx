@@ -58,7 +58,7 @@ export function RateEditDialog({ open, onClose }: { open: boolean; onClose: () =
         <Field label={t('vault.newRate')} htmlFor="rate-edit" error={error} required>
           <div className="flex items-center gap-2">
             <span className="num shrink-0 text-body text-muted">100 USD =</span>
-            <Input id="rate-edit" numeric value={value} onChange={(e) => setValue(e.target.value)} invalid={!!error} data-autofocus />
+            <Input id="rate-edit" numeric value={value} onChange={(e) => setValue(e.target.value)} onFocus={(e) => e.currentTarget.select()} invalid={!!error} data-autofocus />
             <span className="shrink-0 text-body text-muted">IQD</span>
           </div>
         </Field>

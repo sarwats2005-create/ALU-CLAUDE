@@ -1,5 +1,6 @@
 'use client';
 import { t, type Lang } from '@/lib/i18n';
+import { track } from './busy';
 
 export type ApiOk<T> = { ok: true; data: T };
 export type ApiErr = { ok: false; status: number; error: string; code?: string; fieldErrors?: Record<string, string> };
@@ -11,10 +12,16 @@ const docLang = (): Lang => (typeof document !== 'undefined' && document.documen
  * JSON fetch with the product's error vocabulary: 401 → back to sign-in with "Session expired",
  * network failure → "Connection lost…", server errors arrive already translated.
  */
-export async function api<T = unknown>(
-  path: string,
-  opts: { method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: unknown; signal?: AbortSignal } = {},
-): Promise<ApiResult<T>> {
+type ApiOpts = { method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: unknown; signal?: AbortSignal; quiet?: boolean };
+
+export function api<T = unknown>(path: string, opts: ApiOpts = {}): Promise<ApiResult<T>> {
+  // Saves and deletes show the app-wide loader (only if they take longer than a moment). Reads don't:
+  // lists and forms have their own skeletons, and searches shouldn't blur the screen while typing.
+  const write = (opts.method ?? 'GET') !== 'GET';
+  return write && !opts.quiet ? track(request<T>(path, opts)) : request<T>(path, opts);
+}
+
+async function request<T>(path: string, opts: ApiOpts): Promise<ApiResult<T>> {
   const lang = docLang();
   let res: Response;
   try {

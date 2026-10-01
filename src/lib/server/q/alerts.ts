@@ -5,6 +5,7 @@ import { t, type Lang } from '@/lib/i18n';
 import { canPage, type PermUser } from '@/lib/permissions';
 import { getSettings } from '../common';
 import { vaultBalances } from './dashboard';
+import { duesSummary } from '../dues';
 import { allPartyEffects, fifoAging } from './parties';
 import { s } from './sql';
 
@@ -66,6 +67,21 @@ export async function computeAlerts(user: PermUser & { id: string }, lang: Lang)
       const vaultName = t(v === 'USD' ? 'vault.USD' : 'vault.IQD', lang);
       if (b.isNegative()) out.push({ key: `vault:${v}:${b}`, type: 'vault', severity: 'danger', text: t('alerts.vaultNegative', lang, { vault: vaultName, x: fmtMoney(b, v) }), href: '/vault' });
       else if (b.lt(min)) out.push({ key: `vaultmin:${v}:${b}`, type: 'vault', severity: 'warning', text: t('alerts.vaultLow', lang, { vault: vaultName, x: fmtMoney(b, v) }), href: '/vault' });
+    }
+  }
+  // Unpaid vault dues are always shown (they are money the factory still has to pay out).
+  if (canPage(user, 'vault')) {
+    const dues = await duesSummary();
+    for (const v of ['USD', 'IQD'] as const) {
+      const d = dues[v];
+      if (d.count > 0)
+        out.push({
+          key: `dues:${v}:${d.count}:${d.total}`,
+          type: 'vault',
+          severity: 'danger',
+          text: t('alerts.vaultDues', lang, { vault: t(v === 'USD' ? 'vault.USD' : 'vault.IQD', lang), n: d.count, x: fmtMoney(d.total, v) }),
+          href: '/vault/dues',
+        });
     }
   }
   if (st.alertOverdue && canPage(user, 'customers')) {

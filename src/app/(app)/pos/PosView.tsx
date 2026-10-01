@@ -19,6 +19,7 @@ import { DateInput } from '@/components/DateInput';
 import { EditingBanner, Dialog } from '@/components/Dialog';
 import { PartyFormDialog } from '@/components/PartyForm';
 import { useToast } from '@/components/Toast';
+import { useMoneyGuard } from '@/components/MoneyGuard';
 import { useInvoiceAutoSave } from '@/components/useInvoiceAutoSave';
 
 type Product = Awaited<ReturnType<typeof lookupProducts>>[number];
@@ -47,6 +48,7 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
   const [notes, setNotes] = useState(edit?.notes ?? '');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const guard = useMoneyGuard();
   const [addOpen, setAddOpen] = useState<string | null>(null);
   const [done, setDone] = useState<{ id: string; number: string; updated: boolean } | null>(null);
 
@@ -162,6 +164,7 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
     toast.success(edit ? t('toast.updated') : t('toast.saleRecorded', { number: res.data.number }));
     saveToFolder(res.data.id, res.data.number);
     setDone({ ...res.data, updated: !!edit });
+    if (parseDec(cash)?.gt(0)) guard.afterIncome(vault);
   }
 
   function resetForNext() {
@@ -337,7 +340,7 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
               >
                 <div className="relative">
                   <Input id="pos-cash" numeric value={cash} onChange={(e) => setCash(e.target.value)} placeholder="0" invalid={!!errors.cashPaid} className="pe-14" />
-                  <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">{currency}</span>
+                  <span className="input-suffix pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">{currency}</span>
                 </div>
               </Field>
               {conv ? <p className="num rounded-ctl bg-tint px-3 py-2 text-caption text-ink">{conv}</p> : null}

@@ -37,6 +37,19 @@ enum TxnKind {
   VAULT_WITHDRAWAL
   VAULT_TRANSFER
   PROCESSING
+  EXPENSE
+}
+
+enum RecurFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum RecurState {
+  ACTIVE
+  PAUSED
+  SCHEDULED
 }
 
 enum Direction {
@@ -110,6 +123,10 @@ model AppSettings {
   vaultMinIqd        Decimal  @default(0) @db.Decimal(18, 2)
   alertOverdue       Boolean  @default(true)
   overdueDays        Int      @default(30)
+  /// Expenses: which vault pays — "ask" (pick each time) or a fixed vault ("USD" / "IQD").
+  expenseVaultMode   String   @default("ask")
+  /// Expenses: bcrypt hash of the PIN required to record a new expense or recurring rule (null = no PIN).
+  expensePinHash     String?
   updatedAt          DateTime @updatedAt
 }
 
@@ -126,7 +143,7 @@ model ExchangeRateLog {
 
 /// Gap-safe document counters. Incremented inside the business transaction (never MAX()+1).
 model Counter {
-  key   String @id // INV, PUR, RCV, PAY, VLT, PRC
+  key   String @id // INV, PUR, RCV, PAY, VLT, PRC, EXP
   value Int    @default(0)
 }
 
@@ -227,8 +244,21 @@ model Txn {
   lossMethod    LossMethod?
   lossPercent   Decimal?    @db.Decimal(9, 4)
 
-  /// Vault deposit source / withdrawal reason label.
+  /// Vault deposit source / withdrawal reason label. Expenses: category name at the time of recording.
   label         String      @default("")
+
+  /// Expense
+  categoryId    String?
+  category      ExpenseCategory?  @relation(fields: [categoryId], references: [id])
+  unitName      String      @default("")
+  unitPrice     Decimal?    @db.Decimal(18, 4)
+  quantity      Decimal?    @db.Decimal(18, 3)
+  /// Set when posted by a recurring rule; runKey ("<ruleId>:<YYYY-MM-DD>") stops a run being posted twice.
+  recurringId   String?
+  recurring     RecurringExpense? @relation(fields: [recurringId], references: [id], onDelete: SetNull)
+  runKey        String?     @unique
+  /// Parts that couldn't be paid from the vault when recorded (paid later from Vault → Unpaid dues).
+  dues          VaultDue[]
   notes         String      @default("")
   isDemo        Boolean     @default(false)
 
@@ -252,6 +282,66 @@ model Txn {
   @@index([vault])
   @@index([deletedAt])
   @@index([productId])
+  @@index([categoryId])
+  @@index([recurringId])
+}
+
+/// Expense categories (Settings → Expenses). unitEnabled: amount = price per unit × quantity.
+model ExpenseCategory {
+  id          String   @id @default(cuid())
+  name        String
+  nameKey     String   @unique
+  unitEnabled Boolean  @default(false)
+  unitName    String   @default("")
+  createdAt   DateTime @default(now())
+  txns        Txn[]
+  rules       RecurringExpense[]
+}
+
+/// A rule that posts the same expense from a vault every day / week / month.
+model RecurringExpense {
+  id            String          @id @default(cuid())
+  categoryId    String
+  category      ExpenseCategory @relation(fields: [categoryId], references: [id])
+  /// In the vault's own currency.
+  amount        Decimal         @db.Decimal(18, 2)
+  vault         Currency
+  frequency     RecurFrequency  @default(MONTHLY)
+  state         RecurState      @default(ACTIVE)
+  startDate     DateTime        @db.Date
+  nextRun       DateTime        @db.Date
+  note          String          @default("")
+  /// Set when the last attempt could not post (e.g. not enough money in the vault).
+  dueFlag       Boolean         @default(false)
+  dueReason     String          @default("")
+  skipFridays   Boolean         @default(false)
+  /// 0 = Sunday … 5 = Friday … 6 = Saturday
+  skipWeekdays  Int[]           @default([])
+  /// ISO dates (YYYY-MM-DD)
+  skipDates     String[]        @default([])
+  createdAt     DateTime        @default(now())
+  createdById   String?
+  createdByName String          @default("")
+  txns          Txn[]
+
+  @@index([state, nextRun])
+}
+
+/// Money a transaction should have paid out of a vault but couldn't, because the vault didn't have it.
+/// The user confirmed recording it anyway; it is paid later from the vault (amount − paid = still owed).
+model VaultDue {
+  id        String       @id @default(cuid())
+  txnId     String
+  txn       Txn          @relation(fields: [txnId], references: [id])
+  vault     Currency
+  amount    Decimal      @db.Decimal(18, 2)
+  paid      Decimal      @default(0) @db.Decimal(18, 2)
+  createdAt DateTime     @default(now())
+  settledAt DateTime?
+  entries   VaultEntry[]
+
+  @@index([vault, settledAt])
+  @@index([txnId])
 }
 
 model TxnLine {
@@ -288,6 +378,9 @@ model VaultEntry {
   /// Business date of the effect (reversals carry the original document's date).
   date         DateTime   @db.Date
   isReversal   Boolean    @default(false)
+  /// Set when this movement pays (part of) an unpaid vault due.
+  dueId        String?
+  due          VaultDue?  @relation(fields: [dueId], references: [id], onDelete: SetNull)
   createdAt    DateTime   @default(now())
 
   @@index([vault, id])

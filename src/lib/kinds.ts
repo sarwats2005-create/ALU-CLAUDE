@@ -11,7 +11,8 @@ export type Kind =
   | 'VAULT_DEPOSIT'
   | 'VAULT_WITHDRAWAL'
   | 'VAULT_TRANSFER'
-  | 'PROCESSING';
+  | 'PROCESSING'
+  | 'EXPENSE';
 
 export const KINDS: Kind[] = [
   'SALE',
@@ -24,6 +25,7 @@ export const KINDS: Kind[] = [
   'VAULT_WITHDRAWAL',
   'VAULT_TRANSFER',
   'PROCESSING',
+  'EXPENSE',
 ];
 
 export const KIND_PAGE: Record<Kind, Page> = {
@@ -37,6 +39,7 @@ export const KIND_PAGE: Record<Kind, Page> = {
   VAULT_WITHDRAWAL: 'vault',
   VAULT_TRANSFER: 'vault',
   PROCESSING: 'inventory',
+  EXPENSE: 'expenses',
 };
 
 /** Pages from which a transaction of this kind may be viewed (its own page, the dashboard, and party pages). */
@@ -67,6 +70,8 @@ export function editHref(kind: Kind, id: string, partyId?: string | null): strin
       return `/beneficiaries/${partyId}?edit=${id}`;
     case 'PROCESSING':
       return `/inventory?edit=${id}`;
+    case 'EXPENSE':
+      return `/expenses?edit=${id}`;
     default:
       return `/vault?edit=${id}`;
   }

@@ -8,7 +8,7 @@ import { api } from '@/lib/client/api';
 import { downloadFile, printDocument } from '@/lib/client/print';
 import { conversionText } from '@/lib/conversion';
 import { fmtDate, fmtDateTime } from '@/lib/dates';
-import { D, fmtCost, fmtKg, fmtMoney, fmtPct, fmtPrice, rateLine } from '@/lib/money';
+import { D, fmtCost, fmtKg, fmtMoney, fmtNum, fmtPct, fmtPrice, rateLine } from '@/lib/money';
 import { KIND_PAGE, editHref, type Kind } from '@/lib/kinds';
 import { cx } from '@/lib/cx';
 import { isInvoiceKind, isLocked, remaining } from '@/lib/lock';
@@ -293,6 +293,13 @@ export function TxnBody({ d }: { d: TxnDetail }) {
               {t(`vault.${d.vault}` as 'vault.USD')} <span className="num text-muted">({fmtMoney(d.vaultAmount, d.vault as 'USD' | 'IQD')})</span>
             </Row>
           ) : null}
+          {d.dueRemaining && d.dueVault ? (
+            <Row label={t('due.unpaidFromVault')}>
+              <a href="/vault/dues" className="num font-semibold text-danger-ink hover:underline">
+                {fmtMoney(d.dueRemaining, d.dueVault as 'USD' | 'IQD')}
+              </a>
+            </Row>
+          ) : null}
           {kind === 'VAULT_TRANSFER' && d.toVault ? (
             <Row label={t('vault.toVault')}>
               {t(`vault.${d.toVault}` as 'vault.USD')} <span className="num text-muted">({fmtMoney(d.toAmount, d.toVault as 'USD' | 'IQD')})</span>
@@ -323,7 +330,13 @@ export function TxnBody({ d }: { d: TxnDetail }) {
               </Row>
             </>
           ) : null}
-          {d.label ? <Row label={kind === 'VAULT_WITHDRAWAL' ? t('common.reason') : t('common.source')}>{d.label}</Row> : null}
+          {d.label ? <Row label={kind === 'VAULT_WITHDRAWAL' ? t('common.reason') : kind === 'EXPENSE' ? t('exp.category') : t('common.source')}>{d.label}</Row> : null}
+          {kind === 'EXPENSE' && d.unitPrice && d.quantity ? (
+            <Row label={t('exp.details')}>
+              <span className="num">{t('exp.unitLine', { qty: fmtNum(d.quantity, D(d.quantity).isInteger() ? 0 : 2), unit: d.unitName, price: fmtPrice(d.unitPrice, cur) })}</span>
+            </Row>
+          ) : null}
+          {kind === 'EXPENSE' && d.recurringId ? <Row label={t('exp.source')}>{t('exp.src.recurring')}</Row> : null}
         </dl>
       ) : null}
 

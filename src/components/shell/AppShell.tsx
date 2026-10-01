@@ -9,6 +9,7 @@ import {
   Boxes,
   ShoppingCart,
   ReceiptText,
+  Wallet,
   Vault,
   BarChart3,
   Settings,
@@ -31,6 +32,7 @@ import { ExchangeRateFab } from '../ExchangeRateFab';
 import { Dialog } from '../Dialog';
 import { Segmented } from '../ui';
 import { TxnPanelProvider } from '../TxnPanel';
+import { MoneyGuardProvider } from '../MoneyGuard';
 
 const NAV: Record<Page, { icon: LucideIcon; label: DictKey; short?: DictKey }> = {
   dashboard: { icon: LayoutDashboard, label: 'nav.dashboard' },
@@ -39,11 +41,12 @@ const NAV: Record<Page, { icon: LucideIcon; label: DictKey; short?: DictKey }> =
   inventory: { icon: Boxes, label: 'nav.inventory' },
   pos: { icon: ShoppingCart, label: 'nav.pos', short: 'nav.posShort' },
   invoices: { icon: ReceiptText, label: 'nav.invoices' },
+  expenses: { icon: Wallet, label: 'nav.expenses' },
   vault: { icon: Vault, label: 'nav.vault' },
   reports: { icon: BarChart3, label: 'nav.reports' },
   settings: { icon: Settings, label: 'nav.settings' },
 };
-const TAB_PRIORITY: Page[] = ['dashboard', 'customers', 'pos', 'invoices', 'inventory', 'beneficiaries', 'vault', 'reports', 'settings'];
+const TAB_PRIORITY: Page[] = ['dashboard', 'customers', 'pos', 'invoices', 'inventory', 'beneficiaries', 'expenses', 'vault', 'reports', 'settings'];
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -63,7 +66,9 @@ export function AppShell(props: { user: ClientUser; lang: Lang; rate: string; co
     <AppProvider user={props.user} lang={props.lang} rate={props.rate} company={props.company}>
       <ToastProvider>
         <TxnPanelProvider>
-          <Shell>{props.children}</Shell>
+          <MoneyGuardProvider>
+            <Shell>{props.children}</Shell>
+          </MoneyGuardProvider>
         </TxnPanelProvider>
       </ToastProvider>
     </AppProvider>

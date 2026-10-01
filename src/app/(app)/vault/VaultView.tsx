@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, History, Pencil } from 'lucide-react';
+import { AlertTriangle, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ChevronRight, History, Pencil } from 'lucide-react';
 import type { vaultHistory, vaultOverview } from '@/lib/server/q/dashboard';
 import type { TxnDetail } from '@/lib/server/q/history';
 import { useApp } from '@/lib/client/app-context';
@@ -18,6 +19,7 @@ import { LineChart, compactMoney } from '@/components/charts';
 import { useTxnPanel } from '@/components/TxnPanel';
 import { useToast } from '@/components/Toast';
 import { RateEditDialog, RateLogDialog } from '@/components/RateDialogs';
+import { useMoneyGuard } from '@/components/MoneyGuard';
 
 type Overview = Awaited<ReturnType<typeof vaultOverview>>;
 type VHist = Awaited<ReturnType<typeof vaultHistory>>;
@@ -49,6 +51,7 @@ export function VaultView({ editOp }: { editOp: TxnDetail | null }) {
         <span className="flex flex-wrap items-center gap-1.5 text-ink">
           {t(`kind.${r.kind}` as 'kind.SALE')}
           {r.isReversal ? <Badge tone="warning">{t('status.reversal')}</Badge> : null}
+          {r.duePayment ? <Badge tone="danger">{t('vault.duePayment')}</Badge> : null}
           {r.deleted && !r.isReversal ? <Badge tone="danger">{t('status.deleted')}</Badge> : null}
         </span>
       ),
@@ -136,6 +139,7 @@ export function VaultView({ editOp }: { editOp: TxnDetail | null }) {
                 <span className="flex items-center gap-2">
                   <span className="num text-meta font-semibold text-brand-ink">{r.number}</span>
                   {r.isReversal ? <Badge tone="warning">{t('status.reversal')}</Badge> : null}
+                  {r.duePayment ? <Badge tone="danger">{t('vault.duePayment')}</Badge> : null}
                 </span>
                 <span className="block text-meta text-ink">{t(`kind.${r.kind}` as 'kind.SALE')}</span>
                 <span className="bidi block truncate text-caption text-muted">
@@ -176,9 +180,10 @@ function VaultCard({ v, onOpen }: { v: Overview['vaults'][number]; onOpen: (txnI
   const { t } = useApp();
   const cur = v.vault as Cur;
   const neg = D(v.balance).isNegative();
+  const owing = v.duesCount > 0;
   const series = v.series.map((p) => ({ key: p.date, label: fmtDate(p.date).slice(0, 5), sub: fmtDate(p.date), value: Number(p.value) }));
   return (
-    <Card className={cx('flex min-w-0 flex-col', neg && 'border-danger/30')}>
+    <Card className={cx('flex min-w-0 flex-col', (neg || owing) && 'border-danger/30')}>
       <div className="flex items-start justify-between gap-4 p-5 pb-3">
         <div className="min-w-0">
           <h2 className="text-body font-semibold text-muted">{t(`vault.${cur}`)}</h2>
@@ -197,6 +202,24 @@ function VaultCard({ v, onOpen }: { v: Overview['vaults'][number]; onOpen: (txnI
           </div>
         </dl>
       </div>
+      {owing ? (
+        <Link
+          href="/vault/dues"
+          className="mx-5 mb-3 flex items-center gap-3 rounded-ctl bg-danger-tint px-4 py-3 text-meta text-danger-ink transition-colors hover:bg-danger/15"
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">{t('vault.duesLine', { x: fmtMoney(v.dues, cur), n: v.duesCount })}</span>
+            <span className="num block">
+              {t('vault.net')}: <b>{D(v.net).isNegative() ? '−' : ''}{fmtMoney(D(v.net).abs(), cur)}</b>
+            </span>
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-0.5 font-semibold">
+            {t('due.pay')}
+            <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+          </span>
+        </Link>
+      ) : null}
       <div className="px-5">
         <p className="mb-1 text-caption text-muted">{t('vault.last30')}</p>
         <LineChart data={series} fmtValue={(x) => fmtMoney(x, cur)} fmtAxis={(x) => compactMoney(x, cur)} ariaLabel={`${t(`vault.${cur}`)} — ${t('vault.last30')}`} seriesLabel={t('common.balance')} allowNegative height={150} />
@@ -211,6 +234,7 @@ function VaultCard({ v, onOpen }: { v: Overview['vaults'][number]; onOpen: (txnI
                   <span className="min-w-0">
                     <span className="num font-semibold text-brand-ink">{m.number}</span>
                     {m.isReversal ? <Badge tone="warning" className="ms-1.5">{t('status.reversal')}</Badge> : null}
+                    {m.duePayment ? <Badge tone="danger" className="ms-1.5">{t('vault.duePayment')}</Badge> : null}
                     <span className="bidi block truncate text-caption text-muted">
                       {t(`kind.${m.kind}` as 'kind.SALE')}
                       {m.party || m.label ? ` · ${m.party || m.label}` : ''}
@@ -248,6 +272,7 @@ function VaultOpDialog({ kind, edit, balances, onClose }: { kind: OpKind; edit?:
   const [notes, setNotes] = useState(edit?.notes ?? '');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const guard = useMoneyGuard();
   const isT = kind === 'VAULT_TRANSFER';
 
   const amt = roundMoney(parseDec(amount) ?? new Dec(0), vault);
@@ -268,12 +293,13 @@ function VaultOpDialog({ kind, edit, balances, onClose }: { kind: OpKind; edit?:
     setErrors(er);
     if (Object.keys(er).length) return;
     setBusy(true);
-    const res = await api<{ id: string; number: string }>(edit ? `/api/vault/ops/${edit.id}` : '/api/vault/ops', {
+    const res = await guard.send<{ id: string; number: string }>(edit ? `/api/vault/ops/${edit.id}` : '/api/vault/ops', {
       method: edit ? 'PUT' : 'POST',
       body: { kind, vault, toVault: isT ? toVault : undefined, amount, rate: isT ? rateFromDisplay(opRate) : undefined, date, label, notes },
     });
     setBusy(false);
     if (!res.ok) {
+      if (res.code === 'vault.shortCancelled') return;
       setErrors(res.fieldErrors ?? {});
       if (!res.fieldErrors) toast.error(res.error);
       return;
@@ -281,6 +307,8 @@ function VaultOpDialog({ kind, edit, balances, onClose }: { kind: OpKind; edit?:
     toast.success(edit ? t('toast.updated') : t('toast.vaultRecorded', { number: res.data.number }));
     bump();
     onClose();
+    if (kind === 'VAULT_DEPOSIT') guard.afterIncome(vault);
+    else if (isT) guard.afterIncome(toVault);
   }
 
   const vaultOpts = [
@@ -337,7 +365,7 @@ function VaultOpDialog({ kind, edit, balances, onClose }: { kind: OpKind; edit?:
           <Field label={t('common.amount')} htmlFor="vop-amount" error={errors.amount} required>
             <div className="relative">
               <Input id="vop-amount" numeric value={amount} onChange={(e) => setAmount(e.target.value)} invalid={!!errors.amount} className="pe-14" data-autofocus />
-              <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">{vault}</span>
+              <span className="input-suffix pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">{vault}</span>
             </div>
           </Field>
           <Field label={t('common.date')} htmlFor="vop-date" error={errors.date} required>

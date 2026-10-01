@@ -205,9 +205,11 @@ export async function txnDetail(id: string) {
       customer: { select: { id: true, name: true, phone: true, address: true } },
       beneficiary: { select: { id: true, name: true, phone: true, address: true } },
       product: { include: { type: true } },
+      dues: { select: { vault: true, amount: true, paid: true, settledAt: true } },
     },
   });
   if (!t) return null;
+  const openDues = t.dues.filter((d) => !d.settledAt);
   return {
     id: t.id,
     number: t.number,
@@ -234,6 +236,14 @@ export async function txnDetail(id: string) {
     lossPercent: t.lossPercent?.toString() ?? null,
     label: t.label,
     notes: t.notes,
+    categoryId: t.categoryId,
+    unitName: t.unitName,
+    unitPrice: t.unitPrice?.toString() ?? null,
+    quantity: t.quantity?.toString() ?? null,
+    recurringId: t.recurringId,
+    /** Part of this document the vault couldn't pay yet (unpaid vault due), in the vault's currency. */
+    dueRemaining: openDues.length ? openDues.reduce((s, d) => s.plus(D(d.amount).minus(D(d.paid))), D(0)).toString() : null,
+    dueVault: openDues[0]?.vault ?? null,
     isDemo: t.isDemo,
     createdAt: t.createdAt.toISOString(),
     createdByName: t.createdByName,

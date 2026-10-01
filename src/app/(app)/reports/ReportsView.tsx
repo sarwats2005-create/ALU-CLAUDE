@@ -89,10 +89,10 @@ export function ReportsView({ initial }: { initial: ReportType }) {
                     type="button"
                     onClick={() => pick(x)}
                     aria-current={x === type ? 'page' : undefined}
-                    className={cx('block w-full px-4 py-3 text-start transition-colors', x === type ? 'bg-tint' : 'hover:bg-surface-2')}
+                    className={cx('subline-host block w-full px-4 py-3 text-start transition-colors', x === type ? 'bg-tint' : 'hover:bg-surface-2')}
                   >
                     <span className={cx('block text-body font-semibold', x === type ? 'text-brand-ink' : 'text-ink')}>{t(REPORT_META[x].title)}</span>
-                    <span className="mt-0.5 block text-caption text-muted">{t(REPORT_META[x].desc)}</span>
+                    <span className="subline mt-0.5 block text-caption text-muted">{t(REPORT_META[x].desc)}</span>
                   </button>
                 </li>
               ))}

@@ -19,6 +19,7 @@ export const ALL_KINDS: TxnKind[] = [
   'VAULT_WITHDRAWAL',
   'VAULT_TRANSFER',
   'PROCESSING',
+  'EXPENSE',
 ];
 
 export const isKind = (v: unknown): v is TxnKind => typeof v === 'string' && (ALL_KINDS as string[]).includes(v);

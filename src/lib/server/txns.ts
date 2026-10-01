@@ -4,6 +4,7 @@ import { withTx, type Tx } from '@/lib/db';
 import { D, Dec, convert, fmtKg, fmtMoney, parseDec, round2, round3, round4, roundMoney, toUsd } from '@/lib/money';
 import { AppError, Validator, fieldError, notFound, type FieldErrors } from './errors';
 import {
+  assertCash,
   assertStockNonNegative,
   beneficiaryBalance,
   clearResidualCost,
@@ -13,6 +14,7 @@ import {
   lockVaults,
   nextNumber,
   partyMove,
+  payOut,
   reverseEffects,
   stockIn,
   stockOut,
@@ -26,7 +28,9 @@ import { audit, jsonSafe } from './audit';
 import { isLocked } from '@/lib/lock';
 
 export type Actor = { id: string; name: string };
-type Opts = { isDemo?: boolean };
+type Opts = { isDemo?: boolean; allowShortfall?: boolean };
+/** The user confirmed recording a payment the vault can't fully cover (see payOut). */
+const shortOk = (input: { allowShortfall?: unknown }, opts: Opts) => input.allowShortfall === true || !!opts.allowShortfall;
 export type Saved = { id: string; number: string };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────────────────────────
@@ -83,6 +87,7 @@ export type PurchaseInput = {
   cashPaid?: string;
   notes?: string;
   clientTotal?: string;
+  allowShortfall?: boolean;
 };
 
 export async function savePurchase(input: PurchaseInput, actor: Actor, editId?: string, opts: Opts = {}): Promise<Saved> {
@@ -184,7 +189,7 @@ export async function savePurchase(input: PurchaseInput, actor: Actor, editId?: 
 
     const src: Src = { txnId, kind: 'PURCHASE', date };
     await stockIn(tx, src, productId, state!, kg, valueUsd);
-    await vaultMove(tx, src, vault, 'OUT', vaultAmount);
+    await payOut(tx, src, vault, vaultAmount, shortOk(input, opts));
     await partyMove(tx, src, { beneficiaryId: ben.id }, totalUsd.minus(cashUsd));
     touched.push({ productId, state: state! });
     if (old) await assertStockNonNegative(tx, touched, { number, action: 'update', txnId, createdAt: old.createdAt });
@@ -344,7 +349,7 @@ export async function saveSale(input: SaleInput, actor: Actor, editId?: string, 
 // ─── Payments & refunds ────────────────────────────────────────────────────────────────────────────
 export const PAYMENT_KINDS = ['CUSTOMER_PAYMENT', 'CUSTOMER_REFUND', 'BENEFICIARY_PAYMENT', 'BENEFICIARY_REFUND'] as const;
 export type PaymentKind = (typeof PAYMENT_KINDS)[number];
-export type PaymentInput = { kind?: string; partyId?: string; date?: string; amount?: string; currency?: string; vault?: string; notes?: string };
+export type PaymentInput = { kind?: string; partyId?: string; date?: string; amount?: string; currency?: string; vault?: string; notes?: string; allowShortfall?: boolean };
 
 export async function savePayment(input: PaymentInput, actor: Actor, editId?: string, opts: Opts = {}): Promise<Saved> {
   const v = new Validator();
@@ -425,11 +430,11 @@ export async function savePayment(input: PaymentInput, actor: Actor, editId?: st
         await partyMove(tx, src, p, amtUsd.neg());
         break;
       case 'CUSTOMER_REFUND':
-        await vaultMove(tx, src, vault, 'OUT', vaultAmount);
+        await payOut(tx, src, vault, vaultAmount, shortOk(input, opts));
         await partyMove(tx, src, p, amtUsd);
         break;
       case 'BENEFICIARY_PAYMENT':
-        await vaultMove(tx, src, vault, 'OUT', vaultAmount);
+        await payOut(tx, src, vault, vaultAmount, shortOk(input, opts));
         await partyMove(tx, src, p, amtUsd.neg());
         break;
       case 'BENEFICIARY_REFUND':
@@ -445,7 +450,7 @@ export async function savePayment(input: PaymentInput, actor: Actor, editId?: st
 // ─── Vault operations ──────────────────────────────────────────────────────────────────────────────
 export const VAULT_KINDS = ['VAULT_DEPOSIT', 'VAULT_WITHDRAWAL', 'VAULT_TRANSFER'] as const;
 export type VaultKind = (typeof VAULT_KINDS)[number];
-export type VaultOpInput = { kind?: string; date?: string; vault?: string; toVault?: string; amount?: string; rate?: string; label?: string; notes?: string };
+export type VaultOpInput = { kind?: string; date?: string; vault?: string; toVault?: string; amount?: string; rate?: string; label?: string; notes?: string; allowShortfall?: boolean };
 
 export async function saveVaultOp(input: VaultOpInput, actor: Actor, editId?: string, opts: Opts = {}): Promise<Saved> {
   const v = new Validator();
@@ -504,8 +509,10 @@ export async function saveVaultOp(input: VaultOpInput, actor: Actor, editId?: st
     }
     const src: Src = { txnId, kind: kind!, date };
     if (kind === 'VAULT_DEPOSIT') await vaultMove(tx, src, vault, 'IN', amt);
-    else if (kind === 'VAULT_WITHDRAWAL') await vaultMove(tx, src, vault, 'OUT', amt);
+    else if (kind === 'VAULT_WITHDRAWAL') await payOut(tx, src, vault, amt, shortOk(input, opts));
     else {
+      // A transfer can't be half-made: the source vault must hold the full amount.
+      await assertCash(tx, vault, amt);
       await vaultMove(tx, src, vault, 'OUT', amt);
       await vaultMove(tx, src, toVault!, 'IN', toAmount!);
     }
@@ -617,6 +624,7 @@ const MODULE_OF: Record<TxnKind, string> = {
   VAULT_WITHDRAWAL: 'vault',
   VAULT_TRANSFER: 'vault',
   PROCESSING: 'inventory',
+  EXPENSE: 'expenses',
 };
 
 /**
