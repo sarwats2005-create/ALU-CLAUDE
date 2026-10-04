@@ -8,13 +8,14 @@ import { api } from '@/lib/client/api';
 import { downloadFile, printDocument } from '@/lib/client/print';
 import { conversionText } from '@/lib/conversion';
 import { fmtDate, fmtDateTime } from '@/lib/dates';
-import { D, fmtCost, fmtKg, fmtMoney, fmtNum, fmtPct, fmtPrice, rateLine } from '@/lib/money';
+import { convert, D, fmtCost, fmtKg, fmtMoney, fmtNum, fmtPct, fmtPrice, rateLine, roundMoney } from '@/lib/money';
 import { KIND_PAGE, editHref, type Kind } from '@/lib/kinds';
 import { cx } from '@/lib/cx';
 import { isInvoiceKind, isLocked, remaining } from '@/lib/lock';
 import { removeInvoiceFile } from '@/lib/client/invoice-folder';
+import { docUrl, usePaper, type Paper } from '@/lib/client/paper';
 import { Dialog } from './Dialog';
-import { Badge, Button, Skeleton } from './ui';
+import { Badge, Button, Segmented, Skeleton } from './ui';
 import { useToast } from './Toast';
 import { useErase } from './EraseMode';
 
@@ -33,6 +34,7 @@ export function TxnPanelProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState<'delete' | 'print' | 'pdf' | null>(null);
+  const [paper, setPaper] = usePaper();
 
   const open = useCallback(async (txnId: string, opts: OpenOpts = {}) => {
     setId(txnId);
@@ -75,7 +77,7 @@ export function TxnPanelProvider({ children }: { children: ReactNode }) {
   async function doPrint() {
     if (!data) return;
     setBusy('print');
-    const r = await printDocument(`/api/docs/txn/${data.id}?format=html`);
+    const r = await printDocument(docUrl(data.id, 'html', paper));
     setBusy(null);
     if (!r.ok) toast.error(r.error || t('err.generic'));
   }
@@ -83,7 +85,7 @@ export function TxnPanelProvider({ children }: { children: ReactNode }) {
   async function doPdf() {
     if (!data) return;
     setBusy('pdf');
-    const r = await downloadFile(`/api/docs/txn/${data.id}?format=pdf`, `${data.number}.pdf`);
+    const r = await downloadFile(docUrl(data.id, 'pdf', paper), `${data.number}.pdf`);
     setBusy(null);
     if (!r.ok) toast.error(r.error || t('err.pdf'));
   }
@@ -124,6 +126,16 @@ export function TxnPanelProvider({ children }: { children: ReactNode }) {
               <Button variant="secondary" onClick={close}>
                 {t('common.close')}
               </Button>
+              <Segmented<Paper>
+                label={t('invc.paper')}
+                size="sm"
+                value={paper}
+                onChange={setPaper}
+                options={[
+                  { value: 'A5', label: 'A5' },
+                  { value: 'A4', label: 'A4' },
+                ]}
+              />
               <Button variant="secondary" onClick={doPdf} busy={busy === 'pdf'} icon={<FileDown className="h-4 w-4" aria-hidden="true" />}>
                 {t('common.downloadPdf')}
               </Button>
@@ -208,6 +220,44 @@ function Row({ label, children, strong }: { label: string; children: ReactNode; 
   );
 }
 
+/** Sale / purchase: what was paid in each currency (each to its own vault), the total paid and what is left. */
+function PaidRows({ d }: { d: TxnDetail }) {
+  const { t } = useApp();
+  const cur = d.currency as 'USD' | 'IQD';
+  const usd = D(d.paidUsd);
+  const iqd = D(d.paidIqd);
+  const owed = D(d.total).minus(D(d.cashPaid));
+  const worth = (amount: ReturnType<typeof D>, from: 'USD' | 'IQD') =>
+    from !== cur && amount.gt(0) ? (
+      <span className="block text-caption text-muted">= {fmtMoney(roundMoney(convert(amount, from, cur, D(d.rate)), cur), cur)}</span>
+    ) : null;
+  return (
+    <>
+      {usd.gt(0) ? (
+        <Row label={`${t('pay.inUsd')} → ${t('vault.USD')}`}>
+          <span className="num">{fmtMoney(usd)}</span>
+          {worth(usd, 'USD')}
+        </Row>
+      ) : null}
+      {iqd.gt(0) ? (
+        <Row label={`${t('pay.inIqd')} → ${t('vault.IQD')}`}>
+          <span className="num">{fmtMoney(iqd, 'IQD')}</span>
+          {worth(iqd, 'IQD')}
+        </Row>
+      ) : null}
+      <Row label={t('pay.totalPaid')}>
+        <span className="num">{fmtMoney(d.cashPaid, cur)}</span>
+      </Row>
+      {owed.gt(0) ? (
+        <Row label={t('pay.remaining')}>
+          <span className="num font-semibold text-danger-ink">{fmtMoney(owed, cur)}</span>
+          {cur === 'USD' ? <span className="block text-caption text-muted">= {fmtMoney(roundMoney(convert(owed, 'USD', 'IQD', D(d.rate)), 'IQD'), 'IQD')}</span> : null}
+        </Row>
+      ) : null}
+    </>
+  );
+}
+
 export function TxnBody({ d }: { d: TxnDetail }) {
   const { t, lang } = useApp();
   const cur = d.currency as 'USD' | 'IQD';
@@ -215,8 +265,8 @@ export function TxnBody({ d }: { d: TxnDetail }) {
   const kind = d.kind as Kind;
   const isLines = kind === 'SALE' || kind === 'PURCHASE';
   const conv =
-    d.vault && d.vault !== cur && D(d.cashPaid).gt(0)
-      ? conversionText(d.cashPaid, cur, d.vault as 'USD' | 'IQD', d.rate, kind === 'SALE' || kind === 'CUSTOMER_PAYMENT' || kind === 'BENEFICIARY_REFUND' ? 'in' : 'out', lang)
+    !isLines && d.vault && d.vault !== cur && D(d.cashPaid).gt(0)
+      ? conversionText(d.cashPaid, cur, d.vault as 'USD' | 'IQD', d.rate, kind === 'CUSTOMER_PAYMENT' || kind === 'BENEFICIARY_REFUND' ? 'in' : 'out', lang)
       : null;
   return (
     <div className="flex flex-col gap-5">
@@ -300,24 +350,20 @@ export function TxnBody({ d }: { d: TxnDetail }) {
           <Row label={t('common.total')} strong>
             <span className="num">{fmtMoney(d.total, cur)}</span>
           </Row>
-          {isLines ? (
-            <Row label={t('common.cashPaid')}>
-              <span className="num">{fmtMoney(d.cashPaid, cur)}</span>
-            </Row>
-          ) : null}
+          {isLines ? <PaidRows d={d} /> : null}
           <Row label={t('common.currency')}>{t(`cur.${cur}` as 'cur.USD')}</Row>
-          {d.vault ? (
+          {d.vault && !isLines ? (
             <Row label={kind === 'VAULT_TRANSFER' ? t('vault.fromVault') : t('common.vault')}>
               {t(`vault.${d.vault}` as 'vault.USD')} <span className="num text-muted">({fmtMoney(d.vaultAmount, d.vault as 'USD' | 'IQD')})</span>
             </Row>
           ) : null}
-          {d.dueRemaining && d.dueVault ? (
-            <Row label={t('due.unpaidFromVault')}>
+          {d.openDues.map((due) => (
+            <Row key={due.vault} label={t('due.unpaidFromVault')}>
               <a href="/vault/dues" className="num font-semibold text-danger-ink hover:underline">
-                {fmtMoney(d.dueRemaining, d.dueVault as 'USD' | 'IQD')}
+                {fmtMoney(due.remaining, due.vault)}
               </a>
             </Row>
-          ) : null}
+          ))}
           {kind === 'VAULT_TRANSFER' && d.toVault ? (
             <Row label={t('vault.toVault')}>
               {t(`vault.${d.toVault}` as 'vault.USD')} <span className="num text-muted">({fmtMoney(d.toAmount, d.toVault as 'USD' | 'IQD')})</span>

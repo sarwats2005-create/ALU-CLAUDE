@@ -19,6 +19,7 @@ import {
   MonitorSmartphone,
   Ellipsis,
   Menu,
+  Info,
   type LucideIcon,
 } from 'lucide-react';
 import { AppProvider, useApp, type ClientUser } from '@/lib/client/app-context';
@@ -35,6 +36,8 @@ import { Segmented } from '../ui';
 import { TxnPanelProvider } from '../TxnPanel';
 import { MoneyGuardProvider } from '../MoneyGuard';
 import { EraseProvider } from '../EraseMode';
+import { useToast } from '../Toast';
+import { runWeeklyBackupIfDue } from '@/lib/client/backup-folder';
 
 const NAV: Record<Page, { icon: LucideIcon; label: DictKey; short?: DictKey }> = {
   dashboard: { icon: LayoutDashboard, label: 'nav.dashboard' },
@@ -243,6 +246,22 @@ function Shell({ children }: { children: ReactNode }) {
                 </li>
               );
             })}
+            {/* "How the app works" — open to every signed-in user, not a permission page. */}
+            <li className="mt-2 border-t border-white/10 pt-2">
+              <Link
+                href="/about"
+                aria-current={pathname === '/about' ? 'page' : undefined}
+                aria-label={expanded ? undefined : t('nav.about')}
+                title={expanded ? undefined : t('nav.about')}
+                className={cx(
+                  'flex h-11 items-center gap-3 overflow-hidden whitespace-nowrap rounded-ctl px-3.5 text-body font-medium transition-colors',
+                  pathname === '/about' ? 'bg-sidebar-active text-sidebar-ink' : 'text-sidebar-muted hover:bg-sidebar-active hover:text-sidebar-ink',
+                )}
+              >
+                <Info className="h-[19px] w-[19px] shrink-0" strokeWidth={pathname === '/about' ? 2.2 : 1.8} aria-hidden="true" />
+                <span className={cx('truncate transition-opacity', expanded ? 'opacity-100' : 'opacity-0')}>{t('nav.about')}</span>
+              </Link>
+            </li>
           </ul>
         </nav>
         <div className={cx('flex flex-col gap-3 border-t border-white/15 pb-5 pt-4', expanded ? 'px-4' : 'items-center px-2')}>
@@ -344,7 +363,7 @@ function Shell({ children }: { children: ReactNode }) {
               type="button"
               onClick={() => setMoreOpen(true)}
               aria-haspopup="dialog"
-              className={cx('flex h-[60px] w-full flex-col items-center justify-center gap-0.5 text-[11px] font-semibold', overflow.some(isActive) ? 'text-brand-ink' : 'text-muted')}
+              className={cx('flex h-[60px] w-full flex-col items-center justify-center gap-0.5 text-[11px] font-semibold', overflow.some(isActive) || pathname === '/about' ? 'text-brand-ink' : 'text-muted')}
             >
               <Ellipsis className="h-[22px] w-[22px]" aria-hidden="true" />
               <span>{t('nav.more')}</span>
@@ -366,8 +385,14 @@ function Shell({ children }: { children: ReactNode }) {
               </li>
             );
           })}
+          <li>
+            <Link href="/about" className="flex h-12 items-center gap-3 rounded-ctl px-2 text-lead font-medium text-ink hover:bg-tint">
+              <Info className="h-5 w-5 text-brand-ink" aria-hidden="true" />
+              {t('nav.about')}
+            </Link>
+          </li>
         </ul>
-        <div className={cx('flex flex-col gap-3', overflow.length > 0 && 'mt-4 border-t border-line-soft pt-4')}>
+        <div className={cx('mt-4 flex flex-col gap-3 border-t border-line-soft pt-4')}>
           <div className="flex items-center gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tint text-meta font-bold text-brand-ink" aria-hidden="true">
               {initials(user.name)}
@@ -388,6 +413,7 @@ function Shell({ children }: { children: ReactNode }) {
       </Dialog>
 
       <ExchangeRateFab />
+      {user.isOwner ? <WeeklyBackup /> : null}
     </div>
   );
 }
@@ -395,4 +421,29 @@ function Shell({ children }: { children: ReactNode }) {
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() || '?';
+}
+
+/** Owner only: when the app opens, saves this week's backup into the chosen folder if it's due. */
+function WeeklyBackup() {
+  const { t } = useApp();
+  const toast = useToast();
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      void runWeeklyBackupIfDue().then((r) => {
+        if (r.status === 'saved') toast.success(t('bk.weeklyDone', { file: r.file }));
+        else if (r.status === 'needs-access') {
+          let shown = false;
+          try {
+            shown = sessionStorage.getItem('alu:backup-nag') === '1';
+            sessionStorage.setItem('alu:backup-nag', '1');
+          } catch {
+            /* private mode: just show it */
+          }
+          if (!shown) toast.error(t('bk.weeklyWaiting'));
+        }
+      });
+    }, 4000);
+    return () => window.clearTimeout(id);
+  }, [t, toast]);
+  return null;
 }

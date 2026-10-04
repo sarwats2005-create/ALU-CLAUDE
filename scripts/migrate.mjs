@@ -1,6 +1,6 @@
 // Production database step, run before every start on Railway (npm run db:deploy):
 //   1. prisma migrate deploy  — applies pending migrations (idempotent)
-//   2. prisma/seed.ts         — settings row, company profile, default aluminum types (idempotent)
+//   2. prisma/seed.ts         — settings row and company profile (idempotent)
 // Neon: migrations need a DIRECT (unpooled) connection. Uses DIRECT_URL when set, otherwise derives it from
 // the pooled DATABASE_URL by dropping "-pooler" from the host (Neon's naming). Works locally too (reads .env).
 import { spawnSync } from 'node:child_process';

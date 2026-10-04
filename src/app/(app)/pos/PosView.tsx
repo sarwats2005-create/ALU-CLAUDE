@@ -8,19 +8,20 @@ import type { lookupProducts } from '@/lib/server/q/inventory';
 import { useApp } from '@/lib/client/app-context';
 import { api, qs } from '@/lib/client/api';
 import { downloadFile, printDocument } from '@/lib/client/print';
-import { conversionText } from '@/lib/conversion';
 import { balanceLabel } from '@/lib/format';
 import { localTodayIso } from '@/lib/dates';
 import { D, Dec, fmtKg, fmtMoney, fmtPct, parseDec, roundMoney, toUsd, type Cur } from '@/lib/money';
 import { cx } from '@/lib/cx';
 import { Badge, Button, Card, Field, Input, PageHeader, Segmented, Textarea } from '@/components/ui';
 import { StepLabel } from '@/components/Summary';
+import { docUrl } from '@/lib/client/paper';
 import { Combobox, type Option } from '@/components/Combobox';
 import { DateInput } from '@/components/DateInput';
 import { EditingBanner, Dialog } from '@/components/Dialog';
 import { PartyFormDialog } from '@/components/PartyForm';
 import { useToast } from '@/components/Toast';
 import { useMoneyGuard } from '@/components/MoneyGuard';
+import { SplitPayment, splitTotals } from '@/components/SplitPayment';
 import { useInvoiceAutoSave } from '@/components/useInvoiceAutoSave';
 
 type Product = Awaited<ReturnType<typeof lookupProducts>>[number];
@@ -42,10 +43,10 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
 
   const [date, setDate] = useState(edit?.date ?? localTodayIso());
   const [currency, setCurrency] = useState<Cur>((edit?.currency as Cur) ?? 'USD');
-  const [vault, setVault] = useState<Cur>((edit?.vault as Cur) ?? 'USD');
   const [customer, setCustomer] = useState<Option<Customer> | null>(null);
   const [lines, setLines] = useState<Line[]>(() => (edit ? [] : [newLine()]));
-  const [cash, setCash] = useState(edit ? D(edit.cashPaid).toString() : '');
+  const [payUsd, setPayUsd] = useState(edit && D(edit.paidUsd).gt(0) ? D(edit.paidUsd).toString() : '');
+  const [payIqd, setPayIqd] = useState(edit && D(edit.paidIqd).gt(0) ? D(edit.paidIqd).toString() : '');
   const [notes, setNotes] = useState(edit?.notes ?? '');
   const [noteOpen, setNoteOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -97,14 +98,14 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
     return kg && p && kg.gt(0) && p.gt(0) ? roundMoney(kg.times(p), currency) : null;
   });
   const total = lineTotals.reduce<Dec>((s, x) => s.plus(x ?? 0), new Dec(0));
-  const cashD = roundMoney(parseDec(cash) ?? new Dec(0), currency);
   const totalUsd = toUsd(total, currency, r).toDecimalPlaces(2);
-  const cashUsd = toUsd(cashD, currency, r).toDecimalPlaces(2);
+  const split = splitTotals(currency, total, totalUsd, rate, payUsd, payIqd);
+  const cashD = split.paid;
+  const cashUsd = split.paidUsd;
   const oldEffect = edit && customer && edit.customer?.id === customer.id ? D(edit.totalUsd).minus(D(edit.cashPaidUsd)) : new Dec(0);
   const prevBal = customer ? D(customer.data.balance).minus(oldEffect) : null;
   const newBal = prevBal ? prevBal.plus(totalUsd).minus(cashUsd) : null;
   const paidPct = total.gt(0) ? Dec.min(100, cashD.div(total).times(100)) : new Dec(0);
-  const conv = conversionText(cashD.toString(), currency, vault, rate, 'in', lang);
 
   function validate(): Record<string, string> {
     const e: Record<string, string> = {};
@@ -129,8 +130,10 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
       else if (!p.gt(0)) e[`lines.${i}.unitPrice`] = t('v.positive');
     });
     if (!lines.length) e.lines = t('v.lineRequired');
-    if (cash && !parseDec(cash)) e.cashPaid = t('v.number');
-    else if (cash && parseDec(cash)!.isNegative()) e.cashPaid = t('v.nonNegative');
+    for (const [k, v] of [['paidUsd', payUsd], ['paidIqd', payIqd]] as const) {
+      if (v && !parseDec(v)) e[k] = t('v.number');
+      else if (v && parseDec(v)!.isNegative()) e[k] = t('v.nonNegative');
+    }
     return e;
   }
 
@@ -149,8 +152,8 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
       date,
       customerId: customer!.id,
       currency,
-      vault,
-      cashPaid: cash || '0',
+      paidUsd: payUsd || '0',
+      paidIqd: payIqd || '0',
       notes,
       clientTotal: total.toString(),
       lines: lines.map((l) => ({ productId: l.product!.id, state: l.state, kg: l.kg, unitPrice: l.price })),
@@ -166,7 +169,8 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
     toast.success(edit ? t('toast.updated') : t('toast.saleRecorded', { number: res.data.number }));
     saveToFolder(res.data.id, res.data.number);
     setDone({ ...res.data, updated: !!edit });
-    if (parseDec(cash)?.gt(0)) guard.afterIncome(vault);
+    if (split.usd.gt(0)) guard.afterIncome('USD');
+    else if (split.iqd.gt(0)) guard.afterIncome('IQD');
   }
 
   function resetForNext() {
@@ -176,7 +180,8 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
       return;
     }
     setLines([newLine()]);
-    setCash('');
+    setPayUsd('');
+    setPayIqd('');
     setNotes('');
     setErrors({});
     // Refresh stock figures on the picker by re-fetching the chosen customer's balance.
@@ -254,10 +259,7 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
               <Segmented<Cur>
                 label={t('common.currency')}
                 value={currency}
-                onChange={(c) => {
-                  setCurrency(c);
-                  setVault(c);
-                }}
+                onChange={setCurrency}
                 options={[
                   { value: 'USD', label: 'USD' },
                   { value: 'IQD', label: 'IQD' },
@@ -329,34 +331,18 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
               {currency === 'IQD' && total.gt(0) ? <p className="num mt-2 text-meta opacity-85">≈ {fmtMoney(totalUsd)}</p> : null}
             </div>
             <div className="flex flex-col gap-4 p-5">
-              <Field label={t('common.vault')} htmlFor="pos-vault">
-                <Segmented<Cur>
-                  label={t('common.vault')}
-                  value={vault}
-                  onChange={setVault}
-                  options={[
-                    { value: 'USD', label: t('vault.USD') },
-                    { value: 'IQD', label: t('vault.IQD') },
-                  ]}
-                  className="w-full"
-                />
-              </Field>
-              <Field
+              <SplitPayment
+                id="pos-pay"
                 label={t('pos.cashNow')}
-                htmlFor="pos-cash"
-                error={errors.cashPaid}
-                trailing={
-                  <button type="button" onClick={() => setCash(total.toString())} disabled={!total.gt(0)} className="rounded px-1 text-caption font-bold text-brand-ink hover:underline disabled:opacity-40">
-                    {t('pos.payFull')}
-                  </button>
-                }
-              >
-                <div className="relative">
-                  <Input id="pos-cash" numeric value={cash} onChange={(e) => setCash(e.target.value)} placeholder="0" invalid={!!errors.cashPaid} className="pe-14" />
-                  <span className="input-suffix pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">{currency}</span>
-                </div>
-              </Field>
-              {conv ? <p className="num rounded-ctl bg-tint px-3 py-2 text-caption text-ink">{conv}</p> : null}
+                currency={currency}
+                total={total}
+                rate={rate}
+                usd={payUsd}
+                iqd={payIqd}
+                onUsd={setPayUsd}
+                onIqd={setPayIqd}
+                errors={{ paidUsd: errors.paidUsd, paidIqd: errors.paidIqd }}
+              />
 
               {/* Paid / due split */}
               <div className={cx(!total.gt(0) && 'hidden')}>
@@ -564,7 +550,7 @@ function InvoiceReady({ done, onNext }: { done: { id: string; number: string; up
             busy={busy === 'print'}
             onClick={async () => {
               setBusy('print');
-              const r = await printDocument(`/api/docs/txn/${done.id}?format=html`);
+              const r = await printDocument(docUrl(done.id, 'html'));
               setBusy(null);
               if (!r.ok) toast.error(r.error || t('err.generic'));
             }}
@@ -577,7 +563,7 @@ function InvoiceReady({ done, onNext }: { done: { id: string; number: string; up
             busy={busy === 'pdf'}
             onClick={async () => {
               setBusy('pdf');
-              const r = await downloadFile(`/api/docs/txn/${done.id}?format=pdf`, `${done.number}.pdf`);
+              const r = await downloadFile(docUrl(done.id, 'pdf'), `${done.number}.pdf`);
               setBusy(null);
               if (!r.ok) toast.error(r.error || t('err.pdf'));
             }}

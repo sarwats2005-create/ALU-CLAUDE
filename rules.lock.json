@@ -1,0 +1,22 @@
+{
+  "version": "1.6",
+  "about": "2e254092cb278b75",
+  "files": {
+    "src/lib/rules.ts": "1bfaf75f392ca756",
+    "src/lib/lock.ts": "efcbe54f3c625fbb",
+    "src/lib/money.ts": "00655077608d7108",
+    "src/lib/conversion.ts": "3f609c3ea905070f",
+    "src/lib/kinds.ts": "9d7d3f788a455ebb",
+    "src/lib/permissions.ts": "3b463c76d8d870c4",
+    "src/lib/server/txns.ts": "c76a760702285e94",
+    "src/lib/server/ledger.ts": "a47792bcaa6dc372",
+    "src/lib/server/dues.ts": "0633251948fa73bf",
+    "src/lib/server/expenses.ts": "46ee140ea4a20943",
+    "src/lib/server/catalog.ts": "b0cec6eae2fa4fa9",
+    "src/lib/server/erase.ts": "cebda1b6a60a0da4",
+    "src/lib/server/backup.ts": "87dc283737b02a80",
+    "src/lib/server/auth.ts": "d45122bdf9b27465",
+    "src/lib/server/q/alerts.ts": "657c1ce572e51044",
+    "prisma/seed.ts": "06115024a234e073"
+  }
+}

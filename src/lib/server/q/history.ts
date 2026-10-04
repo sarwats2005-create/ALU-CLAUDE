@@ -17,7 +17,8 @@ export type TxnRow = {
   total: string;
   totalUsd: string;
   cashPaid: string;
-  vault: 'USD' | 'IQD' | null;
+  /** 'BOTH' = a sale / purchase paid partly in USD and partly in IQD. */
+  vault: 'USD' | 'IQD' | 'BOTH' | null;
   vaultAmount: string;
   toVault: 'USD' | 'IQD' | null;
   toAmount: string | null;
@@ -50,6 +51,8 @@ export type HistoryFilters = {
   createdFrom?: Date;
   /** Created before this moment (edit window over). */
   createdBefore?: Date;
+  /** Only documents with money still owed on them (total > cash paid). */
+  owed?: boolean;
 };
 
 export const HISTORY_SORT = ['number', 'date', 'kind', 'party', 'total', 'currency', 'vault', 'kg', 'created'];
@@ -61,7 +64,7 @@ export function historyWhere(f: HistoryFilters): Sql {
   if (f.partyId) conds.push(sql`(t."customerId" = ${f.partyId} OR t."beneficiaryId" = ${f.partyId})`);
   if (f.customerId) conds.push(sql`t."customerId" = ${f.customerId}`);
   if (f.beneficiaryId) conds.push(sql`t."beneficiaryId" = ${f.beneficiaryId}`);
-  if (f.vault === 'USD' || f.vault === 'IQD') conds.push(sql`(t.vault = ${f.vault}::"Currency" OR t."toVault" = ${f.vault}::"Currency")`);
+  if (f.vault === 'USD' || f.vault === 'IQD') conds.push(sql`(t.vault = ${f.vault}::"Currency" OR t."toVault" = ${f.vault}::"Currency" OR ${f.vault === 'USD' ? sql`t."paidUsd" > 0` : sql`t."paidIqd" > 0`})`);
   if (f.currency === 'USD' || f.currency === 'IQD') conds.push(sql`t.currency = ${f.currency}::"Currency"`);
   if (f.typeId)
     conds.push(sql`(EXISTS (SELECT 1 FROM "TxnLine" l JOIN "Product" p ON p.id = l."productId" WHERE l."txnId" = t.id AND p."typeId" = ${f.typeId})
@@ -70,6 +73,7 @@ export function historyWhere(f: HistoryFilters): Sql {
   if (isValidIsoDate(f.to)) conds.push(sql`t.date <= ${f.to}::date`);
   if (f.createdFrom) conds.push(sql`t."createdAt" >= ${f.createdFrom}`);
   if (f.createdBefore) conds.push(sql`t."createdAt" < ${f.createdBefore}`);
+  if (f.owed) conds.push(sql`t.total > t."cashPaid"`);
   const q = (f.q ?? '').trim();
   if (q) {
     const L = like(q);
@@ -102,7 +106,7 @@ const FROM = sql`
 
 const SELECT = sql`
   SELECT t.id, t.number, t.date, t.kind, t."customerId", t."beneficiaryId", c.name AS cname, b.name AS bname,
-         t.currency, t.total, t."totalUsd", t."cashPaid", t.vault, t."vaultAmount", t."toVault", t."toAmount", t.rate,
+         t.currency, t.total, t."totalUsd", t."cashPaid", CASE WHEN t."paidUsd" > 0 AND t."paidIqd" > 0 THEN $$BOTH$$ ELSE t.vault::text END AS vault, t."vaultAmount", t."toVault", t."toAmount", t.rate,
          t.label, t."isDemo", t."inputKg", t."outputKg", t."createdAt", t."createdByName",
          lx.products, lx.skus, lx.types, lx.kg, lx.price_min, lx.price_max,
          pp.name AS proc_name, pp.sku AS proc_sku, pty.name AS proc_type`;
@@ -225,6 +229,9 @@ export async function txnDetail(id: string) {
     cashPaidUsd: t.cashPaidUsd.toString(),
     vault: t.vault,
     vaultAmount: t.vaultAmount.toString(),
+    /** Sales / purchases: what was paid in each currency (each to its own vault). */
+    paidUsd: t.paidUsd.toString(),
+    paidIqd: t.paidIqd.toString(),
     toVault: t.toVault,
     toAmount: t.toAmount?.toString() ?? null,
     cogsUsd: t.cogsUsd.toString(),
@@ -244,6 +251,11 @@ export async function txnDetail(id: string) {
     /** Part of this document the vault couldn't pay yet (unpaid vault due), in the vault's currency. */
     dueRemaining: openDues.length ? openDues.reduce((s, d) => s.plus(D(d.amount).minus(D(d.paid))), D(0)).toString() : null,
     dueVault: openDues[0]?.vault ?? null,
+    /** Open unpaid dues per vault (a split purchase can leave one in each). */
+    openDues: (['USD', 'IQD'] as const)
+      .map((v) => ({ vault: v, remaining: openDues.filter((d) => d.vault === v).reduce((x, d) => x.plus(D(d.amount).minus(D(d.paid))), D(0)) }))
+      .filter((d) => d.remaining.gt(0))
+      .map((d) => ({ vault: d.vault, remaining: d.remaining.toString() })),
     isDemo: t.isDemo,
     createdAt: t.createdAt.toISOString(),
     createdByName: t.createdByName,

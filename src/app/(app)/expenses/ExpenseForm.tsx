@@ -185,7 +185,7 @@ export function ExpenseForm({
             <Field label={t('exp.amount')} htmlFor="exp-amount" error={errors.amount} required className="xl:col-span-2">
               <div className="relative">
                 <Input id="exp-amount" numeric value={flat} onChange={(e) => setFlat(e.target.value)} invalid={!!errors.amount} className="pe-14" />
-                <span className="input-suffix pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">{vault}</span>
+                <span className="input-suffix pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">{vault}</span>
               </div>
             </Field>
           )}

@@ -365,7 +365,7 @@ function VaultOpDialog({ kind, edit, balances, onClose }: { kind: OpKind; edit?:
           <Field label={t('common.amount')} htmlFor="vop-amount" error={errors.amount} required>
             <div className="relative">
               <Input id="vop-amount" numeric value={amount} onChange={(e) => setAmount(e.target.value)} invalid={!!errors.amount} className="pe-14" data-autofocus />
-              <span className="input-suffix pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">{vault}</span>
+              <span className="input-suffix pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">{vault}</span>
             </div>
           </Field>
           <Field label={t('common.date')} htmlFor="vop-date" error={errors.date} required>

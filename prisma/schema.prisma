@@ -229,6 +229,11 @@ model Txn {
   cashPaid      Decimal     @default(0) @db.Decimal(18, 2)
   cashPaidUsd   Decimal     @default(0) @db.Decimal(18, 2)
 
+  /// Sales / purchases: money actually paid, per currency. Each part goes to its own vault (USD → USD vault,
+  /// IQD → IQD vault) and counts toward the invoice at this transaction's rate. cashPaid is their sum.
+  paidUsd       Decimal     @default(0) @db.Decimal(18, 2)
+  paidIqd       Decimal     @default(0) @db.Decimal(18, 2)
+
   vault         Currency?
   /// Amount moved in/out of `vault`, in the vault's currency.
   vaultAmount   Decimal     @default(0) @db.Decimal(18, 2)
@@ -454,4 +459,21 @@ model AlertRead {
   readAt   DateTime @default(now())
 
   @@id([userId, alertKey])
+}
+
+/// A full copy of the business data, kept inside the database (gzip-compressed JSON, same format as the
+/// JSON backup file). Taken automatically every day and before every restore / fresh start.
+model Snapshot {
+  id            String   @id @default(cuid())
+  /// daily | before-restore | before-reset | manual
+  kind          String
+  createdAt     DateTime @default(now())
+  createdByName String   @default("")
+  sizeBytes     Int
+  /// Rows per table, for the list in Settings → Data.
+  counts        Json
+  checksum      String
+  data          Bytes
+
+  @@index([kind, createdAt])
 }

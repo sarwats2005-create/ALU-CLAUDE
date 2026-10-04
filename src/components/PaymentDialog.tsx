@@ -151,7 +151,7 @@ export function PaymentDialog({
           <Field label={t('common.amount')} htmlFor={`${fid}-amount`} error={errors.amount} required>
             <div className="relative">
               <Input id={`${fid}-amount`} numeric value={amount} onChange={(e) => setAmount(e.target.value)} invalid={!!errors.amount} className="pe-14" data-autofocus />
-              <span className="input-suffix pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">{currency}</span>
+              <span className="input-suffix pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">{currency}</span>
             </div>
           </Field>
           <Field label={t('common.currency')} htmlFor={`${fid}-cur`}>

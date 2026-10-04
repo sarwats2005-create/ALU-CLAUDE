@@ -4,6 +4,8 @@
 // browser only. Browsers may ask for permission again after a restart; invoices created while permission
 // is missing are queued and saved when the user clicks "Allow access" on the Invoices page.
 
+import { docUrl } from './paper';
+
 type Perm = 'granted' | 'denied' | 'prompt';
 type DirHandle = FileSystemDirectoryHandle & {
   queryPermission(opts: { mode: 'readwrite' }): Promise<Perm>;
@@ -99,7 +101,7 @@ async function ensurePermission(dir: DirHandle): Promise<boolean> {
 }
 
 async function writePdf(dir: DirHandle, id: string, number: string): Promise<void> {
-  const res = await fetch(`/api/docs/txn/${encodeURIComponent(id)}?format=pdf`, { credentials: 'same-origin' });
+  const res = await fetch(docUrl(id, 'pdf'), { credentials: 'same-origin' });
   if (!res.ok) throw new Error(`PDF ${res.status}`);
   const blob = await res.blob();
   const fh = await dir.getFileHandle(fileOf(number), { create: true });

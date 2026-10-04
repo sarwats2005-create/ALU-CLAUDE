@@ -1,11 +1,10 @@
 'use client';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Database, FileDown, FileSpreadsheet, History, Languages, Pencil, Plus, ScrollText, Shapes, Siren, Trash2, Upload, Users, Package, ArrowLeftRight, Wallet, KeyRound, Eraser } from 'lucide-react';
+import { Building2, Database, History, Languages, Pencil, Plus, ScrollText, Shapes, Siren, Trash2, Upload, Users, Package, ArrowLeftRight, Wallet, KeyRound, Eraser } from 'lucide-react';
 import { useApp } from '@/lib/client/app-context';
-import { api, qs } from '@/lib/client/api';
+import { api } from '@/lib/client/api';
 import { useRemote } from '@/lib/client/use-remote';
-import { downloadFile } from '@/lib/client/print';
 import { fmtDateTime } from '@/lib/dates';
 import { fmtKg, rateLine } from '@/lib/money';
 import { ACTIONS, PAGES, actionKey, pageKey } from '@/lib/permissions';
@@ -19,6 +18,8 @@ import { Pager, SearchBox, useListState } from '@/components/DataTable';
 import { RateEditDialog, RateLogList } from '@/components/RateDialogs';
 import { useToast } from '@/components/Toast';
 import { useErase } from '@/components/EraseMode';
+import { BackupSection } from './BackupSection';
+import { PIN_RE } from '@/lib/rules';
 
 type Section = 'company' | 'rate' | 'types' | 'products' | 'expenses' | 'alerts' | 'language' | 'users' | 'audit' | 'data';
 const SECTIONS: { id: Section; label: DictKey; icon: typeof Building2; owner?: boolean }[] = [
@@ -296,7 +297,7 @@ function ExpensesSection() {
     toast.success(t('toast.saved'));
   }
   async function savePin(remove: boolean) {
-    if (!remove && !/^\d{4,8}$/.test(pin)) return setPinErr(t('exp.pinFormat'));
+    if (!remove && !PIN_RE.test(pin)) return setPinErr(t('exp.pinFormat'));
     setBusy(remove ? 'pin-off' : 'pin');
     const res = await api<ExpCfg>('/api/settings/expenses/pin', { method: 'PUT', body: { pin: remove ? '' : pin } });
     setBusy(null);
@@ -732,7 +733,7 @@ function MoneyIn({ id, value, onChange, suffix, error, label }: { id: string; va
       ) : null}
       <div className="relative w-44">
         <Input id={id} numeric value={value} onChange={(e) => onChange(e.target.value)} invalid={!!error} className="pe-14" aria-label={label ?? suffix} />
-        <span className="input-suffix pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-caption font-semibold text-muted">{suffix}</span>
+        <span className="input-suffix pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption font-semibold text-muted">{suffix}</span>
       </div>
       {error ? <p className="text-caption text-danger-ink">{error}</p> : null}
     </div>
@@ -1053,13 +1054,6 @@ function DataSection() {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
 
-  async function dl(format: 'json' | 'xlsx') {
-    setBusy(format);
-    const r = await downloadFile(`/api/settings/export${qs({ format })}`, `alu-factory.${format}`);
-    setBusy(null);
-    if (r.ok) toast.success(t('toast.exported'));
-    else toast.error(r.error || t('err.generic'));
-  }
   async function removeDemo() {
     setBusy('demo');
     const r = await api('/api/settings/demo', { method: 'DELETE' });
@@ -1071,17 +1065,7 @@ function DataSection() {
   }
   return (
     <div className="flex flex-col gap-5">
-      <Section owner title={t('set.export')} hint={t('set.exportHint')}>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" busy={busy === 'json'} onClick={() => dl('json')} icon={<FileDown className="h-4 w-4" aria-hidden="true" />}>
-            {t('set.exportJson')}
-          </Button>
-          <Button variant="secondary" busy={busy === 'xlsx'} onClick={() => dl('xlsx')} icon={<FileSpreadsheet className="h-4 w-4" aria-hidden="true" />}>
-            {t('set.exportExcel')}
-          </Button>
-        </div>
-        <p className="mt-3 text-caption text-muted">{t('set.backupNote')}</p>
-      </Section>
+      <BackupSection />
       <Section title={t('set.demo')} hint={demo.data ? (demo.data.total ? t('set.demoHint', { n: demo.data.total }) : t('set.demoNone')) : undefined}>
         <Button variant="danger" disabled={!demo.data?.total} onClick={() => setConfirm(true)} icon={<Trash2 className="h-4 w-4" aria-hidden="true" />}>
           {t('set.removeDemo')}

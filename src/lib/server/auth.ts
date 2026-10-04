@@ -1,4 +1,5 @@
 import 'server-only';
+import { RULES, MIN_MS } from '@/lib/rules';
 import { cookies, headers } from 'next/headers';
 import { createHash, randomBytes } from 'node:crypto';
 import { prisma, type Tx } from '@/lib/db';
@@ -91,9 +92,9 @@ export async function clientIp(): Promise<string> {
   return (h.get('cf-connecting-ip') ?? h.get('x-real-ip') ?? h.get('x-forwarded-for')?.split(',')[0] ?? 'local').trim().slice(0, 64);
 }
 
-const WINDOW_MS = 15 * 60 * 1000;
+const WINDOW_MS = RULES.loginWindowMinutes * MIN_MS;
 /** Wrong passwords for one account from one IP before that IP is paused for the account. */
-const MAX_FAILS_EMAIL_IP = 5;
+const MAX_FAILS_EMAIL_IP = RULES.loginMaxTries;
 /** Wrong passwords from one IP across all accounts. */
 const MAX_FAILS_IP = 20;
 /** Wrong passwords for one account from everywhere: high enough that a stranger can't lock the owner out cheaply. */

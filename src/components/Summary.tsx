@@ -17,6 +17,8 @@ export function SummaryStrip({ children, cols = 4, className }: { children: Reac
       className={cx(
         // gap-px over a hairline-coloured background = dividers that work for any number of cells, in LTR and RTL.
         'grid grid-cols-2 gap-px overflow-hidden rounded-card border border-line-soft bg-line-soft shadow-card',
+        // Odd number of cells on a 2-column phone grid: the last one takes the full row (no empty hole).
+        cols === 3 ? 'max-sm:[&>*:last-child:nth-child(odd)]:col-span-2' : 'max-lg:[&>*:last-child:nth-child(odd)]:col-span-2',
         cols === 3 && 'sm:grid-cols-3',
         COLS[cols],
         className,

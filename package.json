@@ -9,14 +9,16 @@
     "db:start": "node scripts/local-db.mjs",
     "dev": "next dev --turbopack -p 3000",
     "dev:webpack": "next dev -p 3000",
-    "build": "prisma generate && next build",
+    "build": "node scripts/rules.mjs check --warn && prisma generate && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "db:push": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "test:acceptance": "tsx tests/acceptance.ts",
     "db:demo": "tsx --conditions=react-server prisma/demo.ts",
-    "db:deploy": "node scripts/migrate.mjs"
+    "db:deploy": "node scripts/migrate.mjs",
+    "rules:check": "node scripts/rules.mjs check",
+    "rules:sync": "node scripts/rules.mjs sync"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

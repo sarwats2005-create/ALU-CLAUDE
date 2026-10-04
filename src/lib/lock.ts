@@ -1,7 +1,9 @@
 // Invoice edit window: a sale or purchase invoice can be edited or deleted for 24 hours after it is
 // created. After that it is locked for everyone, the Owner included. Shared by the server (which enforces
 // it) and the browser (which shows the countdown and hides the edit/delete buttons).
-export const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+import { RULES, HOUR_MS } from './rules';
+
+export const EDIT_WINDOW_MS = RULES.editWindowHours * HOUR_MS;
 
 export const isInvoiceKind = (kind: string) => kind === 'SALE' || kind === 'PURCHASE';
 

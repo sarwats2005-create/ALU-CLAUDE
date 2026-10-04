@@ -1,4 +1,5 @@
 import 'server-only';
+import { RULES, MIN_MS, PIN_RE } from '@/lib/rules';
 import bcrypt from 'bcryptjs';
 import type { Currency, RecurFrequency, RecurState } from '@prisma/client';
 import { prisma, withTx, type Tx } from '@/lib/db';
@@ -34,7 +35,7 @@ export async function updateExpenseSettings(input: { vaultMode?: unknown }, acto
 /** Owner only (checked by the route). Empty pin removes the PIN. */
 export async function setExpensePin(input: { pin?: unknown }, actor: Actor) {
   const pin = typeof input.pin === 'string' ? input.pin.trim() : '';
-  if (pin && !/^\d{4,8}$/.test(pin)) throw fieldError('pin', 'exp.pinFormat');
+  if (pin && !PIN_RE.test(pin)) throw fieldError('pin', 'exp.pinFormat');
   await getSettings();
   await prisma.appSettings.update({ where: { id: 1 }, data: { expensePinHash: pin ? await bcrypt.hash(pin, 10) : null } });
   await audit({ user: actor, action: 'settings', module: 'expenses', reference: pin ? 'pin set' : 'pin removed' });
@@ -46,8 +47,8 @@ export async function checkExpensePin(pin: unknown, userId: string) {
   const s = await getSettings();
   if (!s.expensePinHash) return;
   const key = `pin:${userId}`;
-  const since = new Date(Date.now() - 15 * 60 * 1000);
-  if ((await prisma.loginAttempt.count({ where: { key, success: false, createdAt: { gte: since } } })) >= 5) throw new AppError(429, 'exp.pinLocked');
+  const since = new Date(Date.now() - RULES.pinLockMinutes * MIN_MS);
+  if ((await prisma.loginAttempt.count({ where: { key, success: false, createdAt: { gte: since } } })) >= RULES.pinMaxTries) throw new AppError(429, 'exp.pinLocked');
   const ok = typeof pin === 'string' && pin.length > 0 && (await bcrypt.compare(pin, s.expensePinHash));
   if (!ok) {
     await prisma.loginAttempt.create({ data: { key, success: false } });

@@ -1,54 +1,30 @@
 import 'server-only';
 import { prisma, withTx } from '@/lib/db';
 import { dbToIso } from '@/lib/dates';
-import { audit, jsonSafe } from './audit';
+import { audit } from './audit';
+import { buildBackup } from './backup';
 import { conflict } from './errors';
 import type { Actor } from './txns';
 
-/** Complete copy of every business record (users without password hashes; sessions excluded). */
-export async function exportAll() {
-  const [company, settings, rateLog, types, products, customers, beneficiaries, txns, lines, vault, party, stock, counters, users, auditLog] = await Promise.all([
-    prisma.companyProfile.findMany(),
-    prisma.appSettings.findMany(),
-    prisma.exchangeRateLog.findMany({ orderBy: { id: 'asc' } }),
-    prisma.aluminumType.findMany({ orderBy: { name: 'asc' } }),
-    prisma.product.findMany({ orderBy: { sku: 'asc' } }),
-    prisma.customer.findMany({ orderBy: { name: 'asc' } }),
-    prisma.beneficiary.findMany({ orderBy: { name: 'asc' } }),
-    prisma.txn.findMany({ orderBy: [{ date: 'asc' }, { createdAt: 'asc' }] }),
-    prisma.txnLine.findMany({ orderBy: [{ txnId: 'asc' }, { position: 'asc' }] }),
-    prisma.vaultEntry.findMany({ orderBy: { id: 'asc' } }),
-    prisma.partyEntry.findMany({ orderBy: { id: 'asc' } }),
-    prisma.stockEntry.findMany({ orderBy: { id: 'asc' } }),
-    prisma.counter.findMany(),
-    prisma.user.findMany({ select: { id: true, email: true, name: true, isOwner: true, active: true, lang: true, permissions: true, lastLoginAt: true, createdAt: true } }),
-    prisma.auditLog.findMany({ orderBy: { id: 'asc' } }),
-  ]);
-  return jsonSafe({
-    app: 'ALU FACTORY',
-    exportedAt: new Date().toISOString(),
-    version: 1,
-    company,
-    settings,
-    rateLog,
-    aluminumTypes: types,
-    products,
-    customers: customers.map((c) => ({ ...c, avatar: c.avatar ? '[image]' : null })),
-    beneficiaries,
-    transactions: txns,
-    transactionLines: lines,
-    vaultLedger: vault,
-    partyLedger: party,
-    stockLedger: stock,
-    counters,
-    users,
-    auditLog,
-  }) as Record<string, unknown>;
-}
-
-/** Excel workbook: one sheet per table, header row bold and frozen. */
+/** Excel workbook from the same consistent backup as the JSON (one sheet per table, logins without passwords). */
 export async function exportExcel(): Promise<Buffer> {
-  const data = await exportAll();
+  const { data: d } = await buildBackup();
+  const data: Record<string, Record<string, unknown>[]> = {
+    customers: d.customer.map((c) => ({ ...c, avatar: c.avatar ? '[picture]' : null })),
+    beneficiaries: d.beneficiary,
+    aluminumTypes: d.aluminumType,
+    products: d.product,
+    transactions: d.txn,
+    transactionLines: d.txnLine,
+    vaultLedger: d.vaultEntry,
+    unpaidDues: d.vaultDue,
+    partyLedger: d.partyEntry,
+    stockLedger: d.stockEntry,
+    expenseCategories: d.expenseCategory,
+    recurringExpenses: d.recurringExpense,
+    rateLog: d.exchangeRateLog,
+    users: d.user.map(({ passwordHash: _p, ...u }) => u),
+  };
   const { default: ExcelJS } = await import('exceljs');
   const wb = new ExcelJS.Workbook();
   wb.creator = 'ALU FACTORY';
@@ -62,7 +38,10 @@ export async function exportExcel(): Promise<Buffer> {
     ['Transaction lines', 'transactionLines'],
     ['Vault ledger', 'vaultLedger'],
     ['Party ledger', 'partyLedger'],
+    ['Unpaid dues', 'unpaidDues'],
     ['Stock ledger', 'stockLedger'],
+    ['Expense categories', 'expenseCategories'],
+    ['Recurring expenses', 'recurringExpenses'],
     ['Rate log', 'rateLog'],
     ['Users', 'users'],
   ];

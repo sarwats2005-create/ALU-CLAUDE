@@ -33,6 +33,42 @@ type Opts = { isDemo?: boolean; allowShortfall?: boolean };
 const shortOk = (input: { allowShortfall?: unknown }, opts: Opts) => input.allowShortfall === true || !!opts.allowShortfall;
 export type Saved = { id: string; number: string };
 
+// ─── Split payment (sales & purchases) ──────────────────────────────────────────────────────────────
+// A sale or purchase can be paid partly in USD and partly in IQD. Each part goes to its own vault and
+// counts toward the invoice at the invoice's rate (e.g. rate 100 USD = 157,500 IQD → 157,500 IQD pays $100).
+// Older clients send one amount (cashPaid, in the invoice currency) + one vault; that still works.
+type PayInput = { paidUsd?: string; paidIqd?: string; vault?: string; cashPaid?: string };
+type PayRead = { split: true; usd: Dec; iqd: Dec } | { split: false; vault: Currency; cash: Dec };
+
+function readPay(v: Validator, input: PayInput): PayRead {
+  if (input.paidUsd !== undefined || input.paidIqd !== undefined) {
+    return { split: true, usd: reqNonNegative(v, 'paidUsd', input.paidUsd), iqd: reqNonNegative(v, 'paidIqd', input.paidIqd) };
+  }
+  return { split: false, vault: reqCurrency(v, 'vault', input.vault), cash: reqNonNegative(v, 'cashPaid', input.cashPaid) };
+}
+
+/** What was paid, per vault, and what it is worth in the invoice currency and in USD. */
+function payParts(p: PayRead, currency: Currency, rate: Dec, total: Dec, totalUsd: Dec) {
+  let usd: Dec;
+  let iqd: Dec;
+  let cash: Dec;
+  if (p.split) {
+    usd = roundMoney(p.usd, 'USD');
+    iqd = roundMoney(p.iqd, 'IQD');
+    cash = roundMoney(convert(usd, 'USD', currency, rate).plus(convert(iqd, 'IQD', currency, rate)), currency);
+  } else {
+    cash = roundMoney(p.cash, currency);
+    const amt = roundMoney(convert(cash, currency, p.vault, rate), p.vault);
+    usd = p.vault === 'USD' ? amt : new Dec(0);
+    iqd = p.vault === 'IQD' ? amt : new Dec(0);
+  }
+  // Paid in full (after rounding to the invoice currency) → no cent of debt left from conversion rounding.
+  const cashUsd = cash.eq(total) ? totalUsd : round2(p.split ? usd.plus(toUsd(iqd, 'IQD', rate)) : toUsd(cash, currency, rate));
+  // `vault` / `vaultAmount` keep pointing at one vault for older screens; paidUsd / paidIqd are the full story.
+  const vault: Currency = usd.gt(0) ? 'USD' : iqd.gt(0) ? 'IQD' : p.split ? currency : p.vault;
+  return { usd, iqd, cash, cashUsd, vault, vaultAmount: vault === 'USD' ? usd : iqd };
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────────────────────────
 /** Lock parties in a stable order (after vaults, before products) so refunds see a stable balance. */
 async function lockParties(tx: Tx, ids: (string | null | undefined)[]) {
@@ -85,6 +121,8 @@ export type PurchaseInput = {
   currency?: string;
   vault?: string;
   cashPaid?: string;
+  paidUsd?: string;
+  paidIqd?: string;
   notes?: string;
   clientTotal?: string;
   allowShortfall?: boolean;
@@ -96,8 +134,7 @@ export async function savePurchase(input: PurchaseInput, actor: Actor, editId?: 
   const kg = round3(reqPositive(v, 'kg', input.kg));
   const unitPrice = round4(reqPositive(v, 'unitPrice', input.unitPrice));
   const currency = reqCurrency(v, 'currency', input.currency);
-  const vault = reqCurrency(v, 'vault', input.vault);
-  const cashPaid = reqNonNegative(v, 'cashPaid', input.cashPaid);
+  const pay = readPay(v, input);
   const state = asState(input.state);
   if (!state) v.add('state', 'v.required');
   if (!input.beneficiaryId) v.add('beneficiaryId', 'v.beneficiaryRequired');
@@ -141,9 +178,8 @@ export async function savePurchase(input: PurchaseInput, actor: Actor, editId?: 
     const total = roundMoney(kg.times(unitPrice), currency);
     const totalUsd = round2(toUsd(total, currency, rate));
     const valueUsd = round4(toUsd(total, currency, rate));
-    const cash = roundMoney(cashPaid, currency);
-    const cashUsd = round2(toUsd(cash, currency, rate));
-    const vaultAmount = roundMoney(convert(cash, currency, vault, rate), vault);
+    const paid = payParts(pay, currency, rate, total, totalUsd);
+    const cashUsd = paid.cashUsd;
     const notes = cleanMultiline(input.notes);
 
     const touched: StockKey[] = [];
@@ -156,10 +192,12 @@ export async function savePurchase(input: PurchaseInput, actor: Actor, editId?: 
       currency,
       total: total.toString(),
       totalUsd: totalUsd.toString(),
-      cashPaid: cash.toString(),
+      cashPaid: paid.cash.toString(),
       cashPaidUsd: cashUsd.toString(),
-      vault,
-      vaultAmount: vaultAmount.toString(),
+      paidUsd: paid.usd.toString(),
+      paidIqd: paid.iqd.toString(),
+      vault: paid.vault,
+      vaultAmount: paid.vaultAmount.toString(),
       notes,
     };
     const line = {
@@ -189,7 +227,8 @@ export async function savePurchase(input: PurchaseInput, actor: Actor, editId?: 
 
     const src: Src = { txnId, kind: 'PURCHASE', date };
     await stockIn(tx, src, productId, state!, kg, valueUsd);
-    await payOut(tx, src, vault, vaultAmount, shortOk(input, opts));
+    await payOut(tx, src, 'USD', paid.usd, shortOk(input, opts));
+    await payOut(tx, src, 'IQD', paid.iqd, shortOk(input, opts));
     await partyMove(tx, src, { beneficiaryId: ben.id }, totalUsd.minus(cashUsd));
     touched.push({ productId, state: state! });
     if (old) await assertStockNonNegative(tx, touched, { number, action: 'update', txnId, createdAt: old.createdAt });
@@ -209,6 +248,8 @@ export type SaleInput = {
   currency?: string;
   vault?: string;
   cashPaid?: string;
+  paidUsd?: string;
+  paidIqd?: string;
   notes?: string;
   lines?: SaleLineInput[];
   clientTotal?: string;
@@ -218,8 +259,7 @@ export async function saveSale(input: SaleInput, actor: Actor, editId?: string, 
   const v = new Validator();
   const date = reqDate(v, 'date', input.date);
   const currency = reqCurrency(v, 'currency', input.currency);
-  const vault = reqCurrency(v, 'vault', input.vault);
-  const cashPaid = reqNonNegative(v, 'cashPaid', input.cashPaid);
+  const pay = readPay(v, input);
   if (!input.customerId) v.add('customerId', 'v.customerRequired');
   const rawLines = Array.isArray(input.lines) ? input.lines.slice(0, 60) : [];
   if (!rawLines.length) v.add('lines', 'v.lineRequired');
@@ -283,9 +323,8 @@ export async function saveSale(input: SaleInput, actor: Actor, editId?: string, 
     });
     const total = computed.reduce((s, l) => s.plus(l.lineTotal), new Dec(0));
     const totalUsd = round2(toUsd(total, currency, rate));
-    const cash = roundMoney(cashPaid, currency);
-    const cashUsd = round2(toUsd(cash, currency, rate));
-    const vaultAmount = roundMoney(convert(cash, currency, vault, rate), vault);
+    const paid = payParts(pay, currency, rate, total, totalUsd);
+    const cashUsd = paid.cashUsd;
 
     const data = {
       date,
@@ -294,10 +333,12 @@ export async function saveSale(input: SaleInput, actor: Actor, editId?: string, 
       currency,
       total: total.toString(),
       totalUsd: totalUsd.toString(),
-      cashPaid: cash.toString(),
+      cashPaid: paid.cash.toString(),
       cashPaidUsd: cashUsd.toString(),
-      vault,
-      vaultAmount: vaultAmount.toString(),
+      paidUsd: paid.usd.toString(),
+      paidIqd: paid.iqd.toString(),
+      vault: paid.vault,
+      vaultAmount: paid.vaultAmount.toString(),
       notes: cleanMultiline(input.notes),
     };
     let txnId: string;
@@ -335,7 +376,8 @@ export async function saveSale(input: SaleInput, actor: Actor, editId?: string, 
       touched.push({ productId: l.productId, state: l.state });
     }
     await tx.txn.update({ where: { id: txnId }, data: { cogsUsd: round4(cogsTotal).toString() } });
-    await vaultMove(tx, src, vault, 'IN', vaultAmount);
+    await vaultMove(tx, src, 'USD', 'IN', paid.usd);
+    await vaultMove(tx, src, 'IQD', 'IN', paid.iqd);
     await partyMove(tx, src, { customerId: customer.id }, totalUsd.minus(cashUsd));
     if (old) await assertStockNonNegative(tx, touched, { number, action: 'update', txnId, createdAt: old.createdAt });
     await clearResidualCost(tx, src, touched);

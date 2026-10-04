@@ -1,4 +1,5 @@
 import 'server-only';
+import { RULES, PIN_RE } from '@/lib/rules';
 import bcrypt from 'bcryptjs';
 import type { Currency } from '@prisma/client';
 import { prisma, withTx, type Tx } from '@/lib/db';
@@ -17,9 +18,9 @@ import { setEraseUntil, type SessionUser } from './auth';
 // so it either happens completely or not at all.
 
 const DEFAULT_PIN = '1122';
-const MINUTES = 10;
-const MAX_WRONG = 5;
-const LOCK_MINUTES = 15;
+const MINUTES = RULES.eraseMinutes;
+const MAX_WRONG = RULES.pinMaxTries;
+const LOCK_MINUTES = RULES.pinLockMinutes;
 
 export function eraseActive(user: SessionUser) {
   return user.isOwner && !!user.eraseUntil && user.eraseUntil > new Date();
@@ -57,7 +58,7 @@ export async function exitErase() {
 export async function setErasePin(user: SessionUser, pin: unknown) {
   requireErase(user);
   const p = typeof pin === 'string' ? pin.trim() : '';
-  if (!/^\d{4,8}$/.test(p)) throw fieldError('pin', 'erase.pinFormat');
+  if (!PIN_RE.test(p)) throw fieldError('pin', 'erase.pinFormat');
   await getSettings();
   await prisma.appSettings.update({ where: { id: 1 }, data: { erasePinHash: await bcrypt.hash(p, 10) } });
   return { ok: true };

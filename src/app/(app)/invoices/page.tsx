@@ -5,7 +5,8 @@ import { InvoicesView } from './InvoicesView';
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Invoices' };
 
-export default async function InvoicesPage() {
+export default async function InvoicesPage({ searchParams }: { searchParams: Promise<{ type?: string }> }) {
   await guardPage('invoices');
-  return <InvoicesView />;
+  const { type } = await searchParams;
+  return <InvoicesView initialType={type === 'purchase' ? 'purchase' : 'sale'} />;
 }

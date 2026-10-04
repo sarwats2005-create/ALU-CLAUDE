@@ -8,7 +8,6 @@ import type { lookupProducts } from '@/lib/server/q/inventory';
 import { useApp } from '@/lib/client/app-context';
 import { api, qs } from '@/lib/client/api';
 import { useRemote } from '@/lib/client/use-remote';
-import { conversionText } from '@/lib/conversion';
 import { balanceLabel } from '@/lib/format';
 import { localTodayIso } from '@/lib/dates';
 import { D, Dec, fmtKg, fmtMoney, parseDec, roundMoney, toUsd, type Cur } from '@/lib/money';
@@ -20,6 +19,7 @@ import { Dialog, EditingBanner } from '@/components/Dialog';
 import { PartyFormDialog } from '@/components/PartyForm';
 import { useToast } from '@/components/Toast';
 import { useMoneyGuard } from '@/components/MoneyGuard';
+import { SplitPayment, splitTotals } from '@/components/SplitPayment';
 import { StepLabel } from '@/components/Summary';
 import { useInvoiceAutoSave } from '@/components/useInvoiceAutoSave';
 
@@ -55,8 +55,8 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
   const [kg, setKg] = useState(line ? D(line.kg).toString() : '');
   const [price, setPrice] = useState(line ? D(line.unitPrice).toString() : '');
   const [currency, setCurrency] = useState<Cur>((edit?.currency as Cur) ?? 'USD');
-  const [vault, setVault] = useState<Cur>((edit?.vault as Cur) ?? 'USD');
-  const [cash, setCash] = useState(edit ? D(edit.cashPaid).toString() : '');
+  const [payUsd, setPayUsd] = useState(edit && D(edit.paidUsd).gt(0) ? D(edit.paidUsd).toString() : '');
+  const [payIqd, setPayIqd] = useState(edit && D(edit.paidIqd).gt(0) ? D(edit.paidIqd).toString() : '');
   const [notes, setNotes] = useState(edit?.notes ?? '');
   const [noteOpen, setNoteOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -84,13 +84,12 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
   const kgD = parseDec(kg);
   const priceD = parseDec(price);
   const total = kgD && priceD && kgD.gt(0) && priceD.gt(0) ? roundMoney(kgD.times(priceD), currency) : new Dec(0);
-  const cashD = roundMoney(parseDec(cash) ?? new Dec(0), currency);
   const totalUsd = toUsd(total, currency, rate).toDecimalPlaces(2);
-  const cashUsd = toUsd(cashD, currency, rate).toDecimalPlaces(2);
+  const split = splitTotals(currency, total, totalUsd, rate.toString(), payUsd, payIqd);
+  const cashUsd = split.paidUsd;
   const oldEffect = edit && ben && edit.beneficiary?.id === ben.id ? D(edit.totalUsd).minus(D(edit.cashPaidUsd)) : new Dec(0);
   const before = ben ? D(ben.data.balance).minus(oldEffect) : null;
   const after = before ? before.plus(totalUsd).minus(cashUsd) : null;
-  const conv = conversionText(cashD.toString(), currency, vault, rate.toString(), 'out', lang);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -109,7 +108,10 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
     if (!price) er.unitPrice = t('v.required');
     else if (!priceD) er.unitPrice = t('v.number');
     else if (!priceD.gt(0)) er.unitPrice = t('v.positive');
-    if (cash && !parseDec(cash)) er.cashPaid = t('v.number');
+    for (const [k, v] of [['paidUsd', payUsd], ['paidIqd', payIqd]] as const) {
+      if (v && !parseDec(v)) er[k] = t('v.number');
+      else if (v && parseDec(v)!.isNegative()) er[k] = t('v.nonNegative');
+    }
     setErrors(er);
     if (Object.keys(er).length) {
       toast.error(t('err.fixFields'));
@@ -126,8 +128,8 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
         kg,
         unitPrice: price,
         currency,
-        vault,
-        cashPaid: cash || '0',
+        paidUsd: payUsd || '0',
+        paidIqd: payIqd || '0',
         notes,
         clientTotal: total.toString(),
       },
@@ -287,10 +289,7 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
                 <Segmented<Cur>
                   label={t('common.currency')}
                   value={currency}
-                  onChange={(c) => {
-                    setCurrency(c);
-                    setVault(c);
-                  }}
+                  onChange={setCurrency}
                   options={[
                     { value: 'USD', label: 'USD' },
                     { value: 'IQD', label: 'IQD' },
@@ -324,34 +323,19 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
               {kgD && kgD.gt(0) ? <p className="num mt-1 text-meta text-muted">{fmtKg(kgD)} × {price || '0'} {currency}</p> : null}
             </div>
             <div className="flex flex-col gap-4 p-5">
-              <Field label={t('common.vault')} htmlFor="pur-vault">
-                <Segmented<Cur>
-                  label={t('common.vault')}
-                  value={vault}
-                  onChange={setVault}
-                  options={[
-                    { value: 'USD', label: t('vault.USD') },
-                    { value: 'IQD', label: t('vault.IQD') },
-                  ]}
-                  className="w-full"
-                />
-              </Field>
-              <Field
+              <SplitPayment
+                id="pur-pay"
+                out
                 label={t('common.cashPaid')}
-                htmlFor="pur-cash"
-                error={errors.cashPaid}
-                trailing={
-                  <button type="button" onClick={() => setCash(total.toString())} disabled={!total.gt(0)} className="rounded px-1 text-caption font-bold text-brand-ink hover:underline disabled:opacity-40">
-                    {t('pos.payFull')}
-                  </button>
-                }
-              >
-                <div className="relative">
-                  <Input id="pur-cash" numeric value={cash} onChange={(e) => setCash(e.target.value)} placeholder="0" invalid={!!errors.cashPaid} className="pe-14" />
-                  <span className="input-suffix pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">{currency}</span>
-                </div>
-              </Field>
-              {conv ? <p className="num rounded-ctl bg-tint px-3 py-2 text-caption text-ink">{conv}</p> : null}
+                currency={currency}
+                total={total}
+                rate={rate.toString()}
+                usd={payUsd}
+                iqd={payIqd}
+                onUsd={setPayUsd}
+                onIqd={setPayIqd}
+                errors={{ paidUsd: errors.paidUsd, paidIqd: errors.paidIqd }}
+              />
               <div className="rounded-ctl border border-line-soft">
                 <p className="border-b border-line-soft px-3 py-2 text-caption font-semibold text-muted">{t('pur.balanceEffect')}</p>
                 {beforeL && afterL ? (

@@ -1,17 +1,21 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Clock, Eraser, Eye, FolderCheck, FolderOpen, FolderX, Lock, PackagePlus, Pencil, ReceiptText, ShoppingCart, Trash2 } from 'lucide-react';
+import { Clock, Eraser, Eye, FileDown, FileSpreadsheet, FolderCheck, HandCoins, Loader2, FolderOpen, FolderX, Lock, PackagePlus, Pencil, ReceiptText, ShoppingCart, Trash2 } from 'lucide-react';
 import type { TxnRow } from '@/lib/server/q/history';
 import { useApp } from '@/lib/client/app-context';
 import { useRemote } from '@/lib/client/use-remote';
+import { qs } from '@/lib/client/api';
+import { downloadFile } from '@/lib/client/print';
+import { docUrl, usePaper, type Paper } from '@/lib/client/paper';
+import { useRouter } from 'next/navigation';
 import { fmtDate, fmtDateTime } from '@/lib/dates';
 import { fmtKg, fmtMoney } from '@/lib/money';
 import { KIND_PAGE, editHref, type Kind } from '@/lib/kinds';
 import { EDIT_WINDOW_MS, remaining } from '@/lib/lock';
 import { FOLDER_EVENT, allowAccess, chooseFolder, folderState, removeInvoiceFile, stopAutoSave, type FolderState } from '@/lib/client/invoice-folder';
 import { cx } from '@/lib/cx';
-import { Badge, Button, Card, PageHeader } from '@/components/ui';
+import { Badge, Button, Card, PageHeader, Segmented } from '@/components/ui';
 import { SummaryCell, SummaryStrip } from '@/components/Summary';
 import { DataTable, Pager, SearchBox, useListState, type Column } from '@/components/DataTable';
 import { DateRange } from '@/components/DateInput';
@@ -30,18 +34,52 @@ function useNow(ms = 30000) {
   return now;
 }
 
-export function InvoicesView() {
+type Book = 'sale' | 'purchase';
+type Counts = { all: number; open: number; other: number; owed: number; owedUsd: string };
+
+/** Sales and purchase invoices are two separate books: one tab each, own summary, own columns, own button. */
+export function InvoicesView({ initialType }: { initialType: Book }) {
   const { t, can } = useApp();
+  const router = useRouter();
+  const toast = useToast();
   const panel = useTxnPanel();
   const erase = useErase();
   const now = useNow();
-  const L = useListState('created', 'desc', { type: '', lock: '', from: '', to: '' });
-  const { data, loading } = useRemote<{ total: number; rows: TxnRow[]; counts: { all: number; sale: number; purchase: number; open: number } }>(`/api/invoices${L.query}`, { keepPrevious: true });
+  const [paper, setPaper] = usePaper();
+  const [busy, setBusy] = useState<string | null>(null);
+  const L = useListState('created', 'desc', { type: initialType, lock: '', pay: '', from: '', to: '' });
+  const book: Book = L.filters.type === 'purchase' ? 'purchase' : 'sale';
+  const isSale = book === 'sale';
+  const { data, loading } = useRemote<{ total: number; rows: TxnRow[]; counts: Counts }>(`/api/invoices${L.query}`, { keepPrevious: true });
   const k = data?.counts;
-  const typeOnly = (v: string) => {
+  const [otherCount, setOtherCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (k) setOtherCount(k.other);
+  }, [k]);
+  const switchBook = (b: Book) => {
+    if (b === book) return;
     L.setFilter('lock', '');
-    L.setFilter('type', v);
+    L.setFilter('pay', '');
+    L.setFilter('type', b);
+    router.replace(`/invoices?type=${b}`, { scroll: false });
   };
+  const toggle = (key: 'lock' | 'pay', v: string) => {
+    L.setFilter(key === 'lock' ? 'pay' : 'lock', '');
+    L.setFilter(key, L.filters[key] === v ? '' : v);
+  };
+  async function pdf(r: TxnRow) {
+    setBusy(r.id);
+    const res = await downloadFile(docUrl(r.id, 'pdf', paper), `${r.number}.pdf`);
+    setBusy(null);
+    if (!res.ok) toast.error(res.error || t('err.pdf'));
+  }
+  async function csv() {
+    setBusy('csv');
+    const res = await downloadFile(`/api/invoices${qs({ q: L.q, sort: L.sort, dir: L.dir, ...L.filters, format: 'csv' })}`, `${book}-invoices.csv`);
+    setBusy(null);
+    if (res.ok) toast.success(t('toast.exported'));
+    else toast.error(res.error || t('err.generic'));
+  }
 
   const mayChange = (r: TxnRow) => can(KIND_PAGE[r.kind as Kind]) && !!remaining(r.kind, r.createdAt, now);
 
@@ -73,6 +111,9 @@ export function InvoicesView() {
       <span className="flex items-center justify-end gap-0.5">
         <button type="button" className={btn} onClick={() => panel.open(r.id)} aria-label={t('invc.viewN', { number: r.number })} title={t('common.view')}>
           <Eye className="h-4 w-4" aria-hidden="true" />
+        </button>
+        <button type="button" className={btn} onClick={() => void pdf(r)} disabled={busy === r.id} aria-label={t('invc.pdfN', { number: r.number, size: paper })} title={t('invc.pdfN', { number: r.number, size: paper })}>
+          {busy === r.id ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <FileDown className="h-4 w-4" aria-hidden="true" />}
         </button>
         {open ? (
           <>
@@ -113,16 +154,13 @@ export function InvoicesView() {
       label: t('common.number'),
       sortable: true,
       render: (r) => (
-        <span className="block whitespace-nowrap">
-          <span className="num block font-semibold text-brand-ink">{r.number}</span>
-          <span className="block text-caption text-muted">{t(`kind.${r.kind}` as 'kind.SALE')}</span>
-        </span>
+        <span className="num block whitespace-nowrap font-semibold text-brand-ink">{r.number}</span>
       ),
     },
     { key: 'date', label: t('common.date'), sortable: true, render: (r) => <span className="num whitespace-nowrap text-muted">{fmtDate(r.date)}</span> },
     {
       key: 'party',
-      label: t('common.party'),
+      label: isSale ? t('pos.customer') : t('pur.beneficiary'),
       sortable: true,
       render: (r) => (
         <span className="block min-w-0">
@@ -166,52 +204,101 @@ export function InvoicesView() {
         title={t('invc.title')}
         subtitle={t('invc.subtitle')}
         actions={
-          <>
-            {can('beneficiaries') ? (
-              <Link href="/beneficiaries/purchase">
-                <Button variant="secondary" size="lg" icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>
-                  {t('dash.recordPurchase')}
-                </Button>
-              </Link>
-            ) : null}
-            {can('pos') ? (
+          // One primary action, matching the open book (Hick / Fitts).
+          isSale ? (
+            can('pos') ? (
               <Link href="/pos">
                 <Button size="lg" className="shadow-pop" icon={<ShoppingCart className="h-4 w-4" aria-hidden="true" />}>
                   {t('pos.newSale')}
                 </Button>
               </Link>
-            ) : null}
-          </>
+            ) : null
+          ) : can('beneficiaries') ? (
+            <Link href="/beneficiaries/purchase">
+              <Button size="lg" className="shadow-pop" icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>
+                {t('dash.recordPurchase')}
+              </Button>
+            </Link>
+          ) : null
         }
       />
+      {/* Two separate books. */}
+      <div role="tablist" aria-label={t('invc.title')} className="mb-5 grid grid-cols-2 gap-2 rounded-card bg-tint p-1.5 sm:inline-grid sm:min-w-[440px]">
+        {(['sale', 'purchase'] as const).map((b) => {
+          const on = book === b;
+          const n = on ? k?.all : otherCount;
+          return (
+            <button
+              key={b}
+              type="button"
+              role="tab"
+              aria-selected={on}
+              onClick={() => switchBook(b)}
+              className={cx(
+                'flex h-12 items-center justify-center gap-2 rounded-ctl px-4 text-body font-semibold transition-colors',
+                on ? (b === 'sale' ? 'bg-surface text-brand-ink shadow-card' : 'bg-surface text-[#0f766e] shadow-card dark:text-[#5eead4]') : 'text-muted hover:text-ink',
+              )}
+            >
+              {b === 'sale' ? <ShoppingCart className="h-4 w-4" aria-hidden="true" /> : <PackagePlus className="h-4 w-4" aria-hidden="true" />}
+              {b === 'sale' ? t('invc.salesBook') : t('invc.purchaseBook')}
+              {n !== null && n !== undefined ? <span className="num rounded-full bg-surface-2 px-2 text-caption text-muted">{n}</span> : null}
+            </button>
+          );
+        })}
+      </div>
       {/* Only when the folder needs you does it come first; otherwise it waits at the bottom. */}
       <FolderBar when="attention" />
-      {/* Summary = filter: one tap shows all, sales, purchases, or what can still be changed. */}
-      <SummaryStrip className="mb-5">
-        <SummaryCell icon={<ReceiptText className="h-[18px] w-[18px]" aria-hidden="true" />} label={t('invc.typeAll')} value={k ? String(k.all) : '—'} sub={t('party.showAll')} active={!L.filters.type && !L.filters.lock} onClick={() => typeOnly('')} />
-        <SummaryCell icon={<ShoppingCart className="h-[18px] w-[18px]" aria-hidden="true" />} label={t('invc.typeSale')} value={k ? String(k.sale) : '—'} sub={t('invc.showThese')} active={L.filters.type === 'sale'} onClick={() => typeOnly('sale')} />
-        <SummaryCell icon={<PackagePlus className="h-[18px] w-[18px]" aria-hidden="true" />} label={t('invc.typePurchase')} value={k ? String(k.purchase) : '—'} sub={t('invc.showThese')} active={L.filters.type === 'purchase'} onClick={() => typeOnly('purchase')} />
+      {/* Summary = filter for this book. */}
+      <SummaryStrip cols={3} className="mb-5">
+        <SummaryCell
+          icon={<ReceiptText className="h-[18px] w-[18px]" aria-hidden="true" />}
+          label={isSale ? t('invc.allSales') : t('invc.allPurchases')}
+          value={k ? String(k.all) : '—'}
+          sub={t('party.showAll')}
+          active={!L.filters.lock && !L.filters.pay}
+          onClick={() => {
+            L.setFilter('lock', '');
+            L.setFilter('pay', '');
+          }}
+        />
+        <SummaryCell
+          icon={<HandCoins className="h-[18px] w-[18px]" aria-hidden="true" />}
+          label={isSale ? t('invc.owedToUs') : t('invc.weOwe')}
+          value={k ? fmtMoney(k.owedUsd) : '—'}
+          tone={k && k.owed > 0 ? 'danger' : undefined}
+          sub={t('invc.owedN', { n: k?.owed ?? 0 })}
+          active={L.filters.pay === 'owed'}
+          onClick={() => toggle('pay', 'owed')}
+        />
         <SummaryCell
           icon={<Clock className="h-[18px] w-[18px]" aria-hidden="true" />}
           label={t('invc.lockOpen')}
           value={k ? String(k.open) : '—'}
           sub={t('invc.openSub')}
           active={L.filters.lock === 'open'}
-          onClick={() => {
-            L.setFilter('type', '');
-            L.setFilter('lock', L.filters.lock === 'open' ? '' : 'open');
-          }}
+          onClick={() => toggle('lock', 'open')}
         />
       </SummaryStrip>
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-2 px-5 pb-4 pt-5 xl:flex-row xl:flex-wrap xl:items-center">
           <SearchBox value={L.q} onChange={L.setQ} placeholder={t('invc.searchPh')} className="xl:w-72" />
           <DateRange idPrefix="invc" from={L.filters.from} to={L.filters.to} onFrom={(v) => L.setFilter('from', v)} onTo={(v) => L.setFilter('to', v)} />
-          {L.hasFilters ? (
-            <Button variant="quiet" size="sm" onClick={L.clearFilters}>
-              {t('common.clearFilters')}
+          <div className="flex flex-wrap items-center gap-2 xl:ms-auto">
+            <span className="text-meta text-muted">{t('invc.paper')}</span>
+            <Segmented<Paper>
+              label={t('invc.paper')}
+              size="sm"
+              value={paper}
+              onChange={setPaper}
+              options={[
+                { value: 'A5', label: 'A5' },
+                { value: 'A4', label: 'A4' },
+              ]}
+            />
+            <Button variant="secondary" size="sm" busy={busy === 'csv'} onClick={() => void csv()} icon={<FileSpreadsheet className="h-4 w-4" aria-hidden="true" />}>
+              {t('common.exportCsv')}
             </Button>
-          ) : null}
+          </div>
         </div>
         <DataTable
           rows={data?.rows}
@@ -227,16 +314,13 @@ export function InvoicesView() {
             <span className="flex flex-col gap-2">
               <span className="flex items-start justify-between gap-3">
                 <span className="min-w-0">
-                  <span className="flex items-center gap-2">
-                    <span className="num text-meta font-semibold text-brand-ink">{r.number}</span>
-                    <span className="text-caption text-muted">{t(`kind.${r.kind}` as 'kind.SALE')}</span>
-                  </span>
+                  <span className="num text-meta font-semibold text-brand-ink">{r.number}</span>
                   <span className="bidi mt-0.5 block truncate text-body text-ink">{r.partyName || '—'}</span>
                   <span className="num block text-caption text-muted">{fmtDate(r.date)}</span>
                 </span>
                 <span className="flex shrink-0 flex-col items-end gap-1">
                   <span className="num text-body font-semibold text-ink">{fmtMoney(r.total, r.currency)}</span>
-                  <Badge tone={statusTone(r.status)}>{t(`status.${r.status}` as 'status.paid')}</Badge>
+                  {r.status === 'paid' ? <span className="text-caption text-muted">{t('status.paid')}</span> : <Badge tone={statusTone(r.status)}>{t(`status.${r.status}` as 'status.paid')}</Badge>}
                 </span>
               </span>
               <span className="flex items-center justify-between gap-3">
