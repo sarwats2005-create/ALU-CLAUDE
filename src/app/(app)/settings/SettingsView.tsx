@@ -1,8 +1,7 @@
 'use client';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Building2, Database, FileDown, FileSpreadsheet, History, Languages, Pencil, Plus, ScrollText, Shapes, Siren, Trash2, Truck, Upload, Users, Package, ArrowLeftRight, Wallet, KeyRound, Eraser } from 'lucide-react';
+import { Building2, Database, FileDown, FileSpreadsheet, History, Languages, Pencil, Plus, ScrollText, Shapes, Siren, Trash2, Upload, Users, Package, ArrowLeftRight, Wallet, KeyRound, Eraser } from 'lucide-react';
 import { useApp } from '@/lib/client/app-context';
 import { api, qs } from '@/lib/client/api';
 import { useRemote } from '@/lib/client/use-remote';
@@ -35,6 +34,12 @@ const SECTIONS: { id: Section; label: DictKey; icon: typeof Building2; owner?: b
   { id: 'data', label: 'set.export', icon: Database, owner: true },
 ];
 
+const SET_GROUPS: { label: DictKey; ids: Section[] }[] = [
+  { label: 'set.gDaily', ids: ['rate', 'products', 'types', 'expenses'] },
+  { label: 'set.gBusiness', ids: ['company', 'alerts', 'language'] },
+  { label: 'set.gPeople', ids: ['users', 'audit', 'data'] },
+];
+
 export function SettingsView({ initial }: { initial: string }) {
   const { t, user } = useApp();
   const router = useRouter();
@@ -57,35 +62,35 @@ export function SettingsView({ initial }: { initial: string }) {
             ))}
           </Select>
         </div>
+        {/* Ten sections in three labelled groups (Gestalt), most-used first (serial position). */}
         <nav aria-label={t('set.section')} className="hidden lg:block">
-          <ul className="flex flex-col gap-0.5">
-            {allowed.map((s) => {
-              const Icon = s.icon;
-              return (
-                <li key={s.id}>
-                  <button
-                    type="button"
-                    onClick={() => go(s.id)}
-                    aria-current={sec === s.id ? 'page' : undefined}
-                    className={cx('flex h-10 w-full items-center gap-3 rounded-ctl px-3 text-start text-body font-medium transition-colors', sec === s.id ? 'bg-tint text-brand-ink' : 'text-muted hover:bg-surface hover:text-ink')}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    <span className="truncate">{t(s.label)}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          <Card className="mt-4 p-4">
-            <p className="flex items-center gap-2 text-meta font-semibold text-ink">
-              <Truck className="h-4 w-4 text-brand-ink" aria-hidden="true" />
-              {t('set.beneficiariesShortcut')}
-            </p>
-            <p className="mt-1 text-caption text-muted">{t('set.beneficiariesShortcutHint')}</p>
-            <Link href="/beneficiaries" className="mt-2 inline-block text-meta font-semibold text-brand-ink hover:underline">
-              {t('set.openBeneficiaries')}
-            </Link>
-          </Card>
+          {SET_GROUPS.map((g) => {
+            const items = allowed.filter((s) => g.ids.includes(s.id));
+            if (!items.length) return null;
+            return (
+              <div key={g.label} className="mb-4">
+                <p className="px-3 pb-1.5 text-caption font-semibold uppercase tracking-[0.06em] text-muted">{t(g.label)}</p>
+                <ul className="flex flex-col gap-0.5">
+                  {items.map((s) => {
+                    const Icon = s.icon;
+                    return (
+                      <li key={s.id}>
+                        <button
+                          type="button"
+                          onClick={() => go(s.id)}
+                          aria-current={sec === s.id ? 'page' : undefined}
+                          className={cx('flex h-10 w-full items-center gap-3 rounded-ctl px-3 text-start text-body font-medium transition-colors', sec === s.id ? 'bg-tint text-brand-ink' : 'text-muted hover:bg-surface hover:text-ink')}
+                        >
+                          <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                          <span className="truncate">{t(s.label)}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
         </nav>
         <div className="min-w-0">
           {sec === 'company' && user.isOwner ? <CompanySection /> : null}

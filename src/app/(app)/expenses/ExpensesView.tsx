@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Copy, Eye, FileSpreadsheet, Pause, Pencil, Play, RotateCw, Trash2 } from 'lucide-react';
+import { ChevronDown, Copy, Eye, FileSpreadsheet, Pause, Pencil, Play, Receipt, Repeat, RotateCw, Tags, Trash2, Wallet } from 'lucide-react';
 import type { TxnDetail } from '@/lib/server/q/history';
 import type { ExpenseRow, ExpenseStats } from '@/lib/server/q/expenses';
 import type { RuleRow } from '@/lib/server/expenses';
@@ -10,7 +10,7 @@ import { api, qs, type ApiResult } from '@/lib/client/api';
 import { useRemote } from '@/lib/client/use-remote';
 import { downloadFile } from '@/lib/client/print';
 import { fmtDate } from '@/lib/dates';
-import { D, fmtMoney, fmtNum, fmtPrice, type Cur } from '@/lib/money';
+import { D, fmtMoney, fmtNum, fmtPrice } from '@/lib/money';
 import type { DictKey } from '@/lib/i18n';
 import { cx } from '@/lib/cx';
 import { Badge, Button, Card, Field, Input, PageHeader, Select, Skeleton } from '@/components/ui';
@@ -20,6 +20,7 @@ import { Dialog } from '@/components/Dialog';
 import { useTxnPanel } from '@/components/TxnPanel';
 import { useToast } from '@/components/Toast';
 import { useMoneyGuard } from '@/components/MoneyGuard';
+import { SummaryCell, SummaryStrip } from '@/components/Summary';
 import { ExpenseForm, type Category, type ExpensePayload, type VaultMode } from './ExpenseForm';
 import { skipSummary } from './SkipDays';
 
@@ -185,8 +186,8 @@ export function ExpensesView({ editId }: { editId: string | null }) {
     },
     { key: 'details', label: t('exp.details'), render: (r) => <span className="bidi block max-w-[260px] truncate text-muted">{details(r) || '—'}</span> },
     { key: 'vault', label: t('common.vault'), render: (r) => <span className="whitespace-nowrap text-muted">{t(`vault.${r.vault}`)}</span> },
-    { key: 'amount', label: t('common.amount'), align: 'end', render: (r) => <span className="num whitespace-nowrap font-semibold text-danger-ink">−{fmtMoney(r.amount, r.currency)}</span> },
-    { key: 'source', label: t('exp.source'), render: (r) => <Badge tone={r.source === 'recurring' ? 'brand' : 'neutral'}>{t(`exp.src.${r.source}` as DictKey)}</Badge> },
+    { key: 'amount', label: t('common.amount'), align: 'end', render: (r) => <span className="num whitespace-nowrap font-semibold text-ink">−{fmtMoney(r.amount, r.currency)}</span> },
+    { key: 'source', label: t('exp.source'), render: (r) => (r.source === 'recurring' ? <Badge tone="brand">{t('exp.src.recurring')}</Badge> : <span className="text-caption text-muted">{t('exp.src.manual')}</span>) },
     { key: 'actions', label: <span className="sr-only">{t('common.actions')}</span>, align: 'end', className: 'sticky end-0 bg-surface', render: actions },
   ];
 
@@ -195,38 +196,24 @@ export function ExpensesView({ editId }: { editId: string | null }) {
       <PageHeader
         title={t('exp.title')}
         subtitle={t('exp.subtitle')}
-        actions={
-          <>
-            <Button variant="secondary" busy={busy === 'copy'} onClick={copyRows} icon={<Copy className="h-4 w-4" aria-hidden="true" />}>
-              {t('exp.copy')}
-            </Button>
-            <Button variant="secondary" busy={busy === 'csv'} onClick={exportCsv} icon={<FileSpreadsheet className="h-4 w-4" aria-hidden="true" />}>
-              {t('common.exportCsv')}
-            </Button>
-          </>
-        }
       />
 
-      {/* Totals across every recorded expense */}
-      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-6">
-        {!s ? (
-          [0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-[104px] w-full rounded-card" />)
-        ) : (
-          <>
-            <Stat label={t('exp.statUsd')} value={fmtMoney(s.usdTotal, 'USD')} />
-            <Stat label={t('exp.statIqd')} value={fmtMoney(s.iqdTotal, 'IQD')} />
-            <Stat label={t('exp.statOverall')} value={fmtMoney(s.overallUsd, 'USD')} sub={t('exp.statOverallHint')} strong />
-            <Stat label={t('exp.statCount')} value={fmtNum(s.count, 0)} />
-            <Stat label={t('exp.statLargest')} value={s.largest ? fmtMoney(s.largest.amount, s.largest.currency as Cur) : '—'} sub={s.largest ? `${s.largest.category} · ${s.largest.number}` : undefined} />
-            <Stat
-              label={t('exp.statTop')}
-              value={s.topCategory?.name ?? '—'}
-              sub={s.topCategory ? t('exp.statTopHint', { n: s.topCategory.count, amount: fmtMoney(s.topCategory.totalUsd, 'USD') }) : undefined}
-              text
-            />
-          </>
-        )}
-      </div>
+      {/* Four figures in one strip instead of six cards (Hick / Gestalt). */}
+      {!s ? (
+        <Skeleton className="mb-5 h-[118px] w-full rounded-card" />
+      ) : (
+        <SummaryStrip className="mb-5">
+          <SummaryCell icon={<Receipt className="h-[18px] w-[18px]" aria-hidden="true" />} label={t('exp.statOverall')} value={fmtMoney(s.overallUsd, 'USD')} sub={t('dash.expensesN', { n: s.count })} />
+          <SummaryCell icon={<Wallet className="h-[18px] w-[18px]" aria-hidden="true" />} label={t('exp.statUsd')} value={fmtMoney(s.usdTotal, 'USD')} />
+          <SummaryCell icon={<Wallet className="h-[18px] w-[18px]" aria-hidden="true" />} label={t('exp.statIqd')} value={fmtMoney(s.iqdTotal, 'IQD')} />
+          <SummaryCell
+            icon={<Tags className="h-[18px] w-[18px]" aria-hidden="true" />}
+            label={t('exp.statTop')}
+            value={<span className="bidi block truncate text-title md:text-heading">{s.topCategory?.name ?? '—'}</span>}
+            sub={s.topCategory ? t('exp.statTopHint', { n: s.topCategory.count, amount: fmtMoney(s.topCategory.totalUsd, 'USD') }) : undefined}
+          />
+        </SummaryStrip>
+      )}
 
       <div ref={formRef} className="scroll-mt-4">
         {ov.data ? (
@@ -239,9 +226,19 @@ export function ExpensesView({ editId }: { editId: string | null }) {
       {ov.data?.rules.length ? <RulesCard rules={ov.data.rules} busy={busy} onAction={ruleAction} onDelete={setDelRule} /> : null}
 
       <Card className="overflow-hidden" aria-labelledby="exp-list-title">
-        <h2 id="exp-list-title" className="px-5 pt-5 text-title font-semibold text-ink">
-          {t('exp.listTitle')}
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2 px-5 pt-5">
+          <h2 id="exp-list-title" className="text-title font-semibold text-ink">
+            {t('exp.listTitle')}
+          </h2>
+          <span className="flex gap-1">
+            <Button variant="quiet" size="sm" busy={busy === 'copy'} onClick={copyRows} icon={<Copy className="h-4 w-4" aria-hidden="true" />}>
+              {t('exp.copy')}
+            </Button>
+            <Button variant="quiet" size="sm" busy={busy === 'csv'} onClick={exportCsv} icon={<FileSpreadsheet className="h-4 w-4" aria-hidden="true" />}>
+              {t('common.exportCsv')}
+            </Button>
+          </span>
+        </div>
         <div className="flex flex-col gap-2 px-5 pb-4 pt-4 xl:flex-row xl:flex-wrap xl:items-center">
           <SearchBox value={L.q} onChange={L.setQ} placeholder={t('exp.searchPh')} className="xl:w-80" />
           <Select aria-label={t('exp.category')} value={L.filters.category} onChange={(e) => L.setFilter('category', e.target.value)} className="xl:w-56">
@@ -281,8 +278,8 @@ export function ExpensesView({ editId }: { editId: string | null }) {
                   {details(r) ? <span className="bidi block truncate text-caption text-muted">{details(r)}</span> : null}
                 </span>
                 <span className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="num font-semibold text-danger-ink">−{fmtMoney(r.amount, r.currency)}</span>
-                  <Badge tone={r.source === 'recurring' ? 'brand' : 'neutral'}>{t(`exp.src.${r.source}` as DictKey)}</Badge>
+                  <span className="num font-semibold text-ink">−{fmtMoney(r.amount, r.currency)}</span>
+                  {r.source === 'recurring' ? <Badge tone="brand">{t('exp.src.recurring')}</Badge> : null}
                 </span>
               </span>
               {actions(r)}
@@ -339,16 +336,6 @@ export function ExpensesView({ editId }: { editId: string | null }) {
   );
 }
 
-function Stat({ label, value, sub, strong, text }: { label: string; value: string; sub?: string; strong?: boolean; text?: boolean }) {
-  return (
-    <div className={cx('min-w-0 rounded-card border bg-surface p-4 shadow-card', strong ? 'border-brand/40' : 'border-line-soft')}>
-      <p className="text-meta font-medium text-muted">{label}</p>
-      <p className={cx('mt-1.5 break-words font-bold leading-tight text-ink', text ? 'bidi text-lead md:text-title' : 'num text-lead md:text-heading', strong && 'text-brand-ink')}>{value}</p>
-      {sub ? <p className="bidi mt-1.5 truncate text-caption text-muted">{sub}</p> : null}
-    </div>
-  );
-}
-
 function RulesCard({
   rules,
   busy,
@@ -362,11 +349,18 @@ function RulesCard({
 }) {
   const { t } = useApp();
   const tt = (k: string, p?: Record<string, string | number>) => t(k as DictKey, p);
+  const due = rules.filter((r) => r.dueFlag).length;
+  const [open, setOpen] = useState(due > 0);
+  useEffect(() => {
+    if (due > 0) setOpen(true);
+  }, [due]);
   const state = (r: RuleRow) =>
     r.dueFlag ? (
       <Badge tone="warning">{t('exp.due', { reason: r.dueReason.startsWith('insufficient:') ? t('exp.dueInsufficient', { vault: t(`vault.${r.dueReason.slice(13)}` as DictKey) }) : r.dueReason })}</Badge>
+    ) : r.state === 'ACTIVE' ? (
+      <span className="text-meta text-muted">{t('exp.state.ACTIVE')}</span>
     ) : (
-      <Badge tone={r.state === 'ACTIVE' ? 'success' : r.state === 'SCHEDULED' ? 'brand' : 'neutral'}>{t(`exp.state.${r.state}` as DictKey)}</Badge>
+      <Badge tone={r.state === 'SCHEDULED' ? 'brand' : 'neutral'}>{t(`exp.state.${r.state}` as DictKey)}</Badge>
     );
   const btns = (r: RuleRow) => (
     <span className="flex flex-wrap items-center justify-end gap-1">
@@ -391,9 +385,18 @@ function RulesCard({
   );
   return (
     <Card className="mb-5 overflow-hidden" aria-labelledby="exp-rules-title">
-      <h2 id="exp-rules-title" className="px-5 pb-3 pt-5 text-title font-semibold text-ink">
-        {t('exp.rulesTitle')}
+      <h2 id="exp-rules-title">
+        <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center gap-3 px-5 py-4 text-start hover:bg-surface-2">
+          <Repeat className="h-5 w-5 shrink-0 text-brand-ink" aria-hidden="true" />
+          <span className="flex-1 text-title font-semibold text-ink">
+            {t('exp.rulesTitle')} <span className="num text-muted">({rules.length})</span>
+          </span>
+          {due ? <Badge tone="warning">{t('exp.rulesDue', { n: due })}</Badge> : null}
+          <ChevronDown className={cx('h-5 w-5 shrink-0 text-muted transition-transform', open && 'rotate-180')} aria-hidden="true" />
+        </button>
       </h2>
+      {open ? (
+      <>
       <div className="scroll-thin hidden overflow-x-auto md:block">
         <table className="w-full min-w-[860px] text-meta">
           <thead>
@@ -419,7 +422,7 @@ function RulesCard({
                   <td className="num px-3 py-3 text-end font-semibold text-ink">{fmtMoney(r.amount, r.vault)}</td>
                   <td className="px-3 py-3">
                     <span className="block text-ink">{t(`exp.freq.${r.frequency}` as DictKey)}</span>
-                    {skips ? <Badge tone="warning" className="mt-1 whitespace-normal">{skips}</Badge> : null}
+                    {skips ? <span className="mt-0.5 block text-caption text-muted">{skips}</span> : null}
                   </td>
                   <td className="num px-3 py-3 text-muted">{r.state === 'PAUSED' ? '—' : fmtDate(r.nextRun)}</td>
                   <td className="px-3 py-3 text-muted">{t(`vault.${r.vault}` as DictKey)}</td>
@@ -454,13 +457,15 @@ function RulesCard({
               </span>
               <span className="flex flex-wrap items-center gap-1.5">
                 {state(r)}
-                {skips ? <Badge tone="warning">{skips}</Badge> : null}
+                {skips ? <span className="text-caption text-muted">{skips}</span> : null}
               </span>
               {btns(r)}
             </li>
           );
         })}
       </ul>
+      </>
+      ) : null}
     </Card>
   );
 }

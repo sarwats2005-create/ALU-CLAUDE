@@ -2,7 +2,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Boxes, Factory, History, PackagePlus } from 'lucide-react';
+import { AlertTriangle, Boxes, CheckCircle2, Factory, PackagePlus, Wallet, X } from 'lucide-react';
 import type { listInventory, productHistory } from '@/lib/server/q/inventory';
 import type { TxnDetail } from '@/lib/server/q/history';
 import { useApp } from '@/lib/client/app-context';
@@ -12,7 +12,8 @@ import { fmtDate, localTodayIso } from '@/lib/dates';
 import { D, Dec, fmtCost, fmtKg, fmtMoney, fmtPct, parseDec } from '@/lib/money';
 import { cx } from '@/lib/cx';
 import { Badge, Button, Card, EmptyState, Field, Input, PageHeader, Segmented, Select, Skeleton, Textarea } from '@/components/ui';
-import { DataTable, FilterPills, Pager, SearchBox, useListState, type Column } from '@/components/DataTable';
+import { SummaryCell, SummaryStrip } from '@/components/Summary';
+import { DataTable, Pager, SearchBox, useListState, type Column } from '@/components/DataTable';
 import { DateInput } from '@/components/DateInput';
 import { Dialog, EditingBanner } from '@/components/Dialog';
 import { useTxnPanel } from '@/components/TxnPanel';
@@ -88,25 +89,35 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
       ),
     },
     { key: 'value', label: t('inv.stockValue'), sortable: true, align: 'end', render: (r) => <span className="num font-semibold text-ink">{fmtMoney(r.value)}</span> },
-    { key: 'status', label: t('common.status'), render: (r) => <Badge tone={STATUS_TONE[r.status]}>{t(r.status === 'in' ? 'inv.inStock' : r.status === 'low' ? 'inv.low' : 'inv.out')}</Badge> },
+    // Only problems get a badge (Von Restorff): "In stock" is the normal state and stays quiet.
+    { key: 'status', label: t('common.status'), render: (r) => (r.status === 'in' ? <span className="text-meta text-muted">—</span> : <Badge tone={STATUS_TONE[r.status]}>{t(r.status === 'low' ? 'inv.low' : 'inv.out')}</Badge>) },
     {
       key: 'actions',
       label: <span className="sr-only">{t('common.actions')}</span>,
       align: 'end',
       render: (r) => (
+        // One visible action per row — the one this product needs next (Hick's law). The row itself opens history.
         <span className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-          <Button size="sm" variant="secondary" disabled={!D(r.rawKg).gt(0)} onClick={() => setProcess({ row: r })} icon={<Factory className="h-4 w-4" aria-hidden="true" />}>
-            {t('inv.process')}
-          </Button>
-          {can('beneficiaries') ? (
-            <Link href={`/beneficiaries/purchase?product=${r.id}`} className="inline-flex h-9 items-center gap-1.5 rounded-ctl px-3 text-meta font-semibold text-brand-ink hover:bg-tint">
+          {r.status !== 'in' && can('beneficiaries') ? (
+            <Link href={`/beneficiaries/purchase?product=${r.id}`} className="inline-flex h-9 items-center gap-1.5 rounded-ctl bg-brand px-3 text-meta font-semibold text-on-brand hover:bg-brand-strong">
               <PackagePlus className="h-4 w-4" aria-hidden="true" />
               {t('inv.restock')}
             </Link>
+          ) : D(r.rawKg).gt(0) ? (
+            <Button size="sm" variant="secondary" onClick={() => setProcess({ row: r })} icon={<Factory className="h-4 w-4" aria-hidden="true" />}>
+              {t('inv.process')}
+            </Button>
           ) : null}
-          <Button size="sm" variant="quiet" onClick={() => setHistory(r)} icon={<History className="h-4 w-4" aria-hidden="true" />}>
-            {t('inv.history')}
-          </Button>
+          {r.status === 'in' && can('beneficiaries') ? (
+            <Link
+              href={`/beneficiaries/purchase?product=${r.id}`}
+              aria-label={`${t('inv.restock')} — ${r.name}`}
+              title={t('inv.restock')}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-ctl text-muted opacity-60 transition-opacity hover:bg-tint hover:text-brand-ink hover:opacity-100 focus-visible:opacity-100"
+            >
+              <PackagePlus className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          ) : null}
         </span>
       ),
     },
@@ -120,17 +131,31 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
         actions={
           can('beneficiaries') ? (
             <Link href="/beneficiaries/purchase">
-              <Button icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>{t('dash.recordPurchase')}</Button>
+              <Button size="lg" className="shadow-pop" icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>{t('dash.recordPurchase')}</Button>
             </Link>
           ) : null
         }
       />
 
-      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Figure label={t('inv.totalRaw')} value={data ? fmtKg(data.totals.rawKg) : null} />
-        <Figure label={t('inv.totalFinished')} value={data ? fmtKg(data.totals.finishedKg) : null} />
-        <Figure label={t('inv.totalValue')} value={data ? fmtMoney(D(data.totals.value).toDecimalPlaces(2)) : null} />
-      </div>
+      <SummaryStrip className="mb-5">
+        <SummaryCell icon={<Boxes className="h-[18px] w-[18px]" aria-hidden="true" />} label={t('inv.totalRaw')} value={data ? fmtKg(data.totals.rawKg) : '—'} />
+        <SummaryCell icon={<Factory className="h-[18px] w-[18px]" aria-hidden="true" />} label={t('inv.totalFinished')} value={data ? fmtKg(data.totals.finishedKg) : '—'} />
+        <SummaryCell icon={<Wallet className="h-[18px] w-[18px]" aria-hidden="true" />} label={t('inv.totalValue')} value={data ? fmtMoney(D(data.totals.value).toDecimalPlaces(2)) : '—'} />
+        {data && data.totals.low + data.totals.out > 0 ? (
+          <SummaryCell
+            icon={<AlertTriangle className="h-[18px] w-[18px]" aria-hidden="true" />}
+            label={t('inv.needsRestock')}
+            value={String(data.totals.low + data.totals.out)}
+            tone="danger"
+            alert
+            sub={t('inv.lowOut', { low: data.totals.low, out: data.totals.out })}
+            active={L.filters.status === 'attention'}
+            onClick={() => L.setFilter('status', L.filters.status === 'attention' ? '' : 'attention')}
+          />
+        ) : (
+          <SummaryCell icon={<CheckCircle2 className="h-[18px] w-[18px]" aria-hidden="true" />} label={t('inv.needsRestock')} value={<span className="text-success-ink">{t('inv.allStocked')}</span>} />
+        )}
+      </SummaryStrip>
 
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 px-5 pb-4 pt-5 lg:flex-row lg:items-center lg:justify-between">
@@ -145,17 +170,12 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
               ))}
             </Select>
           </div>
-          <FilterPills
-            label={t('common.status')}
-            value={L.filters.status}
-            onChange={(v) => L.setFilter('status', v)}
-            options={[
-              { value: '', label: t('common.all') },
-              { value: 'in', label: t('inv.inStock') },
-              { value: 'low', label: t('inv.low') },
-              { value: 'out', label: t('inv.out') },
-            ]}
-          />
+          {L.filters.status ? (
+            <button type="button" onClick={() => L.setFilter('status', '')} className="inline-flex h-9 items-center gap-1.5 self-start rounded-full bg-danger-tint px-3 text-meta font-semibold text-danger-ink hover:bg-danger-tint/70">
+              {t('inv.needsRestock')}
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          ) : null}
         </div>
         <DataTable
           rows={data?.rows}
@@ -167,7 +187,6 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
           onRowClick={(r) => setHistory(r)}
           minWidth={960}
           caption={t('inv.title')}
-          rowClassName={(r) => (r.status === 'out' ? 'opacity-70' : undefined)}
           empty={
             L.hasFilters ? (
               <p className="text-body text-muted">{t('common.noResults')}</p>
@@ -194,7 +213,7 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
                     {r.sku} · {r.typeName}
                   </span>
                 </span>
-                <Badge tone={STATUS_TONE[r.status]}>{t(r.status === 'in' ? 'inv.inStock' : r.status === 'low' ? 'inv.low' : 'inv.out')}</Badge>
+                {r.status === 'in' ? null : <Badge tone={STATUS_TONE[r.status]}>{t(r.status === 'low' ? 'inv.low' : 'inv.out')}</Badge>}
               </span>
               <span className="mt-2 grid grid-cols-3 gap-2 text-caption">
                 <span>
@@ -228,15 +247,6 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
       ) : null}
       {history ? <HistoryDialog row={history} onClose={() => setHistory(null)} onProcess={() => (setHistory(null), setProcess({ row: history }))} /> : null}
     </div>
-  );
-}
-
-function Figure({ label, value }: { label: string; value: string | null }) {
-  return (
-    <Card className="p-4">
-      <p className="text-meta font-medium text-muted">{label}</p>
-      {value === null ? <Skeleton className="mt-2 h-8 w-32" /> : <p className="fig mt-1.5 text-heading font-bold text-ink md:text-large">{value}</p>}
-    </Card>
   );
 }
 

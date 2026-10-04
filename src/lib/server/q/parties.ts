@@ -55,7 +55,24 @@ export async function listParties(
       LIMIT ${p.size} OFFSET ${p.offset}`,
     prisma.$queryRaw<{ c: bigint }[]>`SELECT COUNT(*) AS c ${base}`,
   ]);
+  // Totals over ALL parties (not the current filter), for the summary strip that doubles as the filter.
+  const sum = await prisma.$queryRaw<Record<string, unknown>[]>`
+    SELECT COUNT(*) AS all_n,
+           COUNT(*) FILTER (WHERE bal > 0) AS owes_n, COALESCE(SUM(bal) FILTER (WHERE bal > 0), 0) AS owes,
+           COUNT(*) FILTER (WHERE bal < 0) AS credit_n, COALESCE(-SUM(bal) FILTER (WHERE bal < 0), 0) AS credit,
+           COUNT(*) FILTER (WHERE bal = 0) AS settled_n
+    FROM (SELECT x.id, COALESCE(b.bal, 0) AS bal FROM ${table} x
+          LEFT JOIN (SELECT ${fk} AS pid, SUM("amountUsd") AS bal FROM "PartyEntry" WHERE ${fk} IS NOT NULL GROUP BY ${fk}) b ON b.pid = x.id) z`;
+  const z = sum[0] ?? {};
   return {
+    summary: {
+      all: n(z.all_n),
+      owes: round2(D(s(z.owes))).toString(),
+      owesCount: n(z.owes_n),
+      credit: round2(D(s(z.credit))).toString(),
+      creditCount: n(z.credit_n),
+      settledCount: n(z.settled_n),
+    },
     total: n(count[0]?.c),
     rows: rows.map((r) => ({
       id: String(r.id),

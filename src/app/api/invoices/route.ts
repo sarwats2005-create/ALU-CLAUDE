@@ -2,6 +2,7 @@ import type { TxnKind } from '@prisma/client';
 import { route, listParams } from '@/lib/server/api';
 import { HISTORY_SORT, listHistory } from '@/lib/server/q/history';
 import { EDIT_WINDOW_MS } from '@/lib/lock';
+import { prisma } from '@/lib/db';
 
 /**
  * Sale and purchase invoices for the Invoices page. Filters: type=sale|purchase, lock=open|locked
@@ -15,7 +16,13 @@ export const GET = route({ pages: ['invoices'] }, async ({ url }) => {
   const kinds: TxnKind[] = type === 'sale' ? ['SALE'] : type === 'purchase' ? ['PURCHASE'] : ['SALE', 'PURCHASE'];
   const lock = sp.get('lock');
   const cutoff = new Date(Date.now() - EDIT_WINDOW_MS);
-  return listHistory(
+  const live = { deletedAt: null, kind: { in: ['SALE', 'PURCHASE'] as TxnKind[] } };
+  // Counts for the summary strip (which doubles as the type / edit-window filter).
+  const [all, sale, open, list] = await Promise.all([
+    prisma.txn.count({ where: live }),
+    prisma.txn.count({ where: { ...live, kind: 'SALE' } }),
+    prisma.txn.count({ where: { ...live, createdAt: { gte: cutoff } } }),
+    listHistory(
     {
       q: p.q,
       kinds,
@@ -25,5 +32,7 @@ export const GET = route({ pages: ['invoices'] }, async ({ url }) => {
       ...(lock === 'open' ? { createdFrom: cutoff } : lock === 'locked' ? { createdBefore: cutoff } : {}),
     },
     p,
-  );
+  ),
+  ]);
+  return { ...list, counts: { all, sale, purchase: all - sale, open } };
 });

@@ -12,6 +12,33 @@ import { D } from '@/lib/money';
 import { REPORT_META, REPORT_TYPES, type ReportData, type ReportType } from '@/lib/reports-meta';
 import { cx } from '@/lib/cx';
 import { Button, Card, EmptyState, PageHeader, Select, Skeleton } from '@/components/ui';
+import { SummaryCell, SummaryStrip } from '@/components/Summary';
+import { ArrowLeftRight, BarChart3, Boxes, HandCoins, PackagePlus, ShoppingCart, Trophy, Truck, Wallet, type LucideIcon } from 'lucide-react';
+import { addDaysIso, localTodayIso } from '@/lib/dates';
+import type { DictKey } from '@/lib/i18n';
+
+const REPORT_GROUPS: { label: DictKey; items: ReportType[] }[] = [
+  { label: 'rep.gMoney', items: ['pl', 'sales', 'purchases', 'vault'] },
+  { label: 'rep.gPeople', items: ['custAging', 'benAging', 'bestCustomers', 'bestBeneficiaries'] },
+  { label: 'rep.gStock', items: ['inventory'] },
+];
+const REPORT_ICON: Record<ReportType, LucideIcon> = {
+  pl: BarChart3,
+  sales: ShoppingCart,
+  purchases: PackagePlus,
+  vault: Wallet,
+  custAging: HandCoins,
+  benAging: Truck,
+  bestCustomers: Trophy,
+  bestBeneficiaries: ArrowLeftRight,
+  inventory: Boxes,
+};
+const PRESETS: { key: DictKey; range: () => { from: string; to: string } }[] = [
+  { key: 'rep.pMonth', range: () => { const d = localTodayIso(); return { from: `${d.slice(0, 7)}-01`, to: d }; } },
+  { key: 'rep.p3', range: () => { const d = localTodayIso(); return { from: addDaysIso(d, -90), to: d }; } },
+  { key: 'rep.pYear', range: () => { const d = localTodayIso(); return { from: `${d.slice(0, 4)}-01-01`, to: d }; } },
+  { key: 'rep.pAll', range: () => ({ from: '', to: '' }) },
+];
 import { Combobox, type Option } from '@/components/Combobox';
 import { DateRange } from '@/components/DateInput';
 import { ChartCard, HBarList, LineChart, SignedBarChart, compactMoney, useMonthLabel } from '@/components/charts';
@@ -80,23 +107,32 @@ export function ReportsView({ initial }: { initial: ReportType }) {
             ))}
           </Select>
         </div>
-        <Card as="div" className="hidden overflow-hidden xl:block">
+        {/* Nine reports in three small groups (Gestalt / chunking) instead of one long list. */}
+        <Card as="div" className="hidden overflow-hidden py-2 xl:block">
           <nav aria-label={t('rep.title')}>
-            <ul>
-              {REPORT_TYPES.map((x) => (
-                <li key={x} className="border-b border-line-soft last:border-0">
-                  <button
-                    type="button"
-                    onClick={() => pick(x)}
-                    aria-current={x === type ? 'page' : undefined}
-                    className={cx('subline-host block w-full px-4 py-3 text-start transition-colors', x === type ? 'bg-tint' : 'hover:bg-surface-2')}
-                  >
-                    <span className={cx('block text-body font-semibold', x === type ? 'text-brand-ink' : 'text-ink')}>{t(REPORT_META[x].title)}</span>
-                    <span className="subline mt-0.5 block text-caption text-muted">{t(REPORT_META[x].desc)}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            {REPORT_GROUPS.map((g) => (
+              <div key={g.label} className="px-2 py-1.5">
+                <p className="px-3 pb-1 pt-1 text-caption font-semibold uppercase tracking-[0.06em] text-muted">{t(g.label)}</p>
+                <ul>
+                  {g.items.map((x) => {
+                    const Icon = REPORT_ICON[x];
+                    return (
+                      <li key={x}>
+                        <button
+                          type="button"
+                          onClick={() => pick(x)}
+                          aria-current={x === type ? 'page' : undefined}
+                          className={cx('flex h-10 w-full items-center gap-2.5 rounded-ctl px-3 text-start text-body transition-colors', x === type ? 'bg-tint font-semibold text-brand-ink' : 'text-ink hover:bg-surface-2')}
+                        >
+                          <Icon className={cx('h-4 w-4 shrink-0', x === type ? 'text-brand-ink' : 'text-muted')} aria-hidden="true" />
+                          <span className="truncate">{t(REPORT_META[x].title)}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
           </nav>
         </Card>
 
@@ -121,7 +157,28 @@ export function ReportsView({ initial }: { initial: ReportType }) {
                 </Button>
               </div>
             </div>
-            <div className="flex flex-col gap-2 border-t border-line-soft pt-3 lg:flex-row lg:flex-wrap lg:items-center">
+            {/* One-tap periods (least effort); exact dates still possible beside them. */}
+            <div className="flex flex-wrap gap-1.5 border-t border-line-soft pt-3">
+              {PRESETS.map((pr) => {
+                const r = pr.range();
+                const on = from === r.from && to === r.to;
+                return (
+                  <button
+                    key={pr.key}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => {
+                      setFrom(r.from);
+                      setTo(r.to);
+                    }}
+                    className={cx('h-8 rounded-full border px-3 text-meta font-semibold transition-colors', on ? 'border-brand bg-brand text-on-brand' : 'border-line bg-surface text-muted hover:text-ink')}
+                  >
+                    {t(pr.key)}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
               <DateRange idPrefix="rep" from={from} to={to} onFrom={setFrom} onTo={setTo} />
               {f.includes('customer') ? (
                 <div className="lg:w-60">
@@ -164,19 +221,19 @@ export function ReportsView({ initial }: { initial: ReportType }) {
           {shown ? (
             <div className={cx('flex flex-col gap-5 transition-opacity', loading && 'opacity-60')}>
               {shown.summary.length ? (
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-6">
+                <SummaryStrip cols={shown.summary.length % 3 === 0 ? 3 : shown.summary.length >= 4 ? 4 : 2}>
                   {shown.summary.map((s) => {
                     const d = D(s.value);
                     return (
-                      <Card key={s.label} className="p-4">
-                        <p className="text-caption font-medium text-muted">{t(s.label)}</p>
-                        <p className={cx('fig mt-1 text-title font-bold', s.tone === 'auto' ? (d.isNegative() ? 'text-danger-ink' : d.gt(0) ? 'text-success-ink' : 'text-ink') : 'text-ink')}>
-                          {fmtCell(s.value, s.fmt, lang)}
-                        </p>
-                      </Card>
+                      <SummaryCell
+                        key={s.label}
+                        label={t(s.label)}
+                        value={fmtCell(s.value, s.fmt, lang)}
+                        tone={s.tone === 'auto' ? (d.isNegative() ? 'danger' : d.gt(0) ? 'success' : undefined) : undefined}
+                      />
                     );
                   })}
-                </div>
+                </SummaryStrip>
               ) : null}
 
               {shown.chart ? <ReportChartView chart={shown.chart} monthLabel={monthLabel} /> : null}

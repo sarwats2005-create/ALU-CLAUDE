@@ -50,7 +50,7 @@ export function TxnRows({ rows, emptyText }: { rows: TxnRow[]; emptyText: string
                 <td className="px-3 py-3 text-muted">{r.currency}</td>
                 <td className="px-3 py-3 text-muted">{r.vault ? t(`vault.${r.vault}` as 'vault.USD') : '—'}</td>
                 <td className="px-5 py-3">
-                  <Badge tone={statusTone(r.status)}>{t(`status.${r.status}` as 'status.paid')}</Badge>
+                  {r.status === 'unpaid' || r.status === 'partial' ? <Badge tone={statusTone(r.status)}>{t(`status.${r.status}` as 'status.paid')}</Badge> : null}
                   {r.isDemo ? <Badge tone="brand" className="ms-1">{t('app.demo')}</Badge> : null}
                 </td>
               </tr>
@@ -72,7 +72,7 @@ export function TxnRows({ rows, emptyText }: { rows: TxnRow[]; emptyText: string
               </span>
               <span className="flex shrink-0 flex-col items-end gap-1">
                 <span className={cx('num text-body font-semibold text-ink')}>{r.kind === 'PROCESSING' ? `${Number(r.kg).toLocaleString('en-US')} kg` : fmtMoney(r.total, r.currency)}</span>
-                <Badge tone={statusTone(r.status)}>{t(`status.${r.status}` as 'status.paid')}</Badge>
+                {r.status === 'unpaid' || r.status === 'partial' ? <Badge tone={statusTone(r.status)}>{t(`status.${r.status}` as 'status.paid')}</Badge> : null}
               </span>
             </button>
           </li>

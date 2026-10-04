@@ -14,6 +14,7 @@ import { localTodayIso } from '@/lib/dates';
 import { D, Dec, fmtKg, fmtMoney, fmtPct, parseDec, roundMoney, toUsd, type Cur } from '@/lib/money';
 import { cx } from '@/lib/cx';
 import { Badge, Button, Card, Field, Input, PageHeader, Segmented, Textarea } from '@/components/ui';
+import { StepLabel } from '@/components/Summary';
 import { Combobox, type Option } from '@/components/Combobox';
 import { DateInput } from '@/components/DateInput';
 import { EditingBanner, Dialog } from '@/components/Dialog';
@@ -46,6 +47,7 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
   const [lines, setLines] = useState<Line[]>(() => (edit ? [] : [newLine()]));
   const [cash, setCash] = useState(edit ? D(edit.cashPaid).toString() : '');
   const [notes, setNotes] = useState(edit?.notes ?? '');
+  const [noteOpen, setNoteOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const guard = useMoneyGuard();
@@ -208,7 +210,9 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
 
       <form onSubmit={submit} noValidate className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-5">
-          {/* Customer, date, currency */}
+          {/* Step 1 — who and when */}
+          <section>
+          <StepLabel n={1}>{t('pos.step1')}</StepLabel>
           <Card className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]">
             <Field label={t('pos.customer')} htmlFor="pos-customer" error={errors.customerId} required className="sm:col-span-2 xl:col-span-1">
               <Combobox<Customer>
@@ -262,13 +266,13 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
               />
             </Field>
           </Card>
+          </section>
 
-          {/* Items */}
+          {/* Step 2 — what */}
+          <section>
+          <StepLabel n={2} aside={<span className="text-caption text-muted">{t('rep.lines')}: <span className="num">{lines.length}</span></span>}>{t('pos.lines')}</StepLabel>
           <Card className="overflow-hidden">
-            <div className="flex items-center justify-between gap-3 px-5 pb-2 pt-5">
-              <h2 className="text-title font-semibold text-ink">{t('pos.lines')}</h2>
-              <span className="text-caption text-muted">{t('rep.lines')}: <span className="num">{lines.length}</span></span>
-            </div>
+            <div className="pt-2" />
             {errors.lines ? <p role="alert" className="px-5 text-meta font-medium text-danger-ink">{errors.lines}</p> : null}
             <ol className="flex flex-col">
               {lines.map((l, i) => (
@@ -299,16 +303,25 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
               </Button>
             </div>
           </Card>
+          </section>
 
-          <Card className="p-5">
-            <Field label={t('common.notes')} htmlFor="pos-notes" optionalLabel={t('common.optional')}>
-              <Textarea id="pos-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={2000} />
-            </Field>
-          </Card>
+          {/* Notes are rarely needed: one link until asked for (progressive disclosure). */}
+          {noteOpen || notes ? (
+            <Card className="p-5">
+              <Field label={t('common.notes')} htmlFor="pos-notes" optionalLabel={t('common.optional')}>
+                <Textarea id="pos-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={2000} autoFocus={noteOpen && !notes} />
+              </Field>
+            </Card>
+          ) : (
+            <Button variant="ghost" className="self-start" onClick={() => setNoteOpen(true)} icon={<Plus className="h-4 w-4" aria-hidden="true" />}>
+              {t('common.addNote')}
+            </Button>
+          )}
         </div>
 
         {/* Payment rail */}
         <aside aria-label={t('pos.payment')} className="lg:sticky lg:top-6">
+          <StepLabel n={3}>{t('pos.payment')}</StepLabel>
           <Card className="overflow-hidden">
             <div className="bg-brand px-5 pb-5 pt-4 text-on-brand">
               <p className="text-meta font-medium opacity-85">{t('pos.invoiceTotal')}</p>

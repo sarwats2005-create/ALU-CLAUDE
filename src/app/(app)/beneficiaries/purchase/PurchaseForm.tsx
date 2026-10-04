@@ -20,6 +20,7 @@ import { Dialog, EditingBanner } from '@/components/Dialog';
 import { PartyFormDialog } from '@/components/PartyForm';
 import { useToast } from '@/components/Toast';
 import { useMoneyGuard } from '@/components/MoneyGuard';
+import { StepLabel } from '@/components/Summary';
 import { useInvoiceAutoSave } from '@/components/useInvoiceAutoSave';
 
 type Product = Awaited<ReturnType<typeof lookupProducts>>[number];
@@ -38,7 +39,14 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
   const line = edit?.lines[0];
   const [ben, setBen] = useState<Option<Ben> | null>(null);
   const [date, setDate] = useState(edit?.date ?? localTodayIso());
-  const [mode, setMode] = useState<'existing' | 'new'>(edit || productId ? 'existing' : 'new');
+  const [mode, setMode] = useState<'existing' | 'new'>('existing');
+  // Restocking is the usual case; only a brand-new factory (no products yet) starts on "create".
+  useEffect(() => {
+    if (edit || productId) return;
+    void api<Product[]>('/api/lookup/products').then((r) => {
+      if (r.ok && !r.data.length) setMode('new');
+    });
+  }, [edit, productId]);
   const [product, setProduct] = useState<Option<Product> | null>(null);
   const [npName, setNpName] = useState('');
   const [npSku, setNpSku] = useState('');
@@ -50,6 +58,7 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
   const [vault, setVault] = useState<Cur>((edit?.vault as Cur) ?? 'USD');
   const [cash, setCash] = useState(edit ? D(edit.cashPaid).toString() : '');
   const [notes, setNotes] = useState(edit?.notes ?? '');
+  const [noteOpen, setNoteOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const guard = useMoneyGuard();
@@ -163,6 +172,8 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
 
       <form onSubmit={submit} noValidate className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-5">
+          <section>
+          <StepLabel n={1}>{t('pur.step1')}</StepLabel>
           <Card className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <Field label={t('pur.beneficiary')} htmlFor="pur-ben" error={errors.beneficiaryId} required>
               <Combobox<Ben>
@@ -180,10 +191,12 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
               <DateInput id="pur-date" value={date} onChange={setDate} invalid={!!errors.date} />
             </Field>
           </Card>
+          </section>
 
+          <section>
+          <StepLabel n={2}>{t('pur.product')}</StepLabel>
           <Card className="flex flex-col gap-4 p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-title font-semibold text-ink">{t('pur.product')}</h2>
               {!edit ? (
                 <Segmented<'existing' | 'new'>
                   label={t('pur.product')}
@@ -191,8 +204,8 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
                   value={mode}
                   onChange={setMode}
                   options={[
-                    { value: 'new', label: t('pur.newProduct') },
                     { value: 'existing', label: t('pur.existingProduct') },
+                    { value: 'new', label: t('pur.newProduct') },
                   ]}
                 />
               ) : null}
@@ -287,15 +300,23 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
               </Field>
             </div>
           </Card>
+          </section>
 
-          <Card className="p-5">
-            <Field label={t('common.notes')} htmlFor="pur-notes" optionalLabel={t('common.optional')}>
-              <Textarea id="pur-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={2000} />
-            </Field>
-          </Card>
+          {noteOpen || notes ? (
+            <Card className="p-5">
+              <Field label={t('common.notes')} htmlFor="pur-notes" optionalLabel={t('common.optional')}>
+                <Textarea id="pur-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={2000} autoFocus={noteOpen && !notes} />
+              </Field>
+            </Card>
+          ) : (
+            <Button variant="ghost" className="self-start" onClick={() => setNoteOpen(true)} icon={<Plus className="h-4 w-4" aria-hidden="true" />}>
+              {t('common.addNote')}
+            </Button>
+          )}
         </div>
 
         <aside className="lg:sticky lg:top-6">
+          <StepLabel n={3}>{t('pos.payment')}</StepLabel>
           <Card className="overflow-hidden">
             <div className="border-b border-line-soft bg-surface-2 px-5 pb-4 pt-4">
               <p className="text-meta font-medium text-muted">{t('common.total')}</p>

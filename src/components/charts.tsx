@@ -34,6 +34,12 @@ function useRtl() {
 }
 
 /** Clean axis ticks (1, 2, 5 × 10^k) covering [min, max]. */
+/** Room one x-axis label needs: longer names (e.g. Kurdish months) thin the labels out more. */
+function labelSlot(data: { label: string }[]) {
+  const longest = data.reduce((m, d) => Math.max(m, d.label.length), 0);
+  return Math.max(44, longest * 7 + 14);
+}
+
 export function niceTicks(min: number, max: number, count = 4): number[] {
   if (!isFinite(min) || !isFinite(max)) return [0, 1];
   if (min === max) {
@@ -122,7 +128,7 @@ export function SignedBarChart({
     const idx = rtl ? data.length - 1 - i : i;
     return (rtl ? 4 : axisW) + band * idx + band / 2;
   };
-  const every = Math.max(1, Math.ceil((data.length * 44) / Math.max(plotW, 1)));
+  const every = Math.max(1, Math.ceil((data.length * labelSlot(data)) / Math.max(plotW, 1)));
   const last = data.length - 1;
   const extreme = values.reduce((best, v, i) => (Math.abs(v) > Math.abs(values[best] ?? 0) ? i : best), 0);
 
@@ -229,7 +235,7 @@ export function LineChart({
   const pts = data.map((d, i) => [xAt(i), y(d.value)] as const);
   const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0]},${p[1]}`).join(' ');
   const area = pts.length ? `${line} L${pts[pts.length - 1][0]},${y(Math.max(yMin, 0))} L${pts[0][0]},${y(Math.max(yMin, 0))} Z` : '';
-  const every = Math.max(1, Math.ceil((data.length * 44) / Math.max(plotW, 1)));
+  const every = Math.max(1, Math.ceil((data.length * labelSlot(data)) / Math.max(plotW, 1)));
   const last = data.length - 1;
 
   function onMove(e: React.PointerEvent<SVGRectElement>) {

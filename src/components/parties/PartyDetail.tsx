@@ -23,6 +23,7 @@ import { useToast } from '../Toast';
 import { useErase } from '../EraseMode';
 import { Avatar, PartyFormDialog, type PartyKind } from '../PartyForm';
 import { PaymentDialog, type PaymentKind } from '../PaymentDialog';
+import { SummaryCell, SummaryStrip } from '../Summary';
 
 type Detail = {
   party: { id: string; name: string; phone: string; address: string; isDemo: boolean; hasAvatar: boolean; avatarV: number };
@@ -60,6 +61,7 @@ export function PartyDetail({ kind, id, editPayment }: { kind: PartyKind; id: st
   const c = data.cards;
   const bal = balanceLabel(kind, c.balance, lang);
   const credit = D(c.balance).isNegative();
+  const owed = D(c.balance).gt(0);
   const docUrl = (format: string) => `/api/docs/statement/${kind}/${id}${qs({ format, from: L.filters.from, to: L.filters.to })}`;
 
   const cols: Column<StatementRow>[] = [
@@ -154,64 +156,73 @@ export function PartyDetail({ kind, id, editPayment }: { kind: PartyKind; id: st
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {/* The most likely next step is the primary (biggest, blue) button: collect / pay when money is owed,
+              otherwise a new sale / purchase. */}
           {isC ? (
             <>
               {credit ? (
-                <Button variant="secondary" onClick={() => setPay({ kind: 'CUSTOMER_REFUND' })} icon={<RotateCcw className="h-4 w-4" aria-hidden="true" />}>
+                <Button variant="secondary" size="lg" onClick={() => setPay({ kind: 'CUSTOMER_REFUND' })} icon={<RotateCcw className="h-4 w-4" aria-hidden="true" />}>
                   {t('cust.refundCredit')}
                 </Button>
               ) : null}
-              <Button variant="secondary" onClick={() => setPay({ kind: 'CUSTOMER_PAYMENT' })} icon={<Banknote className="h-4 w-4" aria-hidden="true" />}>
+              <Button variant={owed ? 'primary' : 'secondary'} size="lg" className={owed ? 'shadow-pop' : undefined} onClick={() => setPay({ kind: 'CUSTOMER_PAYMENT' })} icon={<Banknote className="h-4 w-4" aria-hidden="true" />}>
                 {t('cust.receivePayment')}
               </Button>
               {can('pos') ? (
                 <Link href={`/pos?customer=${p.id}`}>
-                  <Button icon={<ShoppingCart className="h-4 w-4" aria-hidden="true" />}>{t('cust.newSale')}</Button>
+                  <Button variant={owed ? 'secondary' : 'primary'} size="lg" className={owed ? undefined : 'shadow-pop'} icon={<ShoppingCart className="h-4 w-4" aria-hidden="true" />}>
+                    {t('cust.newSale')}
+                  </Button>
                 </Link>
               ) : null}
             </>
           ) : (
             <>
               {credit ? (
-                <Button variant="secondary" onClick={() => setPay({ kind: 'BENEFICIARY_REFUND' })} icon={<RotateCcw className="h-4 w-4" aria-hidden="true" />}>
+                <Button variant="secondary" size="lg" onClick={() => setPay({ kind: 'BENEFICIARY_REFUND' })} icon={<RotateCcw className="h-4 w-4" aria-hidden="true" />}>
                   {t('ben.receiveRefund')}
                 </Button>
               ) : null}
-              <Button variant="secondary" onClick={() => setPay({ kind: 'BENEFICIARY_PAYMENT' })} icon={<Banknote className="h-4 w-4" aria-hidden="true" />}>
+              <Button variant={owed ? 'primary' : 'secondary'} size="lg" className={owed ? 'shadow-pop' : undefined} onClick={() => setPay({ kind: 'BENEFICIARY_PAYMENT' })} icon={<Banknote className="h-4 w-4" aria-hidden="true" />}>
                 {t('ben.pay')}
               </Button>
               <Link href={`/beneficiaries/purchase?beneficiary=${p.id}`}>
-                <Button icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>{t('ben.newPurchase')}</Button>
+                <Button variant={owed ? 'secondary' : 'primary'} size="lg" className={owed ? undefined : 'shadow-pop'} icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>
+                  {t('ben.newPurchase')}
+                </Button>
               </Link>
             </>
           )}
         </div>
       </header>
 
-      {/* Balance is the headline; the other figures support it. */}
-      <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-[minmax(0,1.3fr)_repeat(3,minmax(0,1fr))]">
-        <Card className={cx('col-span-2 p-5 md:col-span-1', bal.tone === 'danger' && 'border-danger/25', bal.tone === 'success' && 'border-success/25')}>
-          <p className="text-meta font-medium text-muted">{isC ? t('cust.currentBalance') : t('ben.currentBalance')}</p>
-          <p className={cx('fig mt-1.5 text-figure font-bold', bal.tone === 'danger' ? 'text-danger-ink' : bal.tone === 'success' ? 'text-success-ink' : 'text-ink')}>{fmtMoney(D(c.balance).abs())}</p>
-          <p className={cx('mt-1 text-meta font-semibold', bal.tone === 'danger' ? 'text-danger-ink' : bal.tone === 'success' ? 'text-success-ink' : 'text-muted')}>{bal.short}</p>
-        </Card>
-        <Stat label={isC ? t('cust.totalSales') : t('ben.totalPurchases')} value={fmtMoney(c.total)} sub={isC ? t('cust.salesCount', { n: c.mainCount }) : t('ben.txCount', { n: c.txCount })} />
-        <Stat label={isC ? t('cust.cashReceived') : t('ben.paid')} value={fmtMoney(c.cashReceived)} sub={D(c.refunds).gt(0) ? `${t('kindShort.CUSTOMER_REFUND')}: ${fmtMoney(c.refunds)}` : undefined} />
+      {/* Balance first (serial position) and the only coloured figure when something is owed (Von Restorff). */}
+      <SummaryStrip className="mb-5">
+        <SummaryCell
+          label={isC ? t('cust.currentBalance') : t('ben.currentBalance')}
+          value={fmtMoney(D(c.balance).abs())}
+          tone={bal.tone === 'danger' ? 'danger' : bal.tone === 'success' ? 'success' : undefined}
+          alert={bal.tone === 'danger'}
+          sub={bal.short}
+        />
+        <SummaryCell label={isC ? t('cust.totalSales') : t('ben.totalPurchases')} value={fmtMoney(c.total)} sub={isC ? t('cust.salesCount', { n: c.mainCount }) : t('ben.txCount', { n: c.txCount })} />
+        <SummaryCell label={isC ? t('cust.cashReceived') : t('ben.paid')} value={fmtMoney(c.cashReceived)} sub={D(c.refunds).gt(0) ? `${t('kindShort.CUSTOMER_REFUND')}: ${fmtMoney(c.refunds)}` : undefined} />
         {isC ? (
-          <Stat label={t('cust.profit')} value={fmtMoney(c.profit)} tone={D(c.profit).isNegative() ? 'danger' : 'success'} />
+          <SummaryCell label={t('cust.profit')} value={fmtMoney(c.profit)} tone={D(c.profit).isNegative() ? 'danger' : 'success'} />
         ) : (
-          <Stat label={t('ben.kgBought')} value={fmtKg(c.kg)} />
+          <SummaryCell label={t('ben.kgBought')} value={fmtKg(c.kg)} />
         )}
-      </div>
+      </SummaryStrip>
 
+      {series.length < 2 ? null : (
       <ChartCard
         className="mb-5"
         title={t('cust.balanceChart')}
-        empty={series.length < 2}
         table={{ head: [t('common.date'), t('common.runningBalance')], rows: (data.series ?? []).map((s) => [fmtDate(s.date), fmtMoney(s.value)]), numericCols: [1] }}
       >
         <LineChart data={series} fmtValue={(v) => fmtMoney(v)} fmtAxis={(v) => compactMoney(v)} ariaLabel={t('cust.balanceChart')} seriesLabel={t('common.balance')} allowNegative height={200} />
       </ChartCard>
+      )}
 
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 px-5 pb-4 pt-5 xl:flex-row xl:items-center xl:justify-between">
@@ -328,16 +339,6 @@ export function PartyDetail({ kind, id, editPayment }: { kind: PartyKind; id: st
         <p className="text-body text-ink">{t('cust.deleteBody', { name: p.name })}</p>
       </Dialog>
     </div>
-  );
-}
-
-function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: 'danger' | 'success' }) {
-  return (
-    <Card className="min-w-0 p-4 md:p-5">
-      <p className="text-meta font-medium text-muted">{label}</p>
-      <p className={cx('fig mt-1.5 truncate text-title font-bold md:text-large', tone === 'danger' ? 'text-danger-ink' : tone === 'success' ? 'text-success-ink' : 'text-ink')}>{value}</p>
-      {sub ? <p className="mt-1 text-caption text-muted">{sub}</p> : null}
-    </Card>
   );
 }
 

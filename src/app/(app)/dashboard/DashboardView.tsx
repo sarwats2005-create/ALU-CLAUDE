@@ -1,23 +1,39 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PackagePlus, ShoppingCart, Factory } from 'lucide-react';
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, CheckCircle2, ChevronRight, Factory, HandCoins, PackagePlus, ShoppingCart, Truck, Wallet } from 'lucide-react';
 import type { dashboard } from '@/lib/server/q/dashboard';
 import { useApp } from '@/lib/client/app-context';
-import { D, fmtMoney } from '@/lib/money';
+import { D, fmtKg, fmtMoney } from '@/lib/money';
 import { cx } from '@/lib/cx';
-import { Button, Card, PageHeader } from '@/components/ui';
-import { ChartCard, HBarList, LineChart, SignedBarChart, compactMoney, useMonthLabel } from '@/components/charts';
-import { TxnRows } from '@/components/TxnRows';
+import { Badge, Button, Card, Segmented } from '@/components/ui';
+import { HBarList, LineChart, SignedBarChart, compactMoney, useMonthLabel } from '@/components/charts';
+import { statusTone } from '@/components/TxnRows';
+import { SectionLabel, SummaryCell, SummaryStrip } from '@/components/Summary';
+import { useTxnPanel } from '@/components/TxnPanel';
+import type { TxnRow } from '@/lib/server/q/history';
+import { fmtDate } from '@/lib/dates';
 
 type Data = Awaited<ReturnType<typeof dashboard>>;
 
+// Layout follows a few UX-psychology rules:
+//  • Serial position — the first band is "where the money is right now", the last is "what just happened".
+//  • Hick's law — one primary action (New sale) and one secondary; one chart with a Profit/Sales switch
+//    instead of three charts; one partners list with a Customers/Beneficiaries switch.
+//  • Fitts's law — the primary action is the largest, highest-contrast button at the top.
+//  • Gestalt (proximity/similarity) — the four money figures share one card and one shape.
+//  • Von Restorff + colour & emotion — colour is reserved for meaning: green = good, red = needs action,
+//    brand blue = act. Everything else is neutral ink, so problems stand out.
+//  • Cognitive load / progressive disclosure — headline figure first, detail one tap away.
+
 export function DashboardView({ data }: { data: Data }) {
-  const { t, user, can, dataVersion } = useApp();
+  const { t, user, can, lang, dataVersion } = useApp();
   const router = useRouter();
   const monthLabel = useMonthLabel();
   const first = useRef(true);
+  const [trend, setTrend] = useState<'profit' | 'sales'>('profit');
+  const [partners, setPartners] = useState<'customers' | 'beneficiaries'>('customers');
 
   // Any create/edit/delete elsewhere bumps dataVersion → re-fetch the server data.
   useEffect(() => {
@@ -29,37 +45,58 @@ export function DashboardView({ data }: { data: Data }) {
   }, [dataVersion, router]);
 
   const c = data.cards;
-  const profit = D(c.profit);
-  const profitPos = !profit.isNegative();
-  const monthly = data.monthly.map((m, i) => ({ key: m.month, label: monthLabel(m.month, i === 0), sub: `${monthLabel(m.month, true)}`, value: Number(m.profit) }));
-  const sales = data.monthly.map((m, i) => ({ key: m.month, label: monthLabel(m.month, i === 0), sub: monthLabel(m.month, true), value: Number(m.revenue) }));
-  const noData = !data.hasAnyData;
+  const cur = data.monthly[data.monthly.length - 1];
+  const prev = data.monthly[data.monthly.length - 2];
+  const monthProfit = D(cur?.profit ?? 0);
+  const prevProfit = D(prev?.profit ?? 0);
+  const delta = prevProfit.isZero() ? null : monthProfit.minus(prevProfit).div(prevProfit.abs()).times(100);
+  const series = data.monthly.map((m, i) => ({
+    key: m.month,
+    label: monthLabel(m.month, i === 0),
+    sub: monthLabel(m.month, true),
+    value: Number(trend === 'profit' ? m.profit : m.revenue),
+  }));
+  // Formatted in the browser (its own time zone and locale data), so server and client never disagree.
+  const [today, setToday] = useState('');
+  useEffect(() => {
+    const now = new Date();
+    setToday(
+      lang === 'ku'
+        ? `${t(`day.${now.getDay()}` as 'day.0')}، ${now.getDate()}ی ${t(`month.${now.getMonth() + 1}` as 'month.1')} ${now.getFullYear()}`
+        : new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(now),
+    );
+  }, [lang, t]);
+  const cash = D(c.vaultTotalUsd);
+  const dues = D(c.duesTotalUsd);
 
   return (
-    <div>
-      <PageHeader
-        title={t('dash.title')}
-        subtitle={t('dash.greeting', { name: user.name.split(' ')[0] })}
-        actions={
-          <>
-            {can('beneficiaries') ? (
-              <Link href="/beneficiaries/purchase">
-                <Button variant="secondary" icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>
-                  {t('dash.recordPurchase')}
-                </Button>
-              </Link>
-            ) : null}
-            {can('pos') ? (
-              <Link href="/pos">
-                <Button icon={<ShoppingCart className="h-4 w-4" aria-hidden="true" />}>{t('pos.newSale')}</Button>
-              </Link>
-            ) : null}
-          </>
-        }
-      />
+    <div className="flex flex-col gap-6">
+      {/* ── Header: who / when, and the two things people come here to do ── */}
+      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="min-w-0">
+          <p className="min-h-[18px] text-meta font-medium text-muted">{today}</p>
+          <h1 className="bidi mt-1 text-large font-bold tracking-[-0.02em] text-ink md:text-[34px] md:leading-[40px]">{t('dash.greeting', { name: user.name.split(' ')[0] })}</h1>
+        </div>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row">
+          {can('beneficiaries') ? (
+            <Link href="/beneficiaries/purchase" className="sm:w-auto">
+              <Button variant="secondary" size="lg" block icon={<PackagePlus className="h-5 w-5" aria-hidden="true" />}>
+                {t('dash.recordPurchase')}
+              </Button>
+            </Link>
+          ) : null}
+          {can('pos') ? (
+            <Link href="/pos" className="sm:w-auto">
+              <Button size="lg" block className="px-7 shadow-pop" icon={<ShoppingCart className="h-5 w-5" aria-hidden="true" />}>
+                {t('pos.newSale')}
+              </Button>
+            </Link>
+          ) : null}
+        </div>
+      </header>
 
-      {noData ? (
-        <Card className="mb-6 flex flex-col items-start gap-4 p-6 md:flex-row md:items-center">
+      {!data.hasAnyData ? (
+        <Card className="flex flex-col items-start gap-4 p-6 md:flex-row md:items-center">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-tint text-brand-ink">
             <Factory className="h-6 w-6" aria-hidden="true" />
           </div>
@@ -69,157 +106,219 @@ export function DashboardView({ data }: { data: Data }) {
           </div>
           {can('beneficiaries') ? (
             <Link href="/beneficiaries/purchase">
-              <Button>{t('dash.firstPurchase')}</Button>
+              <Button size="lg">{t('dash.firstPurchase')}</Button>
             </Link>
           ) : null}
         </Card>
       ) : null}
 
-      {/* The headline: overall profit / loss, with the monthly picture beside it. */}
-      <Card className="mb-5 grid gap-6 p-5 md:p-7 lg:grid-cols-[minmax(250px,1fr)_2fr] lg:gap-10">
-        <div className="flex flex-col justify-between gap-5">
-          <div>
-            <h2 className="text-body font-semibold text-muted">{t('dash.profit')}</h2>
-            <p className={cx('fig mt-2 text-[44px] font-bold leading-none md:text-hero', profitPos ? 'text-success-ink' : 'text-danger-ink')}>{fmtMoney(profit)}</p>
-            <p className="mt-3 text-meta text-muted">{t('dash.profitHint')}</p>
-          </div>
-          <dl className="grid grid-cols-2 gap-4 border-t border-line-soft pt-4">
+      {/* ── 1. Money position: one card, four equal cells ── */}
+      <section aria-labelledby="dash-position">
+        <SectionLabel id="dash-position">{t('dash.position')}</SectionLabel>
+        <SummaryStrip>
+          <SummaryCell
+            icon={<Wallet className="h-[18px] w-[18px]" aria-hidden="true" />}
+            label={t('dash.cash')}
+            value={fmtMoney(cash)}
+            tone={cash.isNegative() ? 'danger' : undefined}
+            sub={
+              <span className="num">
+                {fmtMoney(c.vaultUsd)} · {fmtMoney(c.vaultIqd, 'IQD')}
+              </span>
+            }
+            href={can('vault') ? '/vault' : undefined}
+          />
+          <SummaryCell
+            icon={<HandCoins className="h-[18px] w-[18px]" aria-hidden="true" />}
+            label={t('dash.receivable')}
+            value={fmtMoney(c.receivable)}
+            sub={t('dash.customersN', { n: c.receivableCount })}
+            href={can('customers') ? '/customers' : undefined}
+          />
+          <SummaryCell
+            icon={<Truck className="h-[18px] w-[18px]" aria-hidden="true" />}
+            label={t('dash.payable')}
+            value={fmtMoney(c.payable)}
+            sub={t('dash.suppliersN', { n: c.payableCount })}
+            href={can('beneficiaries') ? '/beneficiaries' : undefined}
+          />
+          {dues.gt(0) ? (
+            <SummaryCell
+              icon={<AlertTriangle className="h-[18px] w-[18px]" aria-hidden="true" />}
+              label={t('dash.dues')}
+              value={fmtMoney(dues)}
+              tone="danger"
+              alert
+              sub={t('dash.duesN', { n: c.duesCount })}
+              href={can('vault') ? '/vault/dues' : undefined}
+            />
+          ) : (
+            <SummaryCell
+              icon={<CheckCircle2 className="h-[18px] w-[18px]" aria-hidden="true" />}
+              label={t('dash.dues')}
+              value={<span className="text-success-ink">{t('dash.duesNone')}</span>}
+              sub={t('dash.duesNoneSub')}
+            />
+          )}
+        </SummaryStrip>
+      </section>
+
+      {/* ── 2. Performance: one headline figure, one switchable chart ── */}
+      <section aria-labelledby="dash-perf">
+        <SectionLabel id="dash-perf">{t('dash.performance')}</SectionLabel>
+        <Card className="grid gap-6 p-5 md:p-7 lg:grid-cols-[minmax(260px,1fr)_2fr] lg:gap-10">
+          <div className="flex flex-col gap-5">
             <div>
-              <dt className="text-caption text-muted">{t('dash.revenueLine')}</dt>
-              <dd className="num mt-0.5 text-body font-semibold text-ink">{fmtMoney(c.revenue)}</dd>
+              <p className="text-body font-semibold text-muted">{t('dash.monthProfit')}</p>
+              <p className={cx('fig mt-2 text-[44px] font-bold leading-none md:text-hero', monthProfit.isNegative() ? 'text-danger-ink' : 'text-ink')}>{fmtMoney(monthProfit)}</p>
+              {delta ? (
+                <p
+                  className={cx(
+                    'mt-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-meta font-semibold',
+                    delta.isNegative() ? 'bg-danger-tint text-danger-ink' : 'bg-success-tint text-success-ink',
+                  )}
+                >
+                  {delta.isNegative() ? <ArrowDownRight className="h-4 w-4" aria-hidden="true" /> : <ArrowUpRight className="h-4 w-4" aria-hidden="true" />}
+                  <span className="num">{t('dash.vsLast', { x: `${delta.isNegative() ? '−' : '+'}${delta.abs().toFixed(0)}%` })}</span>
+                </p>
+              ) : null}
             </div>
-            <div>
-              <dt className="text-caption text-muted">{t('dash.cogsLine')}</dt>
-              <dd className="num mt-0.5 text-body font-semibold text-ink">{fmtMoney(c.cogs)}</dd>
+            <div className="grid grid-cols-1 gap-3 border-t border-line-soft pt-4 sm:grid-cols-3 lg:grid-cols-1">
+              <Mini label={t('dash.salesMonth')} value={fmtMoney(c.salesMonth)} sub={t('dash.invoicesCount', { n: c.salesMonthCount })} />
+              <Mini label={t('dash.expensesMonth')} value={fmtMoney(c.expensesMonth)} sub={t('dash.expensesN', { n: c.expensesMonthCount })} href={can('expenses') ? '/expenses' : undefined} />
+              <Mini label={t('dash.allTime')} value={fmtMoney(c.profit)} sub={t('dash.profitHint')} tone={D(c.profit).isNegative() ? 'danger' : 'success'} />
             </div>
-          </dl>
-        </div>
-        <div className="min-w-0">
-          <div className="mb-2 flex items-baseline justify-between gap-3">
-            <h3 className="text-body font-semibold text-ink">{t('dash.monthlyPl')}</h3>
-            <p className="text-caption text-muted">{t('dash.last12')}</p>
           </div>
-          <SignedBarChart
-            data={monthly}
-            fmtValue={(v) => fmtMoney(v)}
-            ariaLabel={t('dash.monthlyPl')}
-            posLabel={t('dash.profitMonths')}
-            negLabel={t('dash.lossMonths')}
-            height={250}
-          />
-        </div>
-      </Card>
-
-      {/* Supporting figures */}
-      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Stat label={t('dash.salesMonth')} value={fmtMoney(c.salesMonth)} sub={t('dash.invoicesCount', { n: c.salesMonthCount })} />
-        <Stat label={t('dash.totalSales')} value={fmtMoney(c.totalSales)} sub={t('dash.invoicesCount', { n: c.totalSalesCount })} />
-        <Stat
-          label={t('dash.vaultBalance')}
-          value={fmtMoney(c.vaultTotalUsd)}
-          tone={D(c.vaultTotalUsd).isNegative() ? 'danger' : undefined}
-          sub={
-            <span className="flex flex-col gap-0.5">
-              <span className="flex justify-between gap-2">
-                <span>{t('vault.USD')}</span>
-                <span className={cx('num', D(c.vaultUsd).isNegative() && 'text-danger-ink')}>{fmtMoney(c.vaultUsd)}</span>
-              </span>
-              <span className="flex justify-between gap-2">
-                <span>{t('vault.IQD')}</span>
-                <span className={cx('num', D(c.vaultIqd).isNegative() && 'text-danger-ink')}>{fmtMoney(c.vaultIqd, 'IQD')}</span>
-              </span>
-              <span className="num text-end">≈ {fmtMoney(c.vaultIqdInUsd)}</span>
-            </span>
-          }
-        />
-        <Stat
-          label={t('dash.bestCustomer')}
-          value={c.bestCustomer ? <span className="bidi block truncate">{c.bestCustomer.name}</span> : <span className="text-muted">{t('dash.noneYet')}</span>}
-          href={c.bestCustomer && can('customers') ? `/customers/${c.bestCustomer.id}` : undefined}
-          sub={c.bestCustomer ? <span className="num">{fmtMoney(c.bestCustomer.value)}</span> : undefined}
-          small
-        />
-        <Stat
-          label={t('dash.bestBeneficiary')}
-          value={c.bestBeneficiary ? <span className="bidi block truncate">{c.bestBeneficiary.name}</span> : <span className="text-muted">{t('dash.noneYetBen')}</span>}
-          href={c.bestBeneficiary && can('beneficiaries') ? `/beneficiaries/${c.bestBeneficiary.id}` : undefined}
-          sub={
-            c.bestBeneficiary ? (
-              <span className="flex flex-col">
-                <span>{t('dash.txCount', { n: c.bestBeneficiary.count })}</span>
-                <span>{t('dash.totalValue', { x: fmtMoney(c.bestBeneficiary.value) })}</span>
-              </span>
-            ) : undefined
-          }
-          small
-        />
-      </div>
-
-      <div className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-3">
-        <ChartCard
-          title={t('dash.salesByMonth')}
-          subtitle={t('dash.last12')}
-          empty={sales.every((s) => s.value === 0)}
-          table={{ head: [t('common.month'), t('rep.revenue')], rows: data.monthly.map((m) => [monthLabel(m.month, true), fmtMoney(m.revenue)]), numericCols: [1] }}
-        >
-          <LineChart data={sales} fmtValue={(v) => fmtMoney(v)} fmtAxis={(v) => compactMoney(v)} ariaLabel={t('dash.salesByMonth')} seriesLabel={t('rep.revenue')} />
-        </ChartCard>
-        <ChartCard
-          title={t('dash.topCustomers')}
-          empty={!data.topCustomers.length}
-          table={{ head: [t('common.name'), t('common.value')], rows: data.topCustomers.map((x) => [x.name, fmtMoney(x.value)]), numericCols: [1] }}
-        >
-          <HBarList
-            ariaLabel={t('dash.topCustomers')}
-            items={data.topCustomers.map((x) => ({ key: x.id, label: x.name, value: Number(x.value), sub: t('dash.invoicesCount', { n: x.count }) }))}
-            fmtValue={(v) => fmtMoney(v)}
-            href={can('customers') ? (id) => `/customers/${id}` : undefined}
-          />
-        </ChartCard>
-        <ChartCard
-          title={t('dash.topBeneficiaries')}
-          empty={!data.topBeneficiaries.length}
-          table={{ head: [t('common.name'), t('rep.transactions'), t('common.value')], rows: data.topBeneficiaries.map((x) => [x.name, String(x.count), fmtMoney(x.value)]), numericCols: [1, 2] }}
-        >
-          <HBarList
-            ariaLabel={t('dash.topBeneficiaries')}
-            items={data.topBeneficiaries.map((x) => ({ key: x.id, label: x.name, value: x.count, sub: t('dash.totalValue', { x: fmtMoney(x.value) }) }))}
-            fmtValue={(v) => t('dash.txCount', { n: v })}
-            href={can('beneficiaries') ? (id) => `/beneficiaries/${id}` : undefined}
-          />
-        </ChartCard>
-      </div>
-
-      <Card className="overflow-hidden">
-        <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-5">
-          <div>
-            <h2 className="text-body font-semibold text-ink">{t('dash.recent')}</h2>
-            <p className="mt-0.5 text-caption text-muted">{t('dash.recentHint')}</p>
+          <div className="min-w-0">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-body font-semibold text-ink">{trend === 'profit' ? t('dash.monthlyPl') : t('dash.salesByMonth')}</h3>
+                <p className="text-caption text-muted">{t('dash.last12')}</p>
+              </div>
+              <Segmented<'profit' | 'sales'>
+                label={t('dash.trendSwitch')}
+                size="sm"
+                value={trend}
+                onChange={setTrend}
+                options={[
+                  { value: 'profit', label: t('dash.tProfit') },
+                  { value: 'sales', label: t('dash.tSales') },
+                ]}
+              />
+            </div>
+            {trend === 'profit' ? (
+              <SignedBarChart data={series} fmtValue={(v) => fmtMoney(v)} ariaLabel={t('dash.monthlyPl')} posLabel={t('dash.profitMonths')} negLabel={t('dash.lossMonths')} height={260} />
+            ) : (
+              <LineChart data={series} fmtValue={(v) => fmtMoney(v)} fmtAxis={(v) => compactMoney(v)} ariaLabel={t('dash.salesByMonth')} seriesLabel={t('rep.revenue')} height={260} />
+            )}
           </div>
-          <Link href="/dashboard/history" className="text-meta font-semibold text-brand-ink hover:underline">
-            {t('common.viewAll')}
-          </Link>
-        </div>
-        <TxnRows rows={data.recent} emptyText={t('hist.empty')} />
-      </Card>
+        </Card>
+      </section>
+
+      {/* ── 3. Activity: what just happened, and who matters most ── */}
+      <section aria-labelledby="dash-activity" className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+        <Card className="overflow-hidden">
+          <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-5">
+            <h2 id="dash-activity" className="text-body font-semibold text-ink">
+              {t('dash.recentShort')}
+            </h2>
+            <Link href="/dashboard/history" className="inline-flex items-center gap-0.5 rounded text-meta font-semibold text-brand-ink hover:underline">
+              {t('common.viewAll')}
+              <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+            </Link>
+          </div>
+          <RecentList rows={data.recent} emptyText={t('hist.empty')} />
+        </Card>
+        <Card className="flex flex-col overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 pb-4 pt-5">
+            <h2 className="text-body font-semibold text-ink">{t('dash.partners')}</h2>
+            <Segmented<'customers' | 'beneficiaries'>
+              label={t('dash.partners')}
+              size="sm"
+              value={partners}
+              onChange={setPartners}
+              options={[
+                { value: 'customers', label: t('nav.customers') },
+                { value: 'beneficiaries', label: t('nav.beneficiaries') },
+              ]}
+            />
+          </div>
+          <div className="px-5 pb-5">
+            {(partners === 'customers' ? data.topCustomers : data.topBeneficiaries).length === 0 ? (
+              <p className="py-8 text-center text-meta text-muted">{partners === 'customers' ? t('dash.noneYet') : t('dash.noneYetBen')}</p>
+            ) : partners === 'customers' ? (
+              <HBarList
+                ariaLabel={t('dash.topCustomers')}
+                items={data.topCustomers.map((x) => ({ key: x.id, label: x.name, value: Number(x.value), sub: t('dash.invoicesCount', { n: x.count }) }))}
+                fmtValue={(v) => fmtMoney(v)}
+                href={can('customers') ? (id) => `/customers/${id}` : undefined}
+              />
+            ) : (
+              <HBarList
+                ariaLabel={t('dash.topBeneficiaries')}
+                items={data.topBeneficiaries.map((x) => ({ key: x.id, label: x.name, value: x.count, sub: t('dash.totalValue', { x: fmtMoney(x.value) }) }))}
+                fmtValue={(v) => t('dash.txCount', { n: v })}
+                href={can('beneficiaries') ? (id) => `/beneficiaries/${id}` : undefined}
+              />
+            )}
+          </div>
+        </Card>
+      </section>
     </div>
   );
 }
 
-function Stat({ label, value, sub, tone, href, small }: { label: string; value: React.ReactNode; sub?: React.ReactNode; tone?: 'danger'; href?: string; small?: boolean }) {
-  const body = (
+function Mini({ label, value, sub, tone, href }: { label: string; value: string; sub?: string; tone?: 'danger' | 'success'; href?: string }) {
+  const inner = (
     <>
-      <p className="text-meta font-medium text-muted">{label}</p>
-      <div className={cx('mt-1.5 font-bold text-ink', small ? 'text-title' : 'fig text-heading md:text-large', tone === 'danger' && 'text-danger-ink')}>{value}</div>
-      {sub ? <div className="mt-2 text-caption text-muted">{sub}</div> : null}
+      <p className="text-caption text-muted">{label}</p>
+      <p className={cx('mt-0.5 text-lead font-bold', tone === 'danger' ? 'text-danger-ink' : tone === 'success' ? 'text-success-ink' : 'text-ink')}>
+        <span className="num">{value}</span>
+      </p>
+      {sub ? <p className="text-caption text-muted">{sub}</p> : null}
     </>
   );
-  const cls = 'block min-w-0 rounded-card border border-line-soft bg-surface p-4 shadow-card';
   return href ? (
-    <Link href={href} className={cx(cls, 'transition-colors hover:border-line')}>
-      {body}
+    <Link href={href} className="-m-2 block rounded-ctl p-2 hover:bg-surface-2">
+      {inner}
     </Link>
   ) : (
-    <div className={cls}>{body}</div>
+    <div>{inner}</div>
+  );
+}
+
+/** Latest documents as a two-line list: what + who on one side, how much + when on the other.
+ *  Only unpaid / partly paid get a badge, so the eye goes straight to them. */
+function RecentList({ rows, emptyText }: { rows: TxnRow[]; emptyText: string }) {
+  const { t } = useApp();
+  const panel = useTxnPanel();
+  if (!rows.length) return <p className="px-5 pb-8 pt-4 text-center text-meta text-muted">{emptyText}</p>;
+  return (
+    <ul className="divide-y divide-line-soft border-t border-line-soft">
+      {rows.map((r) => {
+        const who = r.partyName || r.label || (r.kind === 'PROCESSING' ? r.products : '');
+        const flag = r.status === 'unpaid' || r.status === 'partial';
+        return (
+          <li key={r.id}>
+            <button type="button" onClick={() => panel.open(r.id)} className="flex w-full items-center gap-4 px-5 py-3 text-start transition-colors hover:bg-surface-2">
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                  <span className="num text-meta font-semibold text-brand-ink">{r.number}</span>
+                  <span className="truncate text-meta text-ink">{t(`kind.${r.kind}` as 'kind.SALE')}</span>
+                  {flag ? <Badge tone={statusTone(r.status)}>{t(`status.${r.status}` as 'status.paid')}</Badge> : null}
+                </span>
+                <span className="mt-0.5 block truncate text-caption text-muted">
+                  <bdi>{who || '—'}</bdi>
+                </span>
+              </span>
+              <span className="shrink-0 text-end">
+                <span className="num block text-body font-semibold text-ink">{r.kind === 'PROCESSING' ? fmtKg(r.kg) : fmtMoney(r.total, r.currency)}</span>
+                <span className="num block text-caption text-muted">{fmtDate(r.date)}</span>
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

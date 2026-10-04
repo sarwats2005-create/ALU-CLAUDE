@@ -6,7 +6,6 @@ import { AlertTriangle, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ChevronRigh
 import type { vaultHistory, vaultOverview } from '@/lib/server/q/dashboard';
 import type { TxnDetail } from '@/lib/server/q/history';
 import { useApp } from '@/lib/client/app-context';
-import { api } from '@/lib/client/api';
 import { useRemote } from '@/lib/client/use-remote';
 import { fmtDate, localTodayIso } from '@/lib/dates';
 import { D, Dec, convert, fmtMoney, fmtRate, parseDec, rateFromDisplay, rateToDisplay, roundMoney, type Cur } from '@/lib/money';
@@ -68,14 +67,15 @@ export function VaultView({ editOp }: { editOp: TxnDetail | null }) {
         title={t('vault.title')}
         actions={
           <>
-            <Button variant="secondary" onClick={() => setOp({ kind: 'VAULT_DEPOSIT' })} icon={<ArrowDownLeft className="h-4 w-4" aria-hidden="true" />}>
-              {t('vault.deposit')}
+            {/* Exchange and withdraw are occasional; deposit is the everyday action (and pays open dues). */}
+            <Button variant="secondary" size="lg" onClick={() => setOp({ kind: 'VAULT_TRANSFER' })} icon={<ArrowLeftRight className="h-4 w-4" aria-hidden="true" />}>
+              {t('vault.transferShort')}
             </Button>
-            <Button variant="secondary" onClick={() => setOp({ kind: 'VAULT_WITHDRAWAL' })} icon={<ArrowUpRight className="h-4 w-4" aria-hidden="true" />}>
+            <Button variant="secondary" size="lg" onClick={() => setOp({ kind: 'VAULT_WITHDRAWAL' })} icon={<ArrowUpRight className="h-4 w-4" aria-hidden="true" />}>
               {t('vault.withdraw')}
             </Button>
-            <Button onClick={() => setOp({ kind: 'VAULT_TRANSFER' })} icon={<ArrowLeftRight className="h-4 w-4" aria-hidden="true" />}>
-              {t('vault.transferShort')}
+            <Button size="lg" className="order-first shadow-pop sm:order-none" onClick={() => setOp({ kind: 'VAULT_DEPOSIT' })} icon={<ArrowDownLeft className="h-4 w-4" aria-hidden="true" />}>
+              {t('vault.deposit')}
             </Button>
           </>
         }

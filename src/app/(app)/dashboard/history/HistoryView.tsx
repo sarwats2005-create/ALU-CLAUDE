@@ -50,7 +50,8 @@ export function HistoryView() {
       label: t('common.status'),
       render: (r) => (
         <span className="flex gap-1">
-          <Badge tone={statusTone(r.status)}>{t(`status.${r.status}` as 'status.paid')}</Badge>
+          {/* Only money still owed gets a badge; "Recorded" / "Paid" are the normal state (Von Restorff). */}
+          {r.status === 'unpaid' || r.status === 'partial' ? <Badge tone={statusTone(r.status)}>{t(`status.${r.status}` as 'status.paid')}</Badge> : <span className="text-caption text-muted">{r.status === 'paid' ? t('status.paid') : '—'}</span>}
           {r.isDemo ? <Badge tone="brand">{t('app.demo')}</Badge> : null}
         </span>
       ),
@@ -154,7 +155,7 @@ export function HistoryView() {
               </span>
               <span className="flex shrink-0 flex-col items-end gap-1">
                 <span className="num text-body font-semibold text-ink">{r.kind === 'PROCESSING' ? fmtKg(r.kg) : fmtMoney(r.total, r.currency)}</span>
-                <Badge tone={statusTone(r.status)}>{t(`status.${r.status}` as 'status.paid')}</Badge>
+                {r.status === 'unpaid' || r.status === 'partial' ? <Badge tone={statusTone(r.status)}>{t(`status.${r.status}` as 'status.paid')}</Badge> : null}
               </span>
             </span>
           )}

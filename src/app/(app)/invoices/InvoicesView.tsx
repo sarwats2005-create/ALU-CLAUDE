@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Eraser, Eye, FolderCheck, FolderOpen, FolderX, Lock, Pencil, Trash2 } from 'lucide-react';
+import { Clock, Eraser, Eye, FolderCheck, FolderOpen, FolderX, Lock, PackagePlus, Pencil, ReceiptText, ShoppingCart, Trash2 } from 'lucide-react';
 import type { TxnRow } from '@/lib/server/q/history';
 import { useApp } from '@/lib/client/app-context';
 import { useRemote } from '@/lib/client/use-remote';
@@ -11,8 +11,9 @@ import { KIND_PAGE, editHref, type Kind } from '@/lib/kinds';
 import { EDIT_WINDOW_MS, remaining } from '@/lib/lock';
 import { FOLDER_EVENT, allowAccess, chooseFolder, folderState, removeInvoiceFile, stopAutoSave, type FolderState } from '@/lib/client/invoice-folder';
 import { cx } from '@/lib/cx';
-import { Badge, Button, Card, PageHeader, Select } from '@/components/ui';
-import { DataTable, FilterPills, Pager, SearchBox, useListState, type Column } from '@/components/DataTable';
+import { Badge, Button, Card, PageHeader } from '@/components/ui';
+import { SummaryCell, SummaryStrip } from '@/components/Summary';
+import { DataTable, Pager, SearchBox, useListState, type Column } from '@/components/DataTable';
 import { DateRange } from '@/components/DateInput';
 import { statusTone } from '@/components/TxnRows';
 import { useTxnPanel } from '@/components/TxnPanel';
@@ -35,7 +36,12 @@ export function InvoicesView() {
   const erase = useErase();
   const now = useNow();
   const L = useListState('created', 'desc', { type: '', lock: '', from: '', to: '' });
-  const { data, loading } = useRemote<{ total: number; rows: TxnRow[] }>(`/api/invoices${L.query}`, { keepPrevious: true });
+  const { data, loading } = useRemote<{ total: number; rows: TxnRow[]; counts: { all: number; sale: number; purchase: number; open: number } }>(`/api/invoices${L.query}`, { keepPrevious: true });
+  const k = data?.counts;
+  const typeOnly = (v: string) => {
+    L.setFilter('lock', '');
+    L.setFilter('type', v);
+  };
 
   const mayChange = (r: TxnRow) => can(KIND_PAGE[r.kind as Kind]) && !!remaining(r.kind, r.createdAt, now);
 
@@ -134,7 +140,7 @@ export function InvoicesView() {
       render: (r) => (
         <span className="flex flex-col items-end gap-1">
           <span className="num whitespace-nowrap font-semibold text-ink">{fmtMoney(r.total, r.currency)}</span>
-          <Badge tone={statusTone(r.status)}>{t(`status.${r.status}` as 'status.paid')}</Badge>
+          {r.status === 'paid' ? <span className="text-caption text-muted">{t('status.paid')}</span> : <Badge tone={statusTone(r.status)}>{t(`status.${r.status}` as 'status.paid')}</Badge>}
         </span>
       ),
     },
@@ -156,26 +162,50 @@ export function InvoicesView() {
 
   return (
     <div>
-      <PageHeader title={t('invc.title')} subtitle={t('invc.subtitle')} />
-      <FolderBar />
+      <PageHeader
+        title={t('invc.title')}
+        subtitle={t('invc.subtitle')}
+        actions={
+          <>
+            {can('beneficiaries') ? (
+              <Link href="/beneficiaries/purchase">
+                <Button variant="secondary" size="lg" icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>
+                  {t('dash.recordPurchase')}
+                </Button>
+              </Link>
+            ) : null}
+            {can('pos') ? (
+              <Link href="/pos">
+                <Button size="lg" className="shadow-pop" icon={<ShoppingCart className="h-4 w-4" aria-hidden="true" />}>
+                  {t('pos.newSale')}
+                </Button>
+              </Link>
+            ) : null}
+          </>
+        }
+      />
+      {/* Only when the folder needs you does it come first; otherwise it waits at the bottom. */}
+      <FolderBar when="attention" />
+      {/* Summary = filter: one tap shows all, sales, purchases, or what can still be changed. */}
+      <SummaryStrip className="mb-5">
+        <SummaryCell icon={<ReceiptText className="h-[18px] w-[18px]" aria-hidden="true" />} label={t('invc.typeAll')} value={k ? String(k.all) : '—'} sub={t('party.showAll')} active={!L.filters.type && !L.filters.lock} onClick={() => typeOnly('')} />
+        <SummaryCell icon={<ShoppingCart className="h-[18px] w-[18px]" aria-hidden="true" />} label={t('invc.typeSale')} value={k ? String(k.sale) : '—'} sub={t('invc.showThese')} active={L.filters.type === 'sale'} onClick={() => typeOnly('sale')} />
+        <SummaryCell icon={<PackagePlus className="h-[18px] w-[18px]" aria-hidden="true" />} label={t('invc.typePurchase')} value={k ? String(k.purchase) : '—'} sub={t('invc.showThese')} active={L.filters.type === 'purchase'} onClick={() => typeOnly('purchase')} />
+        <SummaryCell
+          icon={<Clock className="h-[18px] w-[18px]" aria-hidden="true" />}
+          label={t('invc.lockOpen')}
+          value={k ? String(k.open) : '—'}
+          sub={t('invc.openSub')}
+          active={L.filters.lock === 'open'}
+          onClick={() => {
+            L.setFilter('type', '');
+            L.setFilter('lock', L.filters.lock === 'open' ? '' : 'open');
+          }}
+        />
+      </SummaryStrip>
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-2 px-5 pb-4 pt-5 xl:flex-row xl:flex-wrap xl:items-center">
-          <FilterPills
-            label={t('common.type')}
-            value={L.filters.type}
-            onChange={(v) => L.setFilter('type', v)}
-            options={[
-              { value: '', label: t('invc.typeAll') },
-              { value: 'sale', label: t('invc.typeSale') },
-              { value: 'purchase', label: t('invc.typePurchase') },
-            ]}
-          />
           <SearchBox value={L.q} onChange={L.setQ} placeholder={t('invc.searchPh')} className="xl:w-72" />
-          <Select aria-label={t('invc.window')} value={L.filters.lock} onChange={(e) => L.setFilter('lock', e.target.value)} className="xl:w-52">
-            <option value="">{t('invc.lockAll')}</option>
-            <option value="open">{t('invc.lockOpen')}</option>
-            <option value="locked">{t('invc.lockLocked')}</option>
-          </Select>
           <DateRange idPrefix="invc" from={L.filters.from} to={L.filters.to} onFrom={(v) => L.setFilter('from', v)} onTo={(v) => L.setFilter('to', v)} />
           {L.hasFilters ? (
             <Button variant="quiet" size="sm" onClick={L.clearFilters}>
@@ -218,12 +248,13 @@ export function InvoicesView() {
         />
         {data ? <Pager total={data.total} page={L.page} size={L.size} onPage={L.setPage} onSize={L.setSize} /> : null}
       </Card>
+      <FolderBar when="calm" />
     </div>
   );
 }
 
 /** Choose / change / stop the folder this computer saves invoice PDFs into. */
-function FolderBar() {
+function FolderBar({ when }: { when: 'attention' | 'calm' }) {
   const { t } = useApp();
   const toast = useToast();
   const [s, setS] = useState<FolderState | null>(null);
@@ -263,10 +294,12 @@ function FolderBar() {
     });
 
   const needsAccess = !!s.name && s.permission !== 'granted';
+  const attention = needsAccess || !!s.pending;
+  if ((when === 'attention') !== attention) return null;
   const Icon = !s.supported ? FolderX : s.name && !needsAccess ? FolderCheck : FolderOpen;
 
   return (
-    <Card className="mb-4 px-5 py-4">
+    <Card className={cx('px-5 py-4', when === 'attention' ? 'mb-5 border-warning/40' : 'mt-5')}>
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <span

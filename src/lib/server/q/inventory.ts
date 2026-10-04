@@ -38,6 +38,7 @@ export async function listInventory(p: {
     p.q ? sql`(p.name ILIKE ${like(p.q)} OR p.sku ILIKE ${like(p.q)})` : null,
     p.typeId ? sql`p."typeId" = ${p.typeId}` : null,
     p.status === 'in' || p.status === 'low' || p.status === 'out' ? sql`${statusExpr} = ${p.status}` : null,
+    p.status === 'attention' ? sql`${statusExpr} IN ('low', 'out')` : null,
     p.onlyInStock ? sql`${total} > 0` : null,
     p.ids?.length ? sql`p.id IN (${join(p.ids)})` : null,
   ];
@@ -70,10 +71,13 @@ export async function listInventory(p: {
              COALESCE(SUM(st.raw_val + st.fin_val),0) AS value
       FROM (${STOCK_SUB}) st`,
   ]);
+  const attn = await prisma.$queryRaw<Record<string, unknown>[]>`
+    SELECT COUNT(*) FILTER (WHERE ${statusExpr} = 'low') AS low, COUNT(*) FILTER (WHERE ${statusExpr} = 'out') AS out
+    FROM "Product" p LEFT JOIN (${STOCK_SUB}) st ON st."productId" = p.id`;
   return {
     total: n(count[0]?.c),
     globalLowKg: globalLow,
-    totals: { rawKg: s(sums[0]?.raw_kg), finishedKg: s(sums[0]?.fin_kg), value: s(sums[0]?.value) },
+    totals: { rawKg: s(sums[0]?.raw_kg), finishedKg: s(sums[0]?.fin_kg), value: s(sums[0]?.value), low: n(attn[0]?.low), out: n(attn[0]?.out) },
     rows: rows.map((r) => {
       const rawKg = D(s(r.raw_kg));
       const finKg = D(s(r.fin_kg));

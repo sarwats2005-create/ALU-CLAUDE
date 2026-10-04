@@ -38,11 +38,11 @@ export function BeneficiariesView({ initialTab }: { initialTab: Tab }) {
         subtitle={t('ben.subtitle')}
         actions={
           <>
-            <Button variant="secondary" onClick={() => setAdding(true)} icon={<UserPlus className="h-4 w-4" aria-hidden="true" />}>
+            <Button variant="secondary" size="lg" onClick={() => setAdding(true)} icon={<UserPlus className="h-4 w-4" aria-hidden="true" />}>
               {t('ben.add')}
             </Button>
             <Link href="/beneficiaries/purchase">
-              <Button icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>{t('ben.newPurchase')}</Button>
+              <Button size="lg" className="shadow-pop" icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>{t('ben.newPurchase')}</Button>
             </Link>
           </>
         }

@@ -36,7 +36,7 @@ export async function dashboard() {
   const today = todayIso();
   const monthStart = `${today.slice(0, 7)}-01`;
   const months = lastMonths(today, 12);
-  const [rate, vaults, salesAgg, monthAgg, topCustomers, topBens, monthly, recent] = await Promise.all([
+  const [rate, vaults, salesAgg, monthAgg, topCustomers, topBens, monthly, recent, recv, pay, expAgg, dues] = await Promise.all([
     currentRate(),
     vaultBalances(),
     prisma.$queryRaw<Record<string, unknown>[]>`
@@ -58,6 +58,20 @@ export async function dashboard() {
       GROUP BY b.id, b.name ORDER BY cnt DESC, value DESC, b.name ASC LIMIT 5`,
     monthlyProfit(months),
     recentByKind(3),
+    // What customers owe the factory (sum of positive customer balances) …
+    prisma.$queryRaw<Record<string, unknown>[]>`
+      SELECT COALESCE(SUM(b),0) AS total, COUNT(*) AS cnt FROM (
+        SELECT "customerId", SUM("amountUsd") AS b FROM "PartyEntry" WHERE "customerId" IS NOT NULL GROUP BY 1
+      ) x WHERE b > 0`,
+    // … and what the factory owes its beneficiaries (positive beneficiary balances).
+    prisma.$queryRaw<Record<string, unknown>[]>`
+      SELECT COALESCE(SUM(b),0) AS total, COUNT(*) AS cnt FROM (
+        SELECT "beneficiaryId", SUM("amountUsd") AS b FROM "PartyEntry" WHERE "beneficiaryId" IS NOT NULL GROUP BY 1
+      ) x WHERE b > 0`,
+    prisma.$queryRaw<Record<string, unknown>[]>`
+      SELECT COALESCE(SUM("totalUsd"),0) AS total, COUNT(*) AS cnt
+      FROM "Txn" WHERE kind = 'EXPENSE' AND "deletedAt" IS NULL AND date >= ${monthStart}::date AND date <= ${today}::date`,
+    duesSummary(),
   ]);
   const revenue = D(s(salesAgg[0]?.revenue));
   const cogs = D(s(salesAgg[0]?.cogs));
@@ -76,13 +90,23 @@ export async function dashboard() {
       vaultIqd: vaults.IQD.toString(),
       vaultIqdInUsd: iqdInUsd.toString(),
       vaultTotalUsd: round2(vaults.USD.plus(vaults.IQD.div(rate))).toString(),
+      receivable: D(s(recv[0]?.total)).toString(),
+      receivableCount: n(recv[0]?.cnt),
+      payable: D(s(pay[0]?.total)).toString(),
+      payableCount: n(pay[0]?.cnt),
+      expensesMonth: D(s(expAgg[0]?.total)).toString(),
+      expensesMonthCount: n(expAgg[0]?.cnt),
+      duesUsd: dues.USD.total.toString(),
+      duesIqd: dues.IQD.total.toString(),
+      duesTotalUsd: round2(dues.USD.total.plus(dues.IQD.total.div(rate))).toString(),
+      duesCount: dues.USD.count + dues.IQD.count,
       bestCustomer: topCustomers[0] ? { id: String(topCustomers[0].id), name: String(topCustomers[0].name), value: s(topCustomers[0].value), count: n(topCustomers[0].cnt) } : null,
       bestBeneficiary: topBens[0] ? { id: String(topBens[0].id), name: String(topBens[0].name), count: n(topBens[0].cnt), value: s(topBens[0].value) } : null,
     },
     monthly,
     topCustomers: topCustomers.map((r) => ({ id: String(r.id), name: String(r.name), value: s(r.value), count: n(r.cnt) })),
     topBeneficiaries: topBens.map((r) => ({ id: String(r.id), name: String(r.name), value: s(r.value), count: n(r.cnt) })),
-    recent,
+    recent: recent.slice(0, 6),
     hasAnyData: recent.length > 0,
   };
 }
