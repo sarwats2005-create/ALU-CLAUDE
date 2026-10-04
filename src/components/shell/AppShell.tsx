@@ -18,6 +18,7 @@ import {
   Moon,
   MonitorSmartphone,
   Ellipsis,
+  Menu,
   type LucideIcon,
 } from 'lucide-react';
 import { AppProvider, useApp, type ClientUser } from '@/lib/client/app-context';
@@ -158,71 +159,154 @@ function Shell({ children }: { children: ReactNode }) {
 
   useEffect(() => setMoreOpen(false), [pathname]);
 
+  // Sidebar starts collapsed on every load. On phones/tablets (drawer) a page change closes it,
+  // because the drawer would otherwise hide the page you just opened.
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    if (window.matchMedia('(max-width: 1023.98px)').matches) setExpanded(false);
+  }, [pathname]);
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !document.querySelector('[role=dialog]')) setExpanded(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [expanded]);
+
   return (
     <div className="min-h-dvh">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:z-[70] focus:rounded-ctl focus:bg-surface focus:px-3 focus:py-2 focus:shadow-pop">
         {t('nav.skip')}
       </a>
 
-      {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 start-0 z-40 hidden w-64 flex-col bg-sidebar text-sidebar-ink lg:flex">
-        <div className="flex items-center gap-3 px-5 pb-5 pt-6">
-          <Logo size={36} framed />
-          <span className="flex-1 text-[15px] font-extrabold tracking-[0.06em]" dir="ltr">
-            ALU FACTORY
+      {/* Sidebar. Desktop: a collapsed icon rail by default; the hamburger expands it over the page.
+          Phones/tablets: hidden by default; the hamburger in the top bar slides it in.
+          Once open it closes only by tapping/clicking outside it (or Escape). Logical start/end → RTL-safe. */}
+      {expanded ? (
+        <div aria-hidden="true" onClick={() => setExpanded(false)} className="anim-fade fixed inset-0 z-[39] bg-black/30" />
+      ) : null}
+      <aside
+        id="app-sidebar"
+        aria-label={t('nav.menu')}
+        className={cx(
+          'fixed inset-y-0 start-0 z-40 flex w-[17rem] flex-col bg-sidebar text-sidebar-ink motion-safe:transition-[width,transform] motion-safe:duration-200 motion-safe:ease-out',
+          expanded ? 'translate-x-0 shadow-pop' : '-translate-x-full rtl:translate-x-full lg:w-[72px] lg:translate-x-0 lg:rtl:translate-x-0',
+        )}
+      >
+        <div className="flex h-[72px] shrink-0 items-center gap-2 px-3.5">
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            aria-label={t('nav.openMenu')}
+            aria-expanded={expanded}
+            aria-controls="app-sidebar"
+            title={expanded ? undefined : t('nav.openMenu')}
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-ctl text-sidebar-ink hover:bg-sidebar-active"
+          >
+            <Menu className="h-[22px] w-[22px]" aria-hidden="true" />
+          </button>
+          <span className={cx('flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden whitespace-nowrap transition-opacity', expanded ? 'opacity-100' : 'pointer-events-none opacity-0')}>
+            <Logo size={28} framed />
+            <span className="truncate text-[14px] font-extrabold tracking-[0.03em]" dir="ltr">
+              ALU FACTORY
+            </span>
           </span>
-          <AlertsBell onBrand align="start" />
+          {expanded ? <AlertsBell onBrand align="end" /> : null}
         </div>
-        <nav aria-label={t('nav.menu')} className="scroll-thin flex-1 overflow-y-auto px-3">
+        {!expanded ? (
+          <div className="hidden px-3.5 pb-2 lg:block">
+            <AlertsBell onBrand align="start" />
+          </div>
+        ) : null}
+        <nav aria-label={t('nav.menu')} className="scroll-thin flex-1 overflow-y-auto overflow-x-hidden px-3">
           <ul className="flex flex-col gap-0.5">
             {allowed.map((p) => {
               const Icon = NAV[p].icon;
               const active = isActive(p);
+              const label = t(NAV[p].label);
               return (
                 <li key={p}>
                   <Link
                     href={PAGE_HREF[p]}
                     aria-current={active ? 'page' : undefined}
+                    aria-label={expanded ? undefined : label}
+                    title={expanded ? undefined : label}
                     className={cx(
-                      'flex h-11 items-center gap-3 rounded-ctl px-3 text-body font-medium transition-colors',
+                      'flex h-11 items-center gap-3 overflow-hidden whitespace-nowrap rounded-ctl px-3.5 text-body font-medium transition-colors',
                       active ? 'bg-sidebar-active text-sidebar-ink' : 'text-sidebar-muted hover:bg-sidebar-active hover:text-sidebar-ink',
                     )}
                   >
                     <Icon className="h-[19px] w-[19px] shrink-0" strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />
-                    <span className="truncate">{t(NAV[p].label)}</span>
+                    <span className={cx('truncate transition-opacity', expanded ? 'opacity-100' : 'opacity-0')}>{label}</span>
                   </Link>
                 </li>
               );
             })}
           </ul>
         </nav>
-        <div className="flex flex-col gap-3 border-t border-white/15 px-4 pb-5 pt-4">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-meta font-bold" aria-hidden="true">
-              {initials(user.name)}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="bidi truncate text-meta font-semibold">{user.name}</p>
-              <p className="truncate text-caption text-sidebar-muted" dir="ltr">
-                {user.isOwner ? t('common.owner') : user.email}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={prefs.logout}
-              aria-label={t('nav.logout')}
-              title={t('nav.logout')}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-ctl text-sidebar-muted hover:bg-sidebar-active hover:text-sidebar-ink"
-            >
-              <LogOut className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
-            </button>
-          </div>
-          <PrefControls onBrand />
+        <div className={cx('flex flex-col gap-3 border-t border-white/15 pb-5 pt-4', expanded ? 'px-4' : 'items-center px-2')}>
+          {expanded ? (
+            <>
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-meta font-bold" aria-hidden="true">
+                  {initials(user.name)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="bidi truncate text-meta font-semibold">{user.name}</p>
+                  <p className="truncate text-caption text-sidebar-muted" dir="ltr">
+                    {user.isOwner ? t('common.owner') : user.email}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={prefs.logout}
+                  aria-label={t('nav.logout')}
+                  title={t('nav.logout')}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-ctl text-sidebar-muted hover:bg-sidebar-active hover:text-sidebar-ink"
+                >
+                  <LogOut className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+                </button>
+              </div>
+              <PrefControls onBrand />
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setExpanded(true)}
+                title={user.name}
+                aria-label={user.name}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-meta font-bold hover:bg-white/25"
+              >
+                {initials(user.name)}
+              </button>
+              <button
+                type="button"
+                onClick={prefs.logout}
+                aria-label={t('nav.logout')}
+                title={t('nav.logout')}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-ctl text-sidebar-muted hover:bg-sidebar-active hover:text-sidebar-ink"
+              >
+                <LogOut className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+              </button>
+            </>
+          )}
         </div>
       </aside>
 
       {/* Mobile / tablet top bar */}
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line-soft bg-glass px-4 backdrop-blur-xl lg:hidden">
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-line-soft bg-glass px-2 backdrop-blur-xl lg:hidden">
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          aria-label={t('nav.openMenu')}
+          aria-expanded={expanded}
+          aria-controls="app-sidebar"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-ctl text-ink hover:bg-tint"
+        >
+          <Menu className="h-[22px] w-[22px]" aria-hidden="true" />
+        </button>
         <Logo size={28} />
         <span className="flex-1 text-[15px] font-extrabold tracking-[0.06em] text-ink" dir="ltr">
           ALU FACTORY
@@ -230,7 +314,7 @@ function Shell({ children }: { children: ReactNode }) {
         <AlertsBell />
       </header>
 
-      <div className="lg:ps-64">
+      <div className="lg:ps-[72px]">
         <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[1400px] px-4 pb-32 pt-5 outline-none md:px-6 lg:px-8 lg:pb-20 lg:pt-8">
           {children}
         </main>

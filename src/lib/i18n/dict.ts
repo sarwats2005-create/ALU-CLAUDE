@@ -20,6 +20,7 @@ export const dict = {
   'nav.purchases': ['Purchases', 'کڕینەکان'],
   'nav.more': ['More', 'زیاتر'],
   'nav.menu': ['Menu', 'لیست'],
+  'nav.openMenu': ['Open menu', 'کردنەوەی لیست'],
   'nav.logout': ['Log out', 'چوونەدەرەوە'],
   'nav.theme': ['Theme', 'ڕووکار'],
   'nav.themeLight': ['Light', 'ڕووناک'],
