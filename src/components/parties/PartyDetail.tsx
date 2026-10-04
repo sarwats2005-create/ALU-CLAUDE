@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Banknote, FileDown, MapPin, PackagePlus, Pencil, Phone, Printer, RotateCcw, ShoppingCart, Trash2 } from 'lucide-react';
+import { ArrowLeft, Banknote, Eraser, FileDown, MapPin, PackagePlus, Pencil, Phone, Printer, RotateCcw, ShoppingCart, Trash2 } from 'lucide-react';
 import type { StatementRow } from '@/lib/server/q/parties';
 import type { TxnDetail } from '@/lib/server/q/history';
 import { useApp } from '@/lib/client/app-context';
@@ -20,6 +20,7 @@ import { DateRange } from '../DateInput';
 import { ChartCard, LineChart, compactMoney } from '../charts';
 import { useTxnPanel } from '../TxnPanel';
 import { useToast } from '../Toast';
+import { useErase } from '../EraseMode';
 import { Avatar, PartyFormDialog, type PartyKind } from '../PartyForm';
 import { PaymentDialog, type PaymentKind } from '../PaymentDialog';
 
@@ -34,6 +35,7 @@ export function PartyDetail({ kind, id, editPayment }: { kind: PartyKind; id: st
   const router = useRouter();
   const toast = useToast();
   const panel = useTxnPanel();
+  const erase = useErase();
   const isC = kind === 'customer';
   const base = isC ? '/customers' : '/beneficiaries';
   const { data, error } = useRemote<Detail>(`/api${base}/${id}`, { keepPrevious: true });
@@ -131,9 +133,23 @@ export function PartyDetail({ kind, id, editPayment }: { kind: PartyKind; id: st
               <Button variant="quiet" size="sm" onClick={() => setEditing(true)} icon={<Pencil className="h-4 w-4" aria-hidden="true" />}>
                 {t('common.edit')}
               </Button>
-              <Button variant="quiet" size="sm" onClick={() => setDeleting(true)} icon={<Trash2 className="h-4 w-4" aria-hidden="true" />} className="hover:text-danger-ink">
-                {t('common.delete')}
-              </Button>
+              {isC && erase.active ? (
+                <Button
+                  variant="quiet"
+                  size="sm"
+                  onClick={async () => {
+                    if (await erase.eraseCustomer(p.id, p.name)) router.push(base);
+                  }}
+                  icon={<Eraser className="h-4 w-4" aria-hidden="true" />}
+                  className="text-danger-ink hover:bg-danger-tint hover:text-danger-ink"
+                >
+                  {t('erase.cust')}
+                </Button>
+              ) : (
+                <Button variant="quiet" size="sm" onClick={() => setDeleting(true)} icon={<Trash2 className="h-4 w-4" aria-hidden="true" />} className="hover:text-danger-ink">
+                  {t('common.delete')}
+                </Button>
+              )}
             </div>
           </div>
         </div>

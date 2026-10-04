@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, FileSpreadsheet } from 'lucide-react';
+import { ArrowLeft, Eraser, FileSpreadsheet } from 'lucide-react';
 import type { TxnRow } from '@/lib/server/q/history';
 import { useApp } from '@/lib/client/app-context';
 import { qs } from '@/lib/client/api';
@@ -16,11 +16,13 @@ import { DateRange } from '@/components/DateInput';
 import { statusTone } from '@/components/TxnRows';
 import { useTxnPanel } from '@/components/TxnPanel';
 import { useToast } from '@/components/Toast';
+import { useErase } from '@/components/EraseMode';
 
 export function HistoryView() {
   const { t } = useApp();
   const panel = useTxnPanel();
   const toast = useToast();
+  const erase = useErase();
   const L = useListState('date', 'desc', { kind: '', vault: '', currency: '', from: '', to: '' });
   const { data, loading } = useRemote<{ total: number; rows: TxnRow[] }>(`/api/history${L.query}`, { keepPrevious: true });
   const [busy, setBusy] = useState(false);
@@ -53,6 +55,29 @@ export function HistoryView() {
         </span>
       ),
     },
+    ...(erase.active
+      ? [
+          {
+            key: 'erase',
+            label: <span className="sr-only">{t('erase.txn')}</span>,
+            align: 'end' as const,
+            render: (r: TxnRow) => (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void erase.eraseTxn(r.id, r.number);
+                }}
+                aria-label={t('erase.txnN', { number: r.number })}
+                title={t('erase.txn')}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-ctl text-danger-ink transition-colors hover:bg-danger-tint"
+              >
+                <Eraser className="h-4 w-4" aria-hidden="true" />
+              </button>
+            ),
+          },
+        ]
+      : []),
   ];
 
   async function exportCsv() {

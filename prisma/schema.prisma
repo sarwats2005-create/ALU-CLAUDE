@@ -85,6 +85,8 @@ model Session {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
+  /// Owner-only erase mode: active until this moment (null = off). Entered with the erase PIN.
+  eraseUntil DateTime?
   createdAt DateTime @default(now())
 
   @@index([userId])
@@ -127,6 +129,8 @@ model AppSettings {
   expenseVaultMode   String   @default("ask")
   /// Expenses: bcrypt hash of the PIN required to record a new expense or recurring rule (null = no PIN).
   expensePinHash     String?
+  /// Erase mode: bcrypt hash of its PIN (null = the default PIN).
+  erasePinHash       String?
   updatedAt          DateTime @updatedAt
 }
 

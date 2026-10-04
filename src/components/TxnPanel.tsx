@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { Pencil, Printer, Trash2, FileDown } from 'lucide-react';
+import { Eraser, Pencil, Printer, Trash2, FileDown } from 'lucide-react';
 import type { TxnDetail } from '@/lib/server/q/history';
 import { useApp } from '@/lib/client/app-context';
 import { api } from '@/lib/client/api';
@@ -16,6 +16,7 @@ import { removeInvoiceFile } from '@/lib/client/invoice-folder';
 import { Dialog } from './Dialog';
 import { Badge, Button, Skeleton } from './ui';
 import { useToast } from './Toast';
+import { useErase } from './EraseMode';
 
 type OpenOpts = { confirmDelete?: boolean };
 type Ctx = { open: (id: string, opts?: OpenOpts) => void };
@@ -25,6 +26,7 @@ export const useTxnPanel = () => useContext(PanelCtx);
 export function TxnPanelProvider({ children }: { children: ReactNode }) {
   const { t, can, bump } = useApp();
   const toast = useToast();
+  const erase = useErase();
   const router = useRouter();
   const [id, setId] = useState<string | null>(null);
   const [data, setData] = useState<TxnDetail | null>(null);
@@ -98,7 +100,23 @@ export function TxnPanelProvider({ children }: { children: ReactNode }) {
         footer={
           data ? (
             <>
-              {mayEdit ? (
+              {erase.active ? (
+                <Button
+                  variant="danger"
+                  className="md:me-auto"
+                  onClick={async () => {
+                    const d = data;
+                    if (await erase.eraseTxn(d.id, d.number)) {
+                      if (isInvoiceKind(d.kind)) void removeInvoiceFile(d.id, d.number);
+                      close();
+                    }
+                  }}
+                  icon={<Eraser className="h-4 w-4" aria-hidden="true" />}
+                >
+                  {t('erase.txn')}
+                </Button>
+              ) : null}
+              {mayEdit && !erase.active ? (
                 <Button variant="quiet" className="md:me-auto text-danger-ink hover:text-danger-ink" onClick={() => setConfirm(true)} icon={<Trash2 className="h-4 w-4" aria-hidden="true" />}>
                   {t('common.delete')}
                 </Button>

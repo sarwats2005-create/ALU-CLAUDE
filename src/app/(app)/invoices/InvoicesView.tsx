@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Eye, FolderCheck, FolderOpen, FolderX, Lock, Pencil, Trash2 } from 'lucide-react';
+import { Eraser, Eye, FolderCheck, FolderOpen, FolderX, Lock, Pencil, Trash2 } from 'lucide-react';
 import type { TxnRow } from '@/lib/server/q/history';
 import { useApp } from '@/lib/client/app-context';
 import { useRemote } from '@/lib/client/use-remote';
@@ -9,7 +9,7 @@ import { fmtDate, fmtDateTime } from '@/lib/dates';
 import { fmtKg, fmtMoney } from '@/lib/money';
 import { KIND_PAGE, editHref, type Kind } from '@/lib/kinds';
 import { EDIT_WINDOW_MS, remaining } from '@/lib/lock';
-import { FOLDER_EVENT, allowAccess, chooseFolder, folderState, stopAutoSave, type FolderState } from '@/lib/client/invoice-folder';
+import { FOLDER_EVENT, allowAccess, chooseFolder, folderState, removeInvoiceFile, stopAutoSave, type FolderState } from '@/lib/client/invoice-folder';
 import { cx } from '@/lib/cx';
 import { Badge, Button, Card, PageHeader, Select } from '@/components/ui';
 import { DataTable, FilterPills, Pager, SearchBox, useListState, type Column } from '@/components/DataTable';
@@ -17,6 +17,7 @@ import { DateRange } from '@/components/DateInput';
 import { statusTone } from '@/components/TxnRows';
 import { useTxnPanel } from '@/components/TxnPanel';
 import { useToast } from '@/components/Toast';
+import { useErase } from '@/components/EraseMode';
 
 /** Re-renders every 30 seconds so countdowns move and buttons disappear the moment an invoice locks. */
 function useNow(ms = 30000) {
@@ -31,6 +32,7 @@ function useNow(ms = 30000) {
 export function InvoicesView() {
   const { t, can } = useApp();
   const panel = useTxnPanel();
+  const erase = useErase();
   const now = useNow();
   const L = useListState('created', 'desc', { type: '', lock: '', from: '', to: '' });
   const { data, loading } = useRemote<{ total: number; rows: TxnRow[] }>(`/api/invoices${L.query}`, { keepPrevious: true });
@@ -81,6 +83,19 @@ export function InvoicesView() {
               <Trash2 className="h-4 w-4" aria-hidden="true" />
             </button>
           </>
+        ) : null}
+        {erase.active ? (
+          <button
+            type="button"
+            className={cx(btn, 'text-danger-ink hover:bg-danger-tint hover:text-danger-ink')}
+            onClick={async () => {
+              if (await erase.eraseTxn(r.id, r.number)) void removeInvoiceFile(r.id, r.number);
+            }}
+            aria-label={t('erase.txnN', { number: r.number })}
+            title={t('erase.txn')}
+          >
+            <Eraser className="h-4 w-4" aria-hidden="true" />
+          </button>
         ) : null}
       </span>
     );

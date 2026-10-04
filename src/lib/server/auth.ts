@@ -17,6 +17,8 @@ export type SessionUser = {
   lang: Lang;
   permissions: string[];
   prefs: Record<string, unknown>;
+  /** Owner erase mode: active until this moment, or null. */
+  eraseUntil: Date | null;
 };
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -69,7 +71,15 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     lang: u.lang as Lang,
     permissions: u.permissions,
     prefs: (u.prefs ?? {}) as Record<string, unknown>,
+    eraseUntil: u.isOwner && s.eraseUntil && s.eraseUntil > new Date() ? s.eraseUntil : null,
   };
+}
+
+/** Turn erase mode on (until a moment) or off for this browser's session only. */
+export async function setEraseUntil(until: Date | null): Promise<void> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (!token) return;
+  await prisma.session.updateMany({ where: { id: sha(token) }, data: { eraseUntil: until } });
 }
 
 /**

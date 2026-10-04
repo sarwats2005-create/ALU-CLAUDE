@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Building2, Database, FileDown, FileSpreadsheet, History, Languages, Pencil, Plus, ScrollText, Shapes, Siren, Trash2, Truck, Upload, Users, Package, ArrowLeftRight, Wallet, KeyRound } from 'lucide-react';
+import { Building2, Database, FileDown, FileSpreadsheet, History, Languages, Pencil, Plus, ScrollText, Shapes, Siren, Trash2, Truck, Upload, Users, Package, ArrowLeftRight, Wallet, KeyRound, Eraser } from 'lucide-react';
 import { useApp } from '@/lib/client/app-context';
 import { api, qs } from '@/lib/client/api';
 import { useRemote } from '@/lib/client/use-remote';
@@ -19,6 +19,7 @@ import { DateRange } from '@/components/DateInput';
 import { Pager, SearchBox, useListState } from '@/components/DataTable';
 import { RateEditDialog, RateLogList } from '@/components/RateDialogs';
 import { useToast } from '@/components/Toast';
+import { useErase } from '@/components/EraseMode';
 
 type Section = 'company' | 'rate' | 'types' | 'products' | 'expenses' | 'alerts' | 'language' | 'users' | 'audit' | 'data';
 const SECTIONS: { id: Section; label: DictKey; icon: typeof Building2; owner?: boolean }[] = [
@@ -922,6 +923,20 @@ function AuditSection() {
   const L = useListState('createdAt', 'desc', { module: '', action: '', from: '', to: '' });
   const { data, loading } = useRemote<{ total: number; modules: string[]; rows: AuditRow[] }>(`/api/settings/audit${L.query}`, { keepPrevious: true });
   const [open, setOpen] = useState<AuditRow | null>(null);
+  const erase = useErase();
+  const [sel, setSel] = useState<Set<number>>(new Set());
+  useEffect(() => {
+    if (!erase.active) setSel(new Set());
+  }, [erase.active]);
+  const pageIds = (data?.rows ?? []).map((r) => r.id);
+  const allSel = pageIds.length > 0 && pageIds.every((id) => sel.has(id));
+  const toggle = (id: number) =>
+    setSel((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
   const actionLabel = (a: string) => (hasKey(`audit.${a}`) ? t(`audit.${a}` as DictKey) : a);
   return (
     <Section owner title={t('set.audit')}>
@@ -944,6 +959,19 @@ function AuditSection() {
           ))}
         </Select>
         <DateRange idPrefix="aud" from={L.filters.from} to={L.filters.to} onFrom={(v) => L.setFilter('from', v)} onTo={(v) => L.setFilter('to', v)} />
+        {erase.active ? (
+          <Button
+            variant="danger"
+            className="xl:ms-auto"
+            disabled={!sel.size}
+            onClick={async () => {
+              if (await erase.eraseAudit([...sel])) setSel(new Set());
+            }}
+            icon={<Eraser className="h-4 w-4" aria-hidden="true" />}
+          >
+            {t('erase.auditSel', { n: sel.size })}
+          </Button>
+        ) : null}
       </div>
       {!data ? (
         <Skeleton className="h-60 w-full" />
@@ -955,6 +983,17 @@ function AuditSection() {
             <table className="w-full min-w-[720px] text-meta">
               <thead>
                 <tr className="border-y border-line-soft bg-surface-2 text-caption text-muted">
+                  {erase.active ? (
+                    <th scope="col" className="w-10 py-2.5 ps-5 md:ps-6">
+                      <input
+                        type="checkbox"
+                        aria-label={t('erase.selectAll')}
+                        checked={allSel}
+                        onChange={() => setSel((s) => (allSel ? new Set([...s].filter((id) => !pageIds.includes(id))) : new Set([...s, ...pageIds])))}
+                        className="h-4 w-4 accent-[var(--danger)]"
+                      />
+                    </th>
+                  ) : null}
                   <th scope="col" className="py-2.5 ps-5 pe-3 text-start font-semibold md:ps-6">{t('common.timestamp')}</th>
                   <th scope="col" className="px-3 py-2.5 text-start font-semibold">{t('common.user')}</th>
                   <th scope="col" className="px-3 py-2.5 text-start font-semibold">{t('common.action')}</th>
@@ -964,7 +1003,12 @@ function AuditSection() {
               </thead>
               <tbody>
                 {data.rows.map((r) => (
-                  <tr key={r.id} tabIndex={0} onClick={() => setOpen(r)} onKeyDown={(e) => e.key === 'Enter' && setOpen(r)} className="cursor-pointer border-b border-line-soft outline-none last:border-0 hover:bg-surface-2 focus-visible:bg-tint">
+                  <tr key={r.id} tabIndex={0} onClick={() => setOpen(r)} onKeyDown={(e) => e.key === 'Enter' && setOpen(r)} className={cx('cursor-pointer border-b border-line-soft outline-none last:border-0 hover:bg-surface-2 focus-visible:bg-tint', sel.has(r.id) && 'bg-danger-tint hover:bg-danger-tint')}>
+                    {erase.active ? (
+                      <td className="py-2.5 ps-5 md:ps-6" onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" aria-label={t('erase.selectRow')} checked={sel.has(r.id)} onChange={() => toggle(r.id)} className="h-4 w-4 accent-[var(--danger)]" />
+                      </td>
+                    ) : null}
                     <td className="num py-2.5 ps-5 pe-3 text-muted md:ps-6">{fmtDateTime(r.createdAt)}</td>
                     <td className="bidi px-3 py-2.5 text-ink">{r.userName || '—'}</td>
                     <td className="px-3 py-2.5">

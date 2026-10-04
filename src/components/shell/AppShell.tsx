@@ -33,6 +33,7 @@ import { Dialog } from '../Dialog';
 import { Segmented } from '../ui';
 import { TxnPanelProvider } from '../TxnPanel';
 import { MoneyGuardProvider } from '../MoneyGuard';
+import { EraseProvider } from '../EraseMode';
 
 const NAV: Record<Page, { icon: LucideIcon; label: DictKey; short?: DictKey }> = {
   dashboard: { icon: LayoutDashboard, label: 'nav.dashboard' },
@@ -65,11 +66,13 @@ export function AppShell(props: { user: ClientUser; lang: Lang; rate: string; co
   return (
     <AppProvider user={props.user} lang={props.lang} rate={props.rate} company={props.company}>
       <ToastProvider>
-        <TxnPanelProvider>
-          <MoneyGuardProvider>
-            <Shell>{props.children}</Shell>
-          </MoneyGuardProvider>
-        </TxnPanelProvider>
+        <EraseProvider>
+          <TxnPanelProvider>
+            <MoneyGuardProvider>
+              <Shell>{props.children}</Shell>
+            </MoneyGuardProvider>
+          </TxnPanelProvider>
+        </EraseProvider>
       </ToastProvider>
     </AppProvider>
   );
