@@ -20,6 +20,7 @@ import { PartyFormDialog } from '@/components/PartyForm';
 import { useToast } from '@/components/Toast';
 import { useMoneyGuard } from '@/components/MoneyGuard';
 import { SplitPayment, splitTotals } from '@/components/SplitPayment';
+import { ProductCode } from '@/components/ProductCode';
 import { StepLabel } from '@/components/Summary';
 import { useInvoiceAutoSave } from '@/components/useInvoiceAutoSave';
 
@@ -49,7 +50,6 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
   }, [edit, productId]);
   const [product, setProduct] = useState<Option<Product> | null>(null);
   const [npName, setNpName] = useState('');
-  const [npSku, setNpSku] = useState('');
   const [npType, setNpType] = useState('');
   const [state, setState] = useState<State>((line?.state as State) ?? 'RAW');
   const [kg, setKg] = useState(line ? D(line.kg).toString() : '');
@@ -99,7 +99,6 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
     if (mode === 'existing' && !product) er.productId = t('v.productRequired');
     if (mode === 'new') {
       if (!npName.trim()) er['newProduct.name'] = t('v.required');
-      if (!npSku.trim()) er['newProduct.sku'] = t('v.required');
       if (!npType) er['newProduct.typeId'] = t('v.typeRequired');
     }
     if (!kg) er.kg = t('v.required');
@@ -123,7 +122,7 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
       body: {
         date,
         beneficiaryId: ben!.id,
-        ...(mode === 'existing' ? { productId: product!.id } : { newProduct: { name: npName, sku: npSku, typeId: npType } }),
+        ...(mode === 'existing' ? { productId: product!.id } : { newProduct: { name: npName, typeId: npType } }),
         state,
         kg,
         unitPrice: price,
@@ -237,11 +236,9 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
               </Field>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                <Field label={t('pur.productName')} htmlFor="pur-np-name" error={errors['newProduct.name']} required className="sm:col-span-2">
-                  <Input id="pur-np-name" value={npName} onChange={(e) => setNpName(e.target.value)} invalid={!!errors['newProduct.name']} maxLength={120} />
-                </Field>
-                <Field label={t('common.sku')} htmlFor="pur-np-sku" error={errors['newProduct.sku']} required>
-                  <Input id="pur-np-sku" dir="ltr" value={npSku} onChange={(e) => setNpSku(e.target.value.toUpperCase())} invalid={!!errors['newProduct.sku']} maxLength={60} className="num uppercase" />
+                <ProductCode name={npName} typeName={(types.data ?? []).find((x) => x.id === npType)?.name} className="sm:col-span-2" />
+                <Field label={t('pur.productName')} htmlFor="pur-np-name" error={errors['newProduct.name']} required>
+                  <Input id="pur-np-name" value={npName} onChange={(e) => setNpName(e.target.value)} invalid={!!errors['newProduct.name']} maxLength={120} placeholder={t('sku.namePh')} />
                 </Field>
                 <Field
                   label={t('common.aluminumType')}

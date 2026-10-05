@@ -2,7 +2,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, Boxes, CheckCircle2, Factory, PackagePlus, Wallet, X } from 'lucide-react';
+import { AlertTriangle, Boxes, CheckCircle2, Eraser, Factory, PackagePlus, Undo2, Wallet, X } from 'lucide-react';
 import type { listInventory, productHistory } from '@/lib/server/q/inventory';
 import type { TxnDetail } from '@/lib/server/q/history';
 import { useApp } from '@/lib/client/app-context';
@@ -18,6 +18,8 @@ import { DateInput } from '@/components/DateInput';
 import { Dialog, EditingBanner } from '@/components/Dialog';
 import { useTxnPanel } from '@/components/TxnPanel';
 import { useToast } from '@/components/Toast';
+import { useErase } from '@/components/EraseMode';
+import { RevertProcessingDialog } from '@/components/RevertProcessing';
 
 type Inv = Awaited<ReturnType<typeof listInventory>>;
 type Row = Inv['rows'][number];
@@ -430,9 +432,12 @@ const MV_LABEL = {
 } as const;
 
 function HistoryDialog({ row, onClose, onProcess }: { row: Row; onClose: () => void; onProcess: () => void }) {
-  const { t } = useApp();
+  const { t, can } = useApp();
   const panel = useTxnPanel();
+  const erase = useErase();
+  const [revert, setRevert] = useState<string | null>(null);
   const { data } = useRemote<Hist>(`/api/inventory/${row.id}`);
+  const txnCount = new Set((data?.rows ?? []).map((h) => h.txnId)).size;
   return (
     <Dialog
       open
@@ -442,6 +447,12 @@ function HistoryDialog({ row, onClose, onProcess }: { row: Row; onClose: () => v
       description={`${row.sku} · ${row.typeName}`}
       footer={
         <>
+          {/* Erase mode only: wipe this product's whole stock history (the product itself stays). */}
+          {erase.active && txnCount ? (
+            <Button variant="danger" className="md:me-auto" onClick={() => void erase.eraseProduct(row.id, row.name, txnCount)} icon={<Eraser className="h-4 w-4" aria-hidden="true" />}>
+              {t('erase.prodAll')}
+            </Button>
+          ) : null}
           <Button variant="secondary" onClick={onClose}>
             {t('common.close')}
           </Button>
@@ -471,7 +482,7 @@ function HistoryDialog({ row, onClose, onProcess }: { row: Row; onClose: () => v
             <p className="py-8 text-center text-body text-muted">{t('inv.historyEmpty')}</p>
           ) : (
             <div className="scroll-thin overflow-x-auto">
-              <table className="w-full min-w-[760px] text-meta">
+              <table className="w-full min-w-[820px] text-meta [&_td]:px-2 [&_th]:px-2">
                 <thead>
                   <tr className="border-b border-line text-caption text-muted">
                     <th scope="col" className="py-2 text-start font-semibold">{t('common.date')}</th>
@@ -481,6 +492,9 @@ function HistoryDialog({ row, onClose, onProcess }: { row: Row; onClose: () => v
                     <th scope="col" className="py-2 text-end font-semibold">{t('inv.cost')}</th>
                     <th scope="col" className="py-2 text-end font-semibold">{t('inv.rawRunning')}</th>
                     <th scope="col" className="py-2 text-end font-semibold">{t('inv.finishedRunning')}</th>
+                    <th scope="col" className="py-2">
+                      <span className="sr-only">{t('common.actions')}</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -504,6 +518,25 @@ function HistoryDialog({ row, onClose, onProcess }: { row: Row; onClose: () => v
                         <td className="num py-2.5 text-end text-muted">{fmtMoney(D(h.valueUsd).abs().toDecimalPlaces(2))}</td>
                         <td className="num py-2.5 text-end text-ink">{fmtKg(h.rawAfter)}</td>
                         <td className="num py-2.5 text-end text-ink">{fmtKg(h.finishedAfter)}</td>
+                        <td className="py-1.5 ps-2 text-end">
+                          {erase.active ? (
+                            <button
+                              type="button"
+                              onClick={() => void erase.eraseTxn(h.txnId, h.number)}
+                              aria-label={t('erase.txnN', { number: h.number })}
+                              title={t('erase.txn')}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-ctl text-danger-ink transition-colors hover:bg-danger-tint"
+                            >
+                              <Eraser className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                          ) : h.movement === 'processIn' && !h.deleted && can('inventory') ? (
+                            <Button size="sm" variant="quiet" onClick={() => setRevert(h.txnId)} icon={<Undo2 className="h-4 w-4" aria-hidden="true" />} className="whitespace-nowrap">
+                              {t('prc.revertShort')}
+                            </Button>
+                          ) : h.reverted && h.movement === 'processIn' ? (
+                            <Badge tone="warning">{t('status.reverted')}</Badge>
+                          ) : null}
+                        </td>
                       </tr>
                     );
                   })}
@@ -513,6 +546,7 @@ function HistoryDialog({ row, onClose, onProcess }: { row: Row; onClose: () => v
           )}
         </div>
       )}
+      <RevertProcessingDialog txnId={revert} onClose={() => setRevert(null)} />
     </Dialog>
   );
 }

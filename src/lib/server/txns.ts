@@ -23,6 +23,7 @@ import {
   type Src,
   type StockKey,
 } from './ledger';
+import { nextSku } from './catalog';
 import { asState, cleanMultiline, cleanText, currentRate, reqCurrency, reqDate, reqNonNegative, reqPositive } from './common';
 import { audit, jsonSafe } from './audit';
 import { isLocked } from '@/lib/lock';
@@ -114,7 +115,8 @@ export type PurchaseInput = {
   date?: string;
   beneficiaryId?: string;
   productId?: string;
-  newProduct?: { name?: string; sku?: string; typeId?: string } | null;
+  /** A product created with the purchase. Its code (SKU) is given automatically. */
+  newProduct?: { name?: string; typeId?: string } | null;
   state?: string;
   kg?: string;
   unitPrice?: string;
@@ -140,12 +142,10 @@ export async function savePurchase(input: PurchaseInput, actor: Actor, editId?: 
   if (!input.beneficiaryId) v.add('beneficiaryId', 'v.beneficiaryRequired');
   const np = input.productId ? null : input.newProduct;
   const npName = cleanText(np?.name, 120);
-  const npSku = cleanText(np?.sku, 60).toUpperCase();
   if (!input.productId) {
     if (!np) v.add('productId', 'v.productRequired');
     else {
       if (!npName) v.add('newProduct.name', 'v.required');
-      if (!npSku) v.add('newProduct.sku', 'v.required');
       if (!np.typeId) v.add('newProduct.typeId', 'v.typeRequired');
     }
   }
@@ -158,10 +158,9 @@ export async function savePurchase(input: PurchaseInput, actor: Actor, editId?: 
 
     let productId = input.productId ?? '';
     if (!productId) {
-      if (await tx.product.findUnique({ where: { sku: npSku } })) throw fieldError('newProduct.sku', 'v.skuExists');
       const type = await tx.aluminumType.findUnique({ where: { id: np!.typeId! } });
       if (!type) throw fieldError('newProduct.typeId', 'v.typeRequired');
-      const p = await tx.product.create({ data: { name: npName, sku: npSku, typeId: type.id, isDemo: !!opts.isDemo } });
+      const p = await tx.product.create({ data: { name: npName, sku: await nextSku(tx), typeId: type.id, isDemo: !!opts.isDemo } });
       await audit({ user: actor, action: 'create', module: 'products', reference: p.sku, after: p }, tx);
       productId = p.id;
     } else if (!(await tx.product.findUnique({ where: { id: productId } }))) {
@@ -673,11 +672,24 @@ const MODULE_OF: Record<TxnKind, string> = {
  * Permanent delete: reverse all effects, keep a tombstone so the number is never reused, and store the
  * full snapshot in the audit log so every gap in the sequence is explained.
  */
-export async function deleteTxn(id: string, actor: Actor): Promise<Saved> {
+/** Label kept on a processing run that was reverted (its number stays, marked "Reverted"). */
+export const REVERTED = 'reverted';
+
+/**
+ * Revert a processing run: the finished kg go back to raw, and the kg lost in processing come back too, at the
+ * raw cost they had. Refused when part of the finished kg was already sold or processed further (stock would go
+ * below zero). The run keeps its number, marked as reverted. Caller checks the master PIN first.
+ */
+export const revertProcessing = (id: string, actor: Actor) => deleteTxn(id, actor, { revert: true });
+
+export async function deleteTxn(id: string, actor: Actor, opts: { revert?: boolean } = {}): Promise<Saved> {
   return withTx(async (tx) => {
     await lockVaults(tx);
     const t = await tx.txn.findUnique({ where: { id }, include: { lines: true } });
     if (!t || t.deletedAt) throw notFound();
+    // A processing run is undone only by "Revert to raw" (master PIN), never by a plain delete.
+    if (t.kind === 'PROCESSING' && !opts.revert) throw new AppError(409, 'prc.useRevert');
+    if (opts.revert && t.kind !== 'PROCESSING') throw notFound();
     if (isLocked(t.kind, t.createdAt)) throw new AppError(409, 'invc.locked', { number: t.number });
     await lockParties(tx, [t.customerId, t.beneficiaryId]);
     await lockProducts(tx, [...t.lines.map((l) => l.productId), ...(t.productId ? [t.productId] : [])]);
@@ -686,8 +698,8 @@ export async function deleteTxn(id: string, actor: Actor): Promise<Saved> {
     const touched = await reverseEffects(tx, src);
     await assertStockNonNegative(tx, touched, { number: t.number, action: 'delete', txnId: t.id, createdAt: t.createdAt });
     await clearResidualCost(tx, src, touched);
-    await tx.txn.update({ where: { id }, data: { deletedAt: new Date(), ...stamp(actor, false) } });
-    await audit({ user: actor, action: 'delete', module: MODULE_OF[t.kind], reference: t.number, before: snap }, tx);
+    await tx.txn.update({ where: { id }, data: { deletedAt: new Date(), ...(opts.revert ? { label: REVERTED } : {}), ...stamp(actor, false) } });
+    await audit({ user: actor, action: 'delete', module: MODULE_OF[t.kind], reference: opts.revert ? `${t.number} reverted to raw` : t.number, before: snap }, tx);
     return { id, number: t.number };
   });
 }

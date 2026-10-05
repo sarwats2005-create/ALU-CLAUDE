@@ -6,12 +6,12 @@
 // HOW TO UPDATE
 //   • A rule changed / was added / was removed → edit its line below AND add an entry at the TOP of
 //     ABOUT_CHANGELOG (type 'added' | 'changed' | 'removed'), then `npm run rules:sync`.
-//   • Numbers never go in the text by hand: write {placeholder} and the page fills it from src/lib/rules.ts or
+//   • Numbers never go in the text by hand: write {placeholder} and the page fills it from src/shared/rules.ts or
 //     from the live settings (exchange rate, alert limits…), so the page always shows what the app really does.
 //   • **double stars** make words bold.
 //
 // Placeholders: {editHours} {eraseMin} {pinTries} {pinLock} {loginTries} {loginWindow} {dailyHours}
-//   {keepDaily} {keepOther} {folderDays} {pinMin} {pinMax} {rate} {lowStock} {custDue} {benDue}
+//   {keepDaily} {keepOther} {folderDays} {pinMin} {pinMax} {skuExample} {rate} {lowStock} {custDue} {benDue}
 //   {overdueDays} {vaultMinUsd} {vaultMinIqd} {expVault} {expPin}
 
 import type { Page } from './permissions';
@@ -89,7 +89,8 @@ export const ABOUT_SECTIONS: AboutSection[] = [
     summary: ['What one sale does to the vault, the customer and the stock.', 'یەک فرۆشتن چی دەکات بە قاسە، کڕیار و کۆگا.'],
     rules: [
       ['**Total** = kg × price per kg for each line.', '**کۆی گشتی** = کیلۆ × نرخی کیلۆ بۆ هەر دێڕێک.'],
-      ['**Split payment**: the customer can pay part in **USD** and part in **IQD** on the same invoice. USD goes to the USD vault, IQD to the IQD vault.', '**پارەدانی دابەشکراو**: کڕیار دەتوانێت بەشێک بە **دۆلار** و بەشێک بە **دینار** لەسەر هەمان پسوولە بدات. دۆلار دەچێتە قاسەی دۆلار، دینار دەچێتە قاسەی دینار.'],
+      ['By default the payment is in the **invoice currency** and goes to that currency\'s vault.', 'بە شێوەی بنەڕەت پارەدان بە **دراوی پسوولەکە**یە و دەچێتە قاسەی ئەو دراوە.'],
+      ['**Split USD + IQD** is a switch: turn it on and the customer can pay part in **USD** and part in **IQD** on the same invoice. USD goes to the USD vault, IQD to the IQD vault. The invoice lists each part only when the payment was split.', '**دابەشکردن دۆلار + دینار** سویچێکە: کە چالاکی بکەیت کڕیار دەتوانێت بەشێک بە **دۆلار** و بەشێک بە **دینار** لەسەر هەمان پسوولە بدات. دۆلار دەچێتە قاسەی دۆلار، دینار دەچێتە قاسەی دینار. پسوولەکە تەنها کاتێک هەر بەشێک پیشان دەدات کە پارەدان دابەش کرابێت.'],
       ['The IQD part counts at the invoice\'s rate. Example: invoice $200, $100 paid in USD, rate 100 USD = 157,500 IQD → the rest is 157,500 IQD. The invoice shows each part and what it is worth.', 'بەشی دینار بە نرخی پسوولەکە حیساب دەکرێت. نموونە: پسوولە ٢٠٠ دۆلار، ١٠٠ دۆلار بە دۆلار دراوە، نرخ ١٠٠ دۆلار = ١٥٧،٥٠٠ دینار ← ماوەکە ١٥٧،٥٠٠ دینارە. پسوولەکە هەر بەشێک و بەهاکەی پیشان دەدات.'],
       ['**Total − cash** becomes debt on the customer.', '**کۆی گشتی − کاش** دەبێتە قەرز لەسەر کڕیار.'],
       ['Stock goes down. You cannot sell more kg than is in stock.', 'کۆگا کەم دەبێتەوە. ناتوانیت زیاتر لەو کیلۆیەی لە کۆگادایە بفرۆشیت.'],
@@ -122,6 +123,8 @@ export const ABOUT_SECTIONS: AboutSection[] = [
       ['Processing turns **raw kg** into **finished kg**, minus a loss given in % or in kg.', 'پرۆسێسکردن **کیلۆی خاو** دەکاتە **کیلۆی ئامادە**، کەمکردنەوەی زیانێک کە بە ٪ یان بە کیلۆ دەدرێت.'],
       ['No money moves. The whole raw cost moves onto the finished kg, so loss raises the cost per kg. Example: 400 kg at $2 with 5% loss → 380 kg at about $2.11.', 'هیچ پارەیەک ناجووڵێت. هەموو تێچووی خاوەکە دەچێتە سەر کیلۆ ئامادەکان، بۆیە زیان تێچووی کیلۆ بەرز دەکاتەوە. نموونە: ٤٠٠ کیلۆ بە ٢ دۆلار بە ٥٪ زیان ← ٣٨٠ کیلۆ بە نزیکەی ٢٫١١ دۆلار.'],
       ['You cannot process more raw kg than is in stock. Loss must be below 100% (or below the input kg).', 'ناتوانیت زیاتر لە کیلۆی خاوی کۆگا پرۆسێس بکەیت. زیان دەبێت کەمتر بێت لە ١٠٠٪ (یان لە کیلۆی هاتوو).'],
+      ['**Revert to raw** undoes a processing run: the finished kg leave finished stock, the lost kg come back, and the full input returns to raw stock at its raw cost. It needs the **master PIN**, keeps the run\'s number (marked "Reverted"), and is refused if some finished kg were already sold or processed again. A processing run is never simply deleted.', '**گەڕاندنەوە بۆ خاو** پرۆسێسێک هەڵدەوەشێنێتەوە: کیلۆی ئامادە لە کۆگای ئامادە دەردەچێت، کیلۆی زیان دەگەڕێتەوە، و هەموو کیلۆی هاتوو بە تێچووی خاوی خۆی دەگەڕێتەوە بۆ کۆگای خاو. **PINی سەرەکی** پێویستە، ژمارەکەی دەمێنێت (وەک «گەڕێنراوە»)، و ئەگەر بەشێک لە کیلۆی ئامادە فرۆشرابێت یان دووبارە پرۆسێس کرابێت ڕەت دەکرێتەوە. پرۆسێس هەرگیز بە سادەیی ناسڕدرێتەوە.'],
+      ['Every product gets its **code (SKU) automatically**: {skuExample}, then the next number. Codes are never typed, never changed and never given twice, even after a product is deleted.', 'هەر بەرهەمێک **کۆدەکەی (SKU) خۆکار** وەردەگرێت: {skuExample}، پاشان ژمارەی دواتر. کۆد نانووسرێت، ناگۆڕدرێت و هەرگیز دووجار نادرێت، تەنانەت دوای سڕینەوەی بەرهەمەکەش.'],
       ['Aluminum types are added by you (Settings, or "Add type" when buying). None are pre-added. A type that a product uses cannot be deleted.', 'جۆرەکانی ئەلەمنیۆم خۆت زیادیان دەکەیت (ڕێکخستنەکان، یان «زیادکردنی جۆر» لە کاتی کڕیندا). هیچیان پێشوەختە زیاد نەکراون. جۆرێک کە کاڵایەک بەکاری دەهێنێت ناسڕدرێتەوە.'],
       ['A product is **low** when its stock is at or below its own limit, or the general limit (**{lowStock}**); **out** at zero.', 'کاڵایەک **کەمە** کاتێک کۆگاکەی گەیشتە سنووری خۆی یان سنووری گشتی (**{lowStock}**) یان کەمتر؛ لە سفردا **نەماوە**.'],
     ],
@@ -241,6 +244,7 @@ export const ABOUT_SECTIONS: AboutSection[] = [
     rules: [
       ['A backup file contains every table, read at one instant, with a checksum. A file that was edited or damaged is refused.', 'فایلی باکئەپ هەموو خشتەکان لە یەک ساتدا لەخۆ دەگرێت، لەگەڵ checksum. فایلێک کە دەستکاری کرابێت یان تێکچووبێت ڕەت دەکرێتەوە.'],
       ['An automatic **restore point** is saved in the database every day (when the last is older than {dailyHours} h). The newest {keepDaily} daily and {keepOther} other restore points are kept.', '**خاڵی گەڕاندنەوە** هەموو ڕۆژێک خۆکار لە داتابەیسدا پاشەکەوت دەکرێت (کاتێک دواینیان لە {dailyHours} کاتژمێر کۆنترە). نوێترین {keepDaily} ڕۆژانە و {keepOther} ی تر دەهێڵدرێنەوە.'],
+      ['Restore points are compressed copies kept in the database. Their number is capped ({keepDaily} daily + {keepOther} others); the oldest are removed automatically, so they never grow without limit. Settings → Backup shows how much space they take.', 'خاڵەکانی گەڕاندنەوە کۆپیی پەستێنراون لە داتابەیسدا. ژمارەیان سنووردارە ({keepDaily} ڕۆژانە + {keepOther} ی تر)؛ کۆنترینەکان خۆکار لادەبرێن، بۆیە هەرگیز بێسنوور گەورە نابن. ڕێکخستنەکان ← باکئەپ پیشان دەدات چەند شوێن دەگرن.'],
       ['A backup file can also be saved every **{folderDays} days** into a folder on this computer, while the app is open.', 'فایلی باکئەپ دەتوانرێت هەموو **{folderDays} ڕۆژ** جارێک لە فۆڵدەرێکی ئەم کۆمپیوتەرە پاشەکەوت بکرێت، کاتێک ئەپەکە کراوەیە.'],
       ['**Restore** (from a file or a restore point) and **Start fresh** need the master PIN and a confirmation. Before either, the current data is saved as a restore point, so nothing is lost.', '**گەڕاندنەوە** (لە فایل یان خاڵی گەڕاندنەوە) و **دەستپێکردنەوە لە سفر** پێویستیان بە PINی سەرەکی و پشتڕاستکردنەوە هەیە. پێش هەردووکیان داتای ئێستا وەک خاڵی گەڕاندنەوە پاشەکەوت دەکرێت، بۆیە هیچ شتێک لەدەست ناچێت.'],
       ['A restore is all or nothing. You keep your own owner login; everyone else is signed out.', 'گەڕاندنەوە یان هەمووی دەبێت یان هیچ. چوونەژوورەوەی خاوەنی خۆت دەمێنێت؛ هەموو کەسانی تر دەردەکرێن.'],
@@ -255,7 +259,7 @@ export const ABOUT_SECTIONS: AboutSection[] = [
     summary: ['The only way to remove records completely.', 'تاکە ڕێگا بۆ لابردنی تەواوی تۆمارەکان.'],
     rules: [
       ['Owner only: **Ctrl + Alt + R** and the master PIN. It stays on for **{eraseMin} minutes** and turns off on reload.', 'تەنها خاوەن: **Ctrl + Alt + R** و PINی سەرەکی. بۆ **{eraseMin} خولەک** چالاک دەمێنێت و بە نوێکردنەوەی پەڕە دەکوژێتەوە.'],
-      ['Erases transactions (after reversing their effects), customer accounts with all their transactions, audit lines and deleted (voided) documents.', 'مامەڵەکان (دوای گەڕاندنەوەی کاریگەرییەکانیان)، هەژماری کڕیار لەگەڵ هەموو مامەڵەکانی، دێڕی چاودێری و بەڵگە سڕاوەکان لادەبات.'],
+      ['Erases transactions (after reversing their effects), customer accounts with all their transactions, a product\'s whole stock history (Inventory), restore points (Settings → Backup), audit lines and deleted (voided) documents.', 'مامەڵەکان (دوای گەڕاندنەوەی کاریگەرییەکانیان)، هەژماری کڕیار لەگەڵ هەموو مامەڵەکانی، هەموو مێژووی کۆگای بەرهەمێک (کۆگا)، خاڵەکانی گەڕاندنەوە (ڕێکخستنەکان ← باکئەپ)، دێڕی چاودێری و بەڵگە سڕاوەکان لادەبات.'],
       ['It leaves no trace, and it works on locked invoices too.', 'هیچ شوێنپێیەک ناهێڵێتەوە، و لەسەر پسوولە قفڵکراوەکانیش کار دەکات.'],
       ['The master PIN is changeable ({pinMin}–{pinMax} digits) and locks for {pinLock} minutes after {pinTries} wrong tries.', 'PINی سەرەکی دەگۆڕدرێت ({pinMin}–{pinMax} ژمارە) و دوای {pinTries} هەڵە بۆ {pinLock} خولەک قفڵ دەبێت.'],
     ],
@@ -264,6 +268,23 @@ export const ABOUT_SECTIONS: AboutSection[] = [
 
 /** Newest first. Add an entry here whenever a rule is added, changed or removed. */
 export const ABOUT_CHANGELOG: AboutChange[] = [
+  {
+    version: '1.8',
+    date: '2026-10-05',
+    items: [
+      { type: 'added', text: ['Revert to raw: undo a processing run with the master PIN; the finished kg and the loss go back to raw stock.', 'گەڕاندنەوە بۆ خاو: پرۆسێسێک بە PINی سەرەکی هەڵبوەشێنەوە؛ کیلۆی ئامادە و زیانەکە دەگەڕێنەوە بۆ کۆگای خاو.'] },
+      { type: 'changed', text: ['A processing run can no longer be deleted; it is reverted instead.', 'پرۆسێس ئیتر ناسڕدرێتەوە؛ لە جیاتی ئەوە دەگەڕێنرێتەوە.'] },
+      { type: 'added', text: ['Erase mode: erase a product\'s stock history, and erase restore points from the database.', 'دۆخی سڕینەوە: سڕینەوەی مێژووی کۆگای بەرهەمێک، و سڕینەوەی خاڵەکانی گەڕاندنەوە لە داتابەیس.'] },
+    ],
+  },
+  {
+    version: '1.7',
+    date: '2026-10-05',
+    items: [
+      { type: 'added', text: ['Product codes (SKU) are given automatically and in order (ALU-00001, ALU-00002, …); no more typing them.', 'کۆدی بەرهەم (SKU) خۆکار و بە ڕیز دەدرێت (ALU-00001، ALU-00002، …)؛ ئیتر پێویست بە نووسینیان نییە.'] },
+      { type: 'changed', text: ['Split payment is now a switch. Off: the invoice currency is paid into its own vault. On: USD and IQD side by side.', 'پارەدانی دابەشکراو ئێستا سویچە. کوژاوە: دراوی پسوولەکە دەچێتە قاسەی خۆی. چالاک: دۆلار و دینار پێکەوە.'] },
+    ],
+  },
   {
     version: '1.6',
     date: '2026-10-04',

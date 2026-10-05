@@ -168,3 +168,34 @@ export async function eraseAudit(user: SessionUser, ids: unknown) {
   return { count: r.count };
 }
 
+
+/**
+ * Erase a product's whole transaction history: every document that moved its stock (purchases, sales,
+ * processing runs, including deleted ones), newest first. Sales that also held other products are erased too,
+ * so those products get their kg back. The product itself stays, with zero stock.
+ */
+export async function eraseProductHistory(user: SessionUser, productId: string) {
+  requireErase(user);
+  return withTx(async (tx) => {
+    await lockVaults(tx);
+    const p = await tx.product.findUnique({ where: { id: productId }, select: { id: true, name: true } });
+    if (!p) throw notFound();
+    const txns = await tx.txn.findMany({
+      where: { OR: [{ productId }, { lines: { some: { productId } } }, { stockEntries: { some: { productId } } }] },
+      select: { id: true },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+    const done = [];
+    for (const t of txns) done.push(await eraseOne(tx, t.id));
+    await settle(tx, done);
+    return { name: p.name, count: done.length };
+  });
+}
+
+/** Erase restore points: one (by id) or all of them. Frees the space they take in the database. */
+export async function eraseSnapshots(user: SessionUser, id?: string) {
+  requireErase(user);
+  const r = await prisma.snapshot.deleteMany({ where: id ? { id } : {} });
+  if (id && !r.count) throw notFound();
+  return { count: r.count };
+}

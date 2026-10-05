@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { AlertTriangle, CalendarClock, Database, FileDown, FileSpreadsheet, FolderCheck, FolderOpen, History, RotateCcw, Save, ShieldAlert, Upload } from 'lucide-react';
+import { AlertTriangle, CalendarClock, Database, Eraser, FileDown, FileSpreadsheet, FolderCheck, FolderOpen, History, RotateCcw, Save, ShieldAlert, Upload } from 'lucide-react';
 import { useApp } from '@/lib/client/app-context';
 import { api, qs } from '@/lib/client/api';
 import { useRemote } from '@/lib/client/use-remote';
@@ -13,6 +13,7 @@ import { Badge, Button, Card, Field, Input } from '@/components/ui';
 import { Dialog } from '@/components/Dialog';
 import { SummaryCell, SummaryStrip } from '@/components/Summary';
 import { useToast } from '@/components/Toast';
+import { useErase } from '@/components/EraseMode';
 
 type Counts = Record<string, number>;
 type Snap = { id: string; kind: string; createdAt: string; createdByName: string; sizeBytes: number; counts: Counts };
@@ -27,6 +28,7 @@ export function BackupSection() {
   const { t } = useApp();
   const toast = useToast();
   const snaps = useRemote<{ rows: Snap[] }>('/api/settings/backup/snapshots');
+  const erase = useErase();
   const [folder, setFolder] = useState<BackupFolderState | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [restore, setRestore] = useState<Source | null>(null);
@@ -73,6 +75,8 @@ export function BackupSection() {
 
   const rows = snaps.data?.rows ?? [];
   const lastSnap = rows[0];
+  // Space the restore points take in the database (compressed copies; the oldest are removed automatically).
+  const totalBytes = rows.reduce((n, r) => n + r.sizeBytes, 0);
   const nextWeekly = folder?.name ? (folder.last ? new Date(new Date(folder.last).getTime() + WEEK) : new Date()) : null;
   const needsAccess = !!folder?.name && folder.permission !== 'granted';
 
@@ -97,7 +101,7 @@ export function BackupSection() {
           icon={<History className="h-[18px] w-[18px]" aria-hidden="true" />}
           label={t('bk.points')}
           value={<span className="text-title md:text-heading">{String(rows.length)}</span>}
-          sub={lastSnap ? t('bk.latest', { date: fmtDateTime(lastSnap.createdAt) }) : t('bk.firstToday')}
+          sub={lastSnap ? t('bk.pointsSize', { size: size(totalBytes), date: fmtDateTime(lastSnap.createdAt) }) : t('bk.firstToday')}
         />
       </SummaryStrip>
 
@@ -168,8 +172,18 @@ export function BackupSection() {
         }
       >
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h3 className="text-body font-semibold text-ink">{t('bk.pointsTitle')}</h3>
-          <Button
+          <h3 className="text-body font-semibold text-ink">
+            {t('bk.pointsTitle')}
+            {rows.length ? <span className="num ms-2 text-caption font-normal text-muted">{t('bk.pointsTotal', { n: rows.length, size: size(totalBytes) })}</span> : null}
+          </h3>
+          <span className="flex flex-wrap gap-1">
+            {/* Erase mode only: remove restore points from the database for good. */}
+            {erase.active && rows.length ? (
+              <Button variant="danger" size="sm" onClick={() => void erase.eraseSnapshots().then((ok) => ok && snaps.reload())} icon={<Eraser className="h-4 w-4" aria-hidden="true" />}>
+                {t('erase.snapsAll')}
+              </Button>
+            ) : null}
+            <Button
             variant="quiet"
             size="sm"
             busy={busy === 'snap'}
@@ -184,7 +198,8 @@ export function BackupSection() {
             icon={<Database className="h-4 w-4" aria-hidden="true" />}
           >
             {t('bk.saveSnap')}
-          </Button>
+            </Button>
+          </span>
         </div>
         {!rows.length ? (
           <p className="rounded-ctl bg-surface-2 px-4 py-6 text-center text-meta text-muted">{t('bk.noPoints')}</p>
@@ -206,6 +221,17 @@ export function BackupSection() {
                   <Button variant="secondary" size="sm" onClick={() => setRestore({ kind: 'snapshot', snap: s })} icon={<RotateCcw className="h-4 w-4" aria-hidden="true" />}>
                     {t('bk.restore')}
                   </Button>
+                  {erase.active ? (
+                    <button
+                      type="button"
+                      onClick={() => void erase.eraseSnapshots(s.id).then((ok) => ok && snaps.reload())}
+                      aria-label={t('erase.snap')}
+                      title={t('erase.snap')}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-ctl text-danger-ink transition-colors hover:bg-danger-tint"
+                    >
+                      <Eraser className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  ) : null}
                 </span>
               </li>
             ))}

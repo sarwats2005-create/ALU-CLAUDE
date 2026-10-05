@@ -144,6 +144,8 @@ export type HistoryRow = {
   finishedAfter: string;
   lossKg: string | null;
   deleted: boolean;
+  /** A processing run that was reverted to raw (its rows stay, shown as reverted). */
+  reverted: boolean;
 };
 
 /** Every stock movement for the product, in posting order, with running kg per state. */
@@ -153,7 +155,7 @@ export async function productHistory(productId: string) {
   const entries = await prisma.stockEntry.findMany({
     where: { productId },
     orderBy: { id: 'asc' },
-    include: { txn: { select: { number: true, kind: true, lossKg: true, deletedAt: true } } },
+    include: { txn: { select: { number: true, kind: true, lossKg: true, deletedAt: true, label: true } } },
   });
   let raw = new Dec(0);
   let fin = new Dec(0);
@@ -187,6 +189,7 @@ export async function productHistory(productId: string) {
       finishedAfter: fin.toString(),
       lossKg: movement === 'processIn' && e.txn.lossKg ? D(e.txn.lossKg).toString() : null,
       deleted: !!e.txn.deletedAt,
+      reverted: !!e.txn.deletedAt && e.txn.kind === 'PROCESSING' && e.txn.label === 'reverted',
     };
   });
   return {

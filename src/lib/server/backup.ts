@@ -92,8 +92,12 @@ export function validateBackup(raw: unknown): BackupFile {
 }
 
 // ─── Master PIN (same PIN as erase mode; default 1122) ───────────────────────────────────────────
-export async function checkMasterPin(user: SessionUser, pin: unknown) {
-  if (!user.isOwner) throw new AppError(403, 'err.forbidden');
+/**
+ * The master PIN guards actions that can't be undone by a normal edit. Owner-only by default; reverting a
+ * processing run is also open to staff with Inventory access, but only with the master PIN.
+ */
+export async function checkMasterPin(user: SessionUser, pin: unknown, opts: { ownerOnly?: boolean } = {}) {
+  if ((opts.ownerOnly ?? true) && !user.isOwner) throw new AppError(403, 'err.forbidden');
   const key = `master:${user.id}`;
   const since = new Date(Date.now() - RULES.pinLockMinutes * MIN_MS);
   if ((await prisma.loginAttempt.count({ where: { key, success: false, createdAt: { gte: since } } })) >= RULES.pinMaxTries) throw new AppError(429, 'erase.pinLocked');

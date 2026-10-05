@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eraser, Pencil, Printer, Trash2, FileDown } from 'lucide-react';
+import { Eraser, Pencil, Printer, Trash2, FileDown, Undo2 } from 'lucide-react';
 import type { TxnDetail } from '@/lib/server/q/history';
 import { useApp } from '@/lib/client/app-context';
 import { api } from '@/lib/client/api';
@@ -18,6 +18,7 @@ import { Dialog } from './Dialog';
 import { Badge, Button, Segmented, Skeleton } from './ui';
 import { useToast } from './Toast';
 import { useErase } from './EraseMode';
+import { RevertProcessingDialog } from './RevertProcessing';
 
 type OpenOpts = { confirmDelete?: boolean };
 type Ctx = { open: (id: string, opts?: OpenOpts) => void };
@@ -33,6 +34,7 @@ export function TxnPanelProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<TxnDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
+  const [revert, setRevert] = useState<string | null>(null);
   const [busy, setBusy] = useState<'delete' | 'print' | 'pdf' | null>(null);
   const [paper, setPaper] = usePaper();
 
@@ -118,9 +120,15 @@ export function TxnPanelProvider({ children }: { children: ReactNode }) {
                   {t('erase.txn')}
                 </Button>
               ) : null}
-              {mayEdit && !erase.active ? (
+              {mayEdit && !erase.active && kind !== 'PROCESSING' ? (
                 <Button variant="quiet" className="md:me-auto text-danger-ink hover:text-danger-ink" onClick={() => setConfirm(true)} icon={<Trash2 className="h-4 w-4" aria-hidden="true" />}>
                   {t('common.delete')}
+                </Button>
+              ) : null}
+              {/* A processing run is undone by reverting it to raw (master PIN), not by deleting it. */}
+              {mayEdit && !erase.active && kind === 'PROCESSING' ? (
+                <Button variant="quiet" className="md:me-auto" onClick={() => (setRevert(data.id), close())} icon={<Undo2 className="h-4 w-4" aria-hidden="true" />}>
+                  {t('prc.revert')}
                 </Button>
               ) : null}
               <Button variant="secondary" onClick={close}>
@@ -186,6 +194,7 @@ export function TxnPanelProvider({ children }: { children: ReactNode }) {
           </div>
         ) : null}
       </Dialog>
+      <RevertProcessingDialog txnId={revert} onClose={() => setRevert(null)} onDone={() => router.refresh()} />
     </PanelCtx.Provider>
   );
 }
@@ -231,6 +240,22 @@ function PaidRows({ d }: { d: TxnDetail }) {
     from !== cur && amount.gt(0) ? (
       <span className="block text-caption text-muted">= {fmtMoney(roundMoney(convert(amount, from, cur, D(d.rate)), cur), cur)}</span>
     ) : null;
+  // Only a split payment needs a line per currency; a one-currency payment shows the vault it went to.
+  const split = (usd.gt(0) && iqd.gt(0)) || (cur === 'USD' ? iqd.gt(0) : usd.gt(0));
+  if (!split)
+    return (
+      <>
+        <Row label={t('pay.totalPaid')}>
+          <span className="num">{fmtMoney(d.cashPaid, cur)}</span>
+          {usd.gt(0) || iqd.gt(0) ? <span className="block text-caption text-muted">{t(`vault.${cur}` as 'vault.USD')}</span> : null}
+        </Row>
+        {owed.gt(0) ? (
+          <Row label={t('pay.remaining')}>
+            <span className="num font-semibold text-danger-ink">{fmtMoney(owed, cur)}</span>
+          </Row>
+        ) : null}
+      </>
+    );
   return (
     <>
       {usd.gt(0) ? (
@@ -271,7 +296,7 @@ export function TxnBody({ d }: { d: TxnDetail }) {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-2">
-        {d.deletedAt ? <Badge tone="danger">{t('status.deleted')}</Badge> : <Badge tone="brand">{t('status.recorded')}</Badge>}
+        {d.deletedAt ? <Badge tone={d.label === 'reverted' ? 'warning' : 'danger'}>{t(d.label === 'reverted' ? 'status.reverted' : 'status.deleted')}</Badge> : <Badge tone="brand">{t('status.recorded')}</Badge>}
         {d.isDemo ? <Badge tone="brand">{t('app.demo')}</Badge> : null}
         {!d.deletedAt ? <LockNote kind={kind} createdAt={d.createdAt} /> : null}
       </div>

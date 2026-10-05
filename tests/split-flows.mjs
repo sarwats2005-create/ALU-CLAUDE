@@ -57,7 +57,7 @@ let v0 = await vaults();
 const pur = await call('POST', '/api/purchases', {
   date: today,
   beneficiaryId: ben.id,
-  newProduct: { name: `Split bar ${tag}`, sku: `SP-${tag}`, typeId },
+  newProduct: { name: `Split bar ${tag}`, typeId },
   state: 'FINISHED',
   kg: '200',
   unitPrice: '2',
@@ -72,7 +72,7 @@ check(`purchase: IQD vault −${iqdFor(100)}`, near(v1.IQD - v0.IQD, -Number(iqd
 check('purchase: factory owes supplier $200', near(await bal('beneficiaries', ben.id), 200));
 const purD = (await call('GET', `/api/txns/${pur.data.id}`)).data;
 check('purchase detail keeps both parts and total paid $200', purD.paidUsd === '100' && Number(purD.paidIqd) === Number(iqdFor(100)) && near(Number(purD.cashPaid), 200), purD);
-const prod = (await call('GET', `/api/lookup/products?q=SP-${tag}`)).data[0];
+const prod = (await call('GET', `/api/lookup/products?q=${encodeURIComponent(`Split bar ${tag}`)}`)).data[0];
 
 // 2. The user's example: invoice $200, $100 in USD, the rest in IQD at the rate → fully paid, both vaults in.
 v0 = await vaults();

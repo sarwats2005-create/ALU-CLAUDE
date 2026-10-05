@@ -5,7 +5,7 @@
 //
 // When you add, change or remove a rule:
 //   1. change it here (or in the code that enforces it),
-//   2. update its text in src/lib/about.ts and add a line to ABOUT_CHANGELOG there,
+//   2. update its text in src/shared/about.ts and add a line to ABOUT_CHANGELOG there,
 //   3. run `npm run rules:sync`.
 // `npm run rules:check` fails while rule code has changed but the About page hasn't been updated.
 
@@ -33,7 +33,13 @@ export const RULES = {
   /** PIN length (erase / master PIN and expense PIN), digits only. */
   pinMinDigits: 4,
   pinMaxDigits: 8,
+  /** Product codes (SKU) are given automatically: prefix + a running number, e.g. ALU-00012. */
+  skuPrefix: 'ALU',
+  skuDigits: 5,
 } as const;
+
+/** Product code for running number n, e.g. 12 -> "ALU-00012". */
+export const skuFor = (n: number) => `${RULES.skuPrefix}-${String(n).padStart(RULES.skuDigits, '0')}`;
 
 export const MIN_MS = 60 * 1000;
 export const HOUR_MS = 60 * MIN_MS;

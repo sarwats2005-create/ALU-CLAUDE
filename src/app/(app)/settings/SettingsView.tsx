@@ -6,7 +6,7 @@ import { useApp } from '@/lib/client/app-context';
 import { api } from '@/lib/client/api';
 import { useRemote } from '@/lib/client/use-remote';
 import { fmtDateTime } from '@/lib/dates';
-import { fmtKg, rateLine } from '@/lib/money';
+import { D, fmtKg, rateLine } from '@/lib/money';
 import { ACTIONS, PAGES, actionKey, pageKey } from '@/lib/permissions';
 import type { DictKey, Lang } from '@/lib/i18n';
 import { hasKey } from '@/lib/i18n';
@@ -20,6 +20,7 @@ import { useToast } from '@/components/Toast';
 import { useErase } from '@/components/EraseMode';
 import { BackupSection } from './BackupSection';
 import { PIN_RE } from '@/lib/rules';
+import { ProductCode } from '@/components/ProductCode';
 
 type Section = 'company' | 'rate' | 'types' | 'products' | 'expenses' | 'alerts' | 'language' | 'users' | 'audit' | 'data';
 const SECTIONS: { id: Section; label: DictKey; icon: typeof Building2; owner?: boolean }[] = [
@@ -609,13 +610,20 @@ function ProductsSection() {
       >
         {edit ? (
           <form id="prod-form" onSubmit={save} noValidate className="flex flex-col gap-4">
+            {/* The code is given by the system, never typed: shown first so the user knows it is handled. */}
+            <ProductCode sku={edit.id ? edit.sku : null} name={edit.name} typeName={(types.data ?? []).find((x) => x.id === edit.typeId)?.name} />
             <Field label={t('pur.productName')} htmlFor="p-name" error={errors.name} required>
-              <Input id="p-name" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} maxLength={120} invalid={!!errors.name} />
+              <Input
+                id="p-name"
+                value={edit.name}
+                onChange={(e) => setEdit({ ...edit, name: e.target.value })}
+                maxLength={120}
+                invalid={!!errors.name}
+                placeholder={t('sku.namePh')}
+                autoFocus
+              />
             </Field>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label={t('common.sku')} htmlFor="p-sku" error={errors.sku} required>
-                <Input id="p-sku" dir="ltr" value={edit.sku} onChange={(e) => setEdit({ ...edit, sku: e.target.value.toUpperCase() })} maxLength={60} invalid={!!errors.sku} className="num" />
-              </Field>
               <Field label={t('common.aluminumType')} htmlFor="p-type" error={errors.typeId} required>
                 <Select id="p-type" value={edit.typeId} onChange={(e) => setEdit({ ...edit, typeId: e.target.value })} invalid={!!errors.typeId}>
                   <option value="">{t('common.select')}</option>
@@ -626,10 +634,21 @@ function ProductsSection() {
                   ))}
                 </Select>
               </Field>
+              <Field label={t('inv.threshold')} htmlFor="p-low" error={errors.lowStockKg} hint={t('inv.thresholdHint', { kg: alerts.data ? fmtKg(alerts.data.lowStockKg) : '…' })} optionalLabel={t('common.optional')}>
+                <div className="relative">
+                  <Input
+                    id="p-low"
+                    numeric
+                    value={edit.lowStockKg}
+                    onChange={(e) => setEdit({ ...edit, lowStockKg: e.target.value })}
+                    invalid={!!errors.lowStockKg}
+                    placeholder={alerts.data ? D(alerts.data.lowStockKg).toString() : ''}
+                    className="pe-12"
+                  />
+                  <span className="input-suffix pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">kg</span>
+                </div>
+              </Field>
             </div>
-            <Field label={t('inv.threshold')} htmlFor="p-low" error={errors.lowStockKg} hint={t('inv.thresholdHint', { kg: alerts.data ? fmtKg(alerts.data.lowStockKg) : '…' })} optionalLabel={t('set.override')}>
-              <Input id="p-low" numeric value={edit.lowStockKg} onChange={(e) => setEdit({ ...edit, lowStockKg: e.target.value })} invalid={!!errors.lowStockKg} />
-            </Field>
           </form>
         ) : null}
       </Dialog>

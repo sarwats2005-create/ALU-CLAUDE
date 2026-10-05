@@ -70,10 +70,10 @@ check('customer balance back to 0', Number(cc.balance) === 0, cc);
 const ben = await call('POST', '/api/beneficiaries', { name: `Erase Supplier ${tag}` });
 const types = (await call('GET', '/api/lookup/types')).data;
 const pur = await call('POST', '/api/purchases', {
-  date: today, beneficiaryId: ben.data.id, newProduct: { name: `Erase bar ${tag}`, sku: `E-${tag}`, typeId: types[0].id },
+  date: today, beneficiaryId: ben.data.id, newProduct: { name: `Erase bar ${tag}`, typeId: types[0].id },
   state: 'RAW', kg: '100', unitPrice: '2', currency: 'USD', vault: 'USD', cashPaid: '0',
 });
-const prod = (await call('GET', `/api/lookup/products?q=E-${tag}`)).data[0];
+const prod = (await call('GET', `/api/lookup/products?q=${encodeURIComponent(`Erase bar ${tag}`)}`)).data[0];
 const sale = await call('POST', '/api/sales', {
   date: today, customerId: cust.data.id, currency: 'USD', vault: 'USD', cashPaid: '30', lines: [{ productId: prod.id, state: 'RAW', kg: '40', unitPrice: '3' }],
 });

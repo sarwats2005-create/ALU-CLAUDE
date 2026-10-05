@@ -52,7 +52,7 @@ const types = (await owner('GET', '/api/lookup/types')).data;
 const pur = await owner('POST', '/api/purchases', {
   date: today,
   beneficiaryId: ben.data.id,
-  newProduct: { name: `Test bar ${tag}`, sku: `T-${tag}`, typeId: types[0].id },
+  newProduct: { name: `Test bar ${tag}`, typeId: types[0].id },
   state: 'RAW',
   kg: '1000',
   unitPrice: '2',
@@ -64,7 +64,7 @@ check('purchase recorded with PUR number', pur.status === 200 && /^PUR-\d{5}$/.t
 const benAfter = (await owner('GET', `/api/beneficiaries/${ben.data.id}`)).data;
 check('purchase: factory owes beneficiary 1,500.00 (2,000 − 500 cash)', benAfter.cards.balance === '1500', benAfter.cards);
 
-const prod = (await owner('GET', `/api/lookup/products?q=T-${tag}`)).data[0];
+const prod = (await owner('GET', `/api/lookup/products?q=${encodeURIComponent(`Test bar ${tag}`)}`)).data[0];
 check('purchase created product with 1,000 kg RAW', prod && Number(prod.rawKg) === 1000, prod);
 
 const prc = await owner('POST', '/api/processing', { productId: prod.id, date: today, inputKg: '400', method: 'PERCENT', lossPercent: '5' });

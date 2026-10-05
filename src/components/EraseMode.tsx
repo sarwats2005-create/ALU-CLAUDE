@@ -18,8 +18,13 @@ type Ctx = {
   eraseTxn: (id: string, number: string) => Promise<boolean>;
   eraseCustomer: (id: string, name: string) => Promise<boolean>;
   eraseAudit: (ids: number[]) => Promise<boolean>;
+  /** Every transaction in a product's stock history (the product stays). */
+  eraseProduct: (id: string, name: string, n: number) => Promise<boolean>;
+  /** One restore point, or all of them when no id is given. */
+  eraseSnapshots: (id?: string) => Promise<boolean>;
 };
-const EraseCtx = createContext<Ctx>({ active: false, eraseTxn: async () => false, eraseCustomer: async () => false, eraseAudit: async () => false });
+const no = async () => false;
+const EraseCtx = createContext<Ctx>({ active: false, eraseTxn: no, eraseCustomer: no, eraseAudit: no, eraseProduct: no, eraseSnapshots: no });
 export const useErase = () => useContext(EraseCtx);
 
 type Ask = { title: string; body: string; resolve: (ok: boolean) => void };
@@ -120,6 +125,20 @@ export function EraseProvider({ children }: { children: ReactNode }) {
     },
     [confirm, run, t],
   );
+  const eraseProduct = useCallback(
+    async (id: string, name: string, n: number) => {
+      if (!(await confirm(t('erase.prodTitle', { name }), t('erase.prodBody', { name, n })))) return false;
+      return run<{ name: string; count: number }>(`/api/erase/products/${id}`, 'DELETE', undefined, (d) => t('erase.prodDone', { name: d.name, n: d.count }));
+    },
+    [confirm, run, t],
+  );
+  const eraseSnapshots = useCallback(
+    async (id?: string) => {
+      if (!(await confirm(id ? t('erase.snapTitle') : t('erase.snapsTitle'), id ? t('erase.snapBody') : t('erase.snapsBody')))) return false;
+      return run<{ count: number }>(id ? `/api/erase/snapshots/${id}` : '/api/erase/snapshots', 'DELETE', undefined, (d) => t('erase.snapsDone', { n: d.count }));
+    },
+    [confirm, run, t],
+  );
   async function eraseVoided() {
     if (!(await confirm(t('erase.voidedTitle'), t('erase.voidedBody', { n: voided })))) return;
     await run<{ count: number }>('/api/erase/voided', 'DELETE', undefined, (d) => t('erase.voidedDone', { n: d.count }));
@@ -135,7 +154,7 @@ export function EraseProvider({ children }: { children: ReactNode }) {
   const time = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
 
   return (
-    <EraseCtx.Provider value={{ active, eraseTxn, eraseCustomer, eraseAudit }}>
+    <EraseCtx.Provider value={{ active, eraseTxn, eraseCustomer, eraseAudit, eraseProduct, eraseSnapshots }}>
       {children}
 
       {active ? (

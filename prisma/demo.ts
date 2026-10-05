@@ -40,7 +40,7 @@ async function main() {
   await saveVaultOp({ kind: 'VAULT_DEPOSIT', date: d(120), vault: 'USD', amount: '60000', label: 'Opening capital' }, actor, undefined, demo);
   await saveVaultOp({ kind: 'VAULT_DEPOSIT', date: d(120), vault: 'IQD', amount: '25000000', label: 'Opening capital' }, actor, undefined, demo);
 
-  const pur = (date: string, beneficiaryId: string, np: { name: string; sku: string; typeId: string } | string, state: 'RAW' | 'FINISHED', kg: string, unitPrice: string, cashPaid: string, currency = 'USD') =>
+  const pur = (date: string, beneficiaryId: string, np: { name: string; typeId: string } | string, state: 'RAW' | 'FINISHED', kg: string, unitPrice: string, cashPaid: string, currency = 'USD') =>
     savePurchase(
       {
         date,
@@ -58,14 +58,14 @@ async function main() {
       demo,
     );
 
-  await pur(d(110), b1, { name: 'Window profile 6063-T5', sku: 'WP-6063', typeId: t6063 }, 'RAW', '4200', '2.35', '9870');
-  const p1 = (await prisma.product.findUnique({ where: { sku: 'WP-6063' } }))!.id;
-  await pur(d(96), b3, { name: 'Structural bar 6061', sku: 'SB-6061', typeId: t6061 }, 'RAW', '2600', '2.80', '5000');
-  const p2 = (await prisma.product.findUnique({ where: { sku: 'SB-6061' } }))!.id;
-  await pur(d(80), b2, { name: 'Mixed scrap', sku: 'SCR-MIX', typeId: tScrap }, 'RAW', '5000', '2350', '11750000', 'IQD');
-  const p3 = (await prisma.product.findUnique({ where: { sku: 'SCR-MIX' } }))!.id;
-  await pur(d(62), b1, { name: 'Sliding rail 6063', sku: 'SR-6063', typeId: t6063 }, 'FINISHED', '900', '3.40', '3060');
-  const p4 = (await prisma.product.findUnique({ where: { sku: 'SR-6063' } }))!.id;
+  await pur(d(110), b1, { name: 'Window profile 6063-T5', typeId: t6063 }, 'RAW', '4200', '2.35', '9870');
+  const p1 = (await prisma.product.findFirst({ where: { name: 'Window profile 6063-T5' } }))!.id;
+  await pur(d(96), b3, { name: 'Structural bar 6061', typeId: t6061 }, 'RAW', '2600', '2.80', '5000');
+  const p2 = (await prisma.product.findFirst({ where: { name: 'Structural bar 6061' } }))!.id;
+  await pur(d(80), b2, { name: 'Mixed scrap', typeId: tScrap }, 'RAW', '5000', '2350', '11750000', 'IQD');
+  const p3 = (await prisma.product.findFirst({ where: { name: 'Mixed scrap' } }))!.id;
+  await pur(d(62), b1, { name: 'Sliding rail 6063', typeId: t6063 }, 'FINISHED', '900', '3.40', '3060');
+  const p4 = (await prisma.product.findFirst({ where: { name: 'Sliding rail 6063' } }))!.id;
   await pur(d(40), b1, p1, 'RAW', '3000', '2.40', '4000');
   await pur(d(15), b3, p2, 'RAW', '1800', '2.75', '0');
 

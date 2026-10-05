@@ -26,7 +26,7 @@ import { useApp } from "@/lib/client/app-context";
 import { Badge, Card, PageHeader } from "@/components/ui";
 import { SectionLabel, SummaryCell, SummaryStrip } from "@/components/Summary";
 import { cx } from "@/lib/cx";
-import { RULES } from "@/lib/rules";
+import { RULES, skuFor } from "@/lib/rules";
 import { fmtAmount, fmtKg, fmtMoney, fmtRate } from "@/lib/money";
 import {
   ABOUT_CHANGELOG,
@@ -122,6 +122,7 @@ export function AboutView({ live }: { live: AboutLive }) {
       folderDays: String(RULES.folderBackupDays),
       pinMin: String(RULES.pinMinDigits),
       pinMax: String(RULES.pinMaxDigits),
+      skuExample: skuFor(1),
       rate: `100 USD = ${fmtRate(rate)} IQD`,
       lowStock: fmtKg(live.lowStockKg),
       custDue: fmtMoney(live.customerDueUsd),

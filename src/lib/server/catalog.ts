@@ -9,6 +9,8 @@ import { cleanMultiline, cleanText, getSettings, nameKey, phone } from './common
 import { audit } from './audit';
 import { revokeOtherSessions } from './auth';
 import type { Actor } from './txns';
+import type { Tx } from '@/lib/db';
+import { skuFor } from '@/lib/rules';
 
 const IMG = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
 const MAX_IMG = 900_000; // chars of base64 (~650 KB) — the client crops to 256px, so this is generous
@@ -114,14 +116,34 @@ export async function deleteType(id: string, actor: Actor) {
 }
 
 // ─── Products ──────────────────────────────────────────────────────────────────────────────────────
-export type ProductInput = { name?: string; sku?: string; typeId?: string; lowStockKg?: string | null };
+// Every product gets its code (SKU) automatically: ALU-00001, ALU-00002, … from a running counter that only
+// goes up, so a code is never given twice, not even after a product is deleted. Codes never change.
+export type ProductInput = { name?: string; typeId?: string; lowStockKg?: string | null };
+
+/** Take the next free product code (inside the caller's transaction). Skips codes already in use. */
+export async function nextSku(tx: Tx): Promise<string> {
+  for (;;) {
+    const rows = await tx.$queryRaw<{ value: number }[]>`
+      INSERT INTO "Counter" ("key", "value") VALUES ('SKU', 1)
+      ON CONFLICT ("key") DO UPDATE SET "value" = "Counter"."value" + 1
+      RETURNING "value"`;
+    const sku = skuFor(rows[0].value);
+    if (!(await tx.product.findUnique({ where: { sku }, select: { id: true } }))) return sku;
+  }
+}
+
+/** The code the next new product will most likely get (preview only; nothing is reserved). */
+export async function peekSku(): Promise<string> {
+  const c = await prisma.counter.findUnique({ where: { key: 'SKU' } });
+  let n = (c?.value ?? 0) + 1;
+  while (await prisma.product.findUnique({ where: { sku: skuFor(n) }, select: { id: true } })) n++;
+  return skuFor(n);
+}
 
 export async function saveProduct(input: ProductInput, actor: Actor, id?: string, opts: { isDemo?: boolean } = {}) {
   const v = new Validator();
   const name = cleanText(input.name, 120);
-  const sku = cleanText(input.sku, 60).toUpperCase();
   if (!name) v.add('name', 'v.required');
-  if (!sku) v.add('sku', 'v.required');
   if (!input.typeId) v.add('typeId', 'v.typeRequired');
   let low: string | null = null;
   if (input.lowStockKg !== undefined && input.lowStockKg !== null && input.lowStockKg !== '') {
@@ -132,19 +154,19 @@ export async function saveProduct(input: ProductInput, actor: Actor, id?: string
   }
   v.throwIfAny();
   return withTx(async (tx) => {
-    const clash = await tx.product.findUnique({ where: { sku }, select: { id: true } });
-    if (clash && clash.id !== id) throw fieldError('sku', 'v.skuExists');
     const type = await tx.aluminumType.findUnique({ where: { id: input.typeId! } });
     if (!type) throw fieldError('typeId', 'v.typeRequired');
-    const data = { name, sku, typeId: type.id, lowStockKg: low };
+    const data = { name, typeId: type.id, lowStockKg: low };
     if (id) {
+      // The code stays as it is: invoices, statements and reports already show it.
       const before = await tx.product.findUnique({ where: { id } });
       if (!before) throw notFound();
       const after = await tx.product.update({ where: { id }, data });
-      await audit({ user: actor, action: 'update', module: 'products', reference: sku, before, after }, tx);
+      await audit({ user: actor, action: 'update', module: 'products', reference: before.sku, before, after }, tx);
       return after;
     }
-    const p = await tx.product.create({ data: { ...data, isDemo: !!opts.isDemo } });
+    const sku = await nextSku(tx);
+    const p = await tx.product.create({ data: { ...data, sku, isDemo: !!opts.isDemo } });
     await audit({ user: actor, action: 'create', module: 'products', reference: sku, after: p }, tx);
     return p;
   });

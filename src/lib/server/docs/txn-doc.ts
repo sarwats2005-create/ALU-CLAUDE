@@ -6,8 +6,8 @@ import { fmtDate } from '@/lib/dates';
 import { convert, D, fmtCost, fmtKg, fmtMoney, fmtNum, fmtPct, fmtPrice, fmtRate, rateLine, roundMoney, type Cur } from '@/lib/money';
 import { docKindOf, type Kind } from '@/lib/kinds';
 import { getCompany } from '../common';
-import { txnDetail } from '../q/history';
-import { statementRows } from '../q/parties';
+import { txnDetail } from '@/lib/server/q/history';
+import { statementRows } from '@/lib/server/q/parties';
 import { notFound } from '../errors';
 import { docHtml, esc, num, type PageSize } from './shell';
 
@@ -77,9 +77,14 @@ export async function txnDocument(id: string, lang: Lang, size: PageSize = 'A5')
         ? `<tr><td class="m">${esc(L(from === 'USD' ? 'pay.inUsd' : 'pay.inIqd'))}<div class="s m">${esc(vaultWord(from))}</div></td><td class="e">${num(fmtMoney(amount, from))}${worth(amount, from)}</td></tr>`
         : '';
     const crossed = (cur === 'USD' && iqd.gt(0)) || (cur === 'IQD' && usd.gt(0));
+    // Split payment (both currencies, or paid in the other currency): one line per currency. Otherwise the
+    // invoice stays simple: the amount paid and the vault it went to.
+    const split = crossed || (usd.gt(0) && iqd.gt(0));
+    const paidVault: Cur | null = usd.gt(0) ? 'USD' : iqd.gt(0) ? 'IQD' : null;
     parts.push(`<section class="block sumrow">
       <div class="facts">
         <div>${esc(L('doc.payCurrency'))}: <b>${esc(L(`cur.${cur}`))}</b></div>
+        ${!split && paidVault ? `<div>${esc(L('doc.vaultUsed'))}: <b>${esc(L(`vault.${paidVault}` as 'vault.USD'))}</b></div>` : ''}
         <div>${esc(L('doc.rateApplied'))}: <b>${num(rateLine(d.rate))}</b></div>
         ${
           crossed
@@ -98,8 +103,7 @@ export async function txnDocument(id: string, lang: Lang, size: PageSize = 'A5')
       <table class="totals">
         <tr><td class="m">${esc(L('doc.subtotal'))}</td><td class="e b">${num(fmtMoney(d.total, cur))}</td></tr>
         ${cur === 'IQD' ? `<tr><td class="m">${esc(L('common.usdEquivalent'))}</td><td class="e">${num(fmtMoney(d.totalUsd))}</td></tr>` : ''}
-        ${payRow(usd, 'USD')}
-        ${payRow(iqd, 'IQD')}
+        ${split ? payRow(usd, 'USD') + payRow(iqd, 'IQD') : ''}
         <tr><td class="m">${esc(kind === 'SALE' ? L('doc.paidByCustomer') : L('doc.paidToSupplier'))}</td><td class="e b">${num(fmtMoney(d.cashPaid, cur))}</td></tr>
         <tr class="grand"><td>${esc(due.isNegative() ? L('doc.overpaid') : kind === 'SALE' ? L('doc.amountDue') : L('doc.balanceToPay'))}</td><td class="e ${due.gt(0) ? 'neg' : ''}">${num(fmtMoney(due.abs(), cur))}${
           due.gt(0) && cur === 'USD' ? `<div class="s">= ${num(fmtMoney(roundMoney(convert(due, 'USD', 'IQD', r), 'IQD'), 'IQD'))}</div>` : ''
