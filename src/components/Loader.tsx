@@ -3,7 +3,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useT } from '@/lib/client/app-context';
 import { busyCount, subscribeBusy } from '@/lib/client/busy';
 
-/** The bars-and-ball loader over a softly blurred page. Styles: .alu-loader in globals.css. */
+/** The bars-and-ball loader over a plain white veil (flat, no blur). Styles: .alu-loader in globals.css. */
 export function LoaderOverlay() {
   const { t } = useT();
   return (

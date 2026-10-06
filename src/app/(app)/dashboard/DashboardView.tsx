@@ -77,7 +77,7 @@ export function DashboardView({ data }: { data: Data }) {
           <p className="min-h-[18px] text-meta font-medium text-muted">{today}</p>
           <h1 className="bidi mt-1 text-large font-bold tracking-[-0.02em] text-ink md:text-[34px] md:leading-[40px]">{t('dash.greeting', { name: user.name.split(' ')[0] })}</h1>
         </div>
-        <div className="flex flex-col-reverse gap-2 sm:flex-row">
+        <div data-on-canvas className="flex flex-col-reverse gap-2 sm:flex-row">
           {can('beneficiaries') ? (
             <Link href="/beneficiaries/purchase" className="sm:w-auto">
               <Button variant="secondary" size="lg" block icon={<PackagePlus className="h-5 w-5" aria-hidden="true" />}>
@@ -87,7 +87,7 @@ export function DashboardView({ data }: { data: Data }) {
           ) : null}
           {can('pos') ? (
             <Link href="/pos" className="sm:w-auto">
-              <Button size="lg" block className="px-7 shadow-pop" icon={<ShoppingCart className="h-5 w-5" aria-hidden="true" />}>
+              <Button size="lg" block className="px-7" icon={<ShoppingCart className="h-5 w-5" aria-hidden="true" />}>
                 {t('pos.newSale')}
               </Button>
             </Link>
@@ -97,7 +97,7 @@ export function DashboardView({ data }: { data: Data }) {
 
       {!data.hasAnyData ? (
         <Card className="flex flex-col items-start gap-4 p-6 md:flex-row md:items-center">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-tint text-brand-ink">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-tint text-brand-ink">
             <Factory className="h-6 w-6" aria-hidden="true" />
           </div>
           <div className="flex-1">

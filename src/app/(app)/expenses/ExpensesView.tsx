@@ -156,7 +156,7 @@ export function ExpensesView({ editId }: { editId: string | null }) {
     r.unitPrice && r.quantity ? t('exp.unitLine', { qty: fmtNum(r.quantity, D(r.quantity).isInteger() ? 0 : 2), unit: r.unitName, price: fmtPrice(r.unitPrice, r.currency) }) : r.note;
 
   const actions = (r: ExpenseRow) => {
-    const btn = 'inline-flex h-9 w-9 items-center justify-center rounded-ctl text-muted transition-colors hover:bg-tint hover:text-ink';
+    const btn = 'inline-flex h-14 w-14 items-center justify-center rounded-ctl text-muted transition-colors hover:bg-tint hover:text-ink';
     return (
       <span className="flex items-center justify-end gap-0.5">
         <button type="button" className={btn} onClick={() => panel.open(r.id)} aria-label={t('invc.viewN', { number: r.number })} title={t('common.view')}>

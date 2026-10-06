@@ -1,90 +1,48 @@
 @import 'tailwindcss';
 
-/* Class-based dark mode (html.dark), driven by the user's theme choice. */
-@custom-variant dark (&:where(.dark, .dark *));
-
-/* ───────────────────────── Colour tokens ─────────────────────────
-   Every colour in the product comes from these variables. Components use token classes
-   (bg-surface, text-ink, border-line, text-danger…) — never arbitrary hex values — so light and dark
-   themes can never produce white-on-white again. */
+/* ───────────────────────── Flat design tokens ─────────────────────────
+   One light palette. Hierarchy comes from size, colour and type, never from depth: no shadows, no blur,
+   no decorative gradients on elements. Every colour in the product comes from these variables; components
+   use token classes (bg-surface, text-ink, bg-brand…), never hex values.
+   Fill colours are the design system's exact values. The *-ink tokens are the readable text shade of the
+   same hue (used for coloured text on white). */
 :root {
   color-scheme: light;
-  --bg: #f5f7fa;
-  --surface: #ffffff;
-  --surface-2: #f4f8ff; /* row stripe */
-  --tint: #e8f0fb; /* light blue tint */
-  --tint-2: #d0e1f9; /* mid blue */
-  --line: #d8e6f7; /* border */
-  --line-soft: #e8eef7;
-  --ink: #1a1f36; /* text primary */
-  --muted: #6b7280; /* text muted */
-  --brand: #1b5db1; /* Royal Blue */
-  --brand-strong: #143f7a; /* Dark Blue */
-  --brand-ink: #1b5db1;
+  --bg: #f3f4f6; /* Gray 100: the app canvas; white cards sit on it as colour blocks */
+  --surface: #ffffff; /* White */
+  --surface-2: #f3f4f6; /* Muted block / stripe */
+  --tint: #eff6ff; /* Blue 50 block */
+  --tint-2: #dbeafe; /* Blue 100 */
+  --line: #e5e7eb; /* Border (used sparingly) */
+  --line-soft: #e5e7eb;
+  --ink: #111827; /* Foreground, Gray 900 */
+  --muted: #6b7280; /* Gray 500 */
+  --brand: #3b82f6; /* Primary, Blue 500 */
+  --brand-strong: #2563eb; /* Blue 600: hover */
+  --brand-ink: #2563eb; /* blue text on white */
   --on-brand: #ffffff;
-  --success: #1e8a44;
-  --success-ink: #1a7a3c;
-  --success-tint: #e6f4ec;
-  --danger: #d93025;
-  --danger-ink: #c5221f;
-  --danger-tint: #fdecea;
-  --warning: #d97706;
-  --warning-ink: #9a5b05;
-  --warning-tint: #fdf3e2;
-  --sidebar: #1b5db1;
+  --success: #10b981; /* Secondary, Emerald 500 */
+  --success-ink: #047857;
+  --success-tint: #ecfdf5;
+  --danger: #ef4444;
+  --danger-ink: #dc2626;
+  --danger-tint: #fef2f2;
+  --warning: #f59e0b; /* Accent, Amber 500 */
+  --warning-ink: #b45309;
+  --warning-tint: #fffbeb;
+  --dark: #111827; /* Dark Gray blocks */
+  --sidebar: #3b82f6;
   --sidebar-ink: #ffffff;
-  --sidebar-muted: rgba(255, 255, 255, 0.78);
-  --sidebar-active: rgba(255, 255, 255, 0.16);
-  --overlay: rgba(16, 24, 40, 0.42);
-  --shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-  --shadow-pop: 0 12px 32px rgba(16, 24, 40, 0.16), 0 2px 6px rgba(16, 24, 40, 0.08);
-  --focus: rgba(27, 93, 177, 0.45);
-  --bar-glass: rgba(245, 247, 250, 0.82);
-  /* Chart marks (validated: lightness band, chroma floor, ≥3:1 vs surface). Profit/loss also
-     encodes sign by direction from the zero line, so colour is never the only channel. */
-  --chart-series: #1b5db1;
-  --chart-pos: #1e8a44;
-  --chart-neg: #d93025;
-  --chart-grid: #e8eef7;
-}
-
-:root.dark {
-  color-scheme: dark;
-  --bg: #0f1726;
-  --surface: #152036;
-  --surface-2: #19263f;
-  --tint: #1b2c4a;
-  --tint-2: #233a60;
-  --line: #273a5c;
-  --line-soft: #1f2f4c;
-  --ink: #e7ecf5;
-  --muted: #9aa6ba;
-  --brand: #3d7fd6;
-  --brand-strong: #8db8f2;
-  --brand-ink: #7fb0ef;
-  --on-brand: #ffffff;
-  --success: #3fb26a;
-  --success-ink: #5fcf88;
-  --success-tint: #16301f;
-  --danger: #f0645a;
-  --danger-ink: #ff8a80;
-  --danger-tint: #3a1d1d;
-  --warning: #f2a541;
-  --warning-ink: #f5b95e;
-  --warning-tint: #3a2a12;
-  --sidebar: #12305d;
-  --sidebar-ink: #ffffff;
-  --sidebar-muted: rgba(255, 255, 255, 0.74);
-  --sidebar-active: rgba(255, 255, 255, 0.12);
-  --overlay: rgba(0, 0, 0, 0.55);
-  --shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
-  --shadow-pop: 0 16px 40px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
-  --focus: rgba(127, 176, 239, 0.55);
-  --bar-glass: rgba(15, 23, 38, 0.8);
-  --chart-series: #3d7fd6;
-  --chart-pos: #2fa05a;
-  --chart-neg: #e4574d;
-  --chart-grid: #22314e;
+  --sidebar-muted: rgba(255, 255, 255, 0.85);
+  --sidebar-active: rgba(255, 255, 255, 0.2);
+  --overlay: rgba(17, 24, 39, 0.6);
+  --focus: #3b82f6;
+  --bar-glass: #ffffff;
+  /* Chart marks */
+  --chart-series: #3b82f6;
+  --chart-pos: #10b981;
+  --chart-neg: #ef4444;
+  --chart-grid: #e5e7eb;
 }
 
 @theme inline {
@@ -116,33 +74,36 @@
   --color-sidebar-active: var(--sidebar-active);
   --color-overlay: var(--overlay);
   --color-glass: var(--bar-glass);
+  --color-dark: var(--dark);
 
-  --font-sans: 'Inter', 'Vazirmatn', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: 'Outfit', 'Vazirmatn', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
-  --radius-ctl: 8px;
-  --radius-card: 12px;
-  --shadow-card: var(--shadow);
-  --shadow-pop: var(--shadow-pop);
+  /* Radius: consistent and moderate (6px controls, 8px blocks); pills only for tags. */
+  --radius-ctl: 6px;
+  --radius-card: 8px;
+  /* Zero artificial depth: the shadow utilities still exist in markup but render nothing. */
+  --shadow-card: none;
+  --shadow-pop: none;
 
   /* Type scale (after Bringhurst's classic scale, in px) */
   --text-caption: 12px;
   --text-caption--line-height: 16px;
-  --text-meta: 13px;
-  --text-meta--line-height: 18px;
-  --text-body: 14px;
-  --text-body--line-height: 21px;
-  --text-lead: 16px;
+  --text-meta: 14px;
+  --text-meta--line-height: 19px;
+  --text-body: 15px;
+  --text-body--line-height: 22px;
+  --text-lead: 17px;
   --text-lead--line-height: 24px;
-  --text-title: 18px;
+  --text-title: 19px;
   --text-title--line-height: 24px;
-  --text-heading: 21px;
-  --text-heading--line-height: 26px;
-  --text-large: 28px;
-  --text-large--line-height: 32px;
-  --text-figure: 36px;
-  --text-figure--line-height: 40px;
-  --text-hero: 60px;
-  --text-hero--line-height: 60px;
+  --text-heading: 24px;
+  --text-heading--line-height: 28px;
+  --text-large: 32px;
+  --text-large--line-height: 34px;
+  --text-figure: 40px;
+  --text-figure--line-height: 42px;
+  --text-hero: 72px;
+  --text-hero--line-height: 68px;
 }
 
 @layer base {
@@ -154,20 +115,29 @@
     background: var(--bg);
     color: var(--ink);
     font-family: var(--font-sans);
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1.5;
-    font-feature-settings: 'cv11', 'ss01';
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
   html[dir='rtl'] body {
-    font-family: 'Vazirmatn', 'Inter', ui-sans-serif, system-ui, sans-serif;
-    font-feature-settings: normal;
+    font-family: 'Vazirmatn', 'Outfit', ui-sans-serif, system-ui, sans-serif;
   }
+  /* Headings: geometric, heavy, tight. */
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.02em;
+  }
+  html[dir='rtl'] h1,
+  html[dir='rtl'] h2,
+  html[dir='rtl'] h3 {
+    letter-spacing: 0;
+  }
+  /* No shadows means focus must be a hard, high-contrast ring (ring-2 + offset-2, Blue 500). */
   :focus-visible {
-    outline: 3px solid var(--focus);
+    outline: 2px solid var(--focus);
     outline-offset: 2px;
-    border-radius: 6px;
   }
   button,
   [role='button'] {
@@ -206,8 +176,7 @@
     direction: ltr;
     unicode-bidi: isolate;
     font-variant-numeric: tabular-nums;
-    font-feature-settings: 'tnum', 'cv11';
-    font-family: 'Inter', 'Vazirmatn', ui-sans-serif, system-ui, sans-serif;
+    font-family: 'Outfit', 'Vazirmatn', ui-sans-serif, system-ui, sans-serif;
   }
   .tabular {
     font-variant-numeric: tabular-nums;
@@ -217,8 +186,8 @@
     direction: ltr;
     unicode-bidi: isolate;
     font-variant-numeric: proportional-nums;
-    font-family: 'Inter', 'Vazirmatn', ui-sans-serif, system-ui, sans-serif;
-    letter-spacing: -0.025em;
+    font-family: 'Outfit', 'Vazirmatn', ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.02em;
   }
   .scroll-thin {
     scrollbar-width: thin;
@@ -239,10 +208,15 @@
   }
 }
 .skeleton {
-  background: linear-gradient(90deg, var(--line-soft) 0px, var(--surface-2) 120px, var(--line-soft) 240px);
-  background-size: 800px 100%;
-  animation: shimmer 1.4s linear infinite;
+  /* Flat placeholder block that pulses (no shimmer gradient). */
+  background: var(--line);
+  animation: skeleton-pulse 1.2s ease-in-out infinite;
   border-radius: 6px;
+}
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.55;
+  }
 }
 
 /* User-triggered motion only: sheets, dialogs, toasts. */
@@ -286,31 +260,24 @@
 }
 
 /* ───────────────────────── Toggle switch ─────────────────────────
-   The owner's chosen switch design (green, ✓ / ✕ icons, "stretch" on press, glow + pulse when turned on).
-   Adapted to this app: scoped under .alu-switch, the knob uses logical inset so it moves the right way in
-   Kurdish (RTL), dark mode follows the app's theme class, and the real checkbox covers the track so the
-   switch works both inside a <label> and on its own. */
+   Flat switch: solid Gray 200 track, solid Emerald 500 when on, white knob, ✓ / ✕ icons. No shadows or
+   gradients. The knob uses logical inset so it moves the right way in Kurdish (RTL); the real checkbox covers
+   the track so the switch works inside a <label> and on its own. Pressing stretches the knob (snappy motion). */
 .alu-switch {
-  --button-width: 4em;
-  --button-height: 2.2em;
-  --circle-diameter: 1.8em;
-  --circle-offset: 3px;
-  --button-hue: 120;
-  --button-saturation: 80%;
-  --button-lightness: 40%;
-
+  --button-width: 3.6em;
+  --button-height: 2em;
+  --circle-diameter: 1.5em;
+  --circle-offset: 0.25em;
   font-size: 17px;
   position: relative;
   display: inline-block;
   flex-shrink: 0;
   width: var(--button-width);
   height: var(--button-height);
-  outline: none;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 .alu-switch:focus-within {
-  outline: 2px solid hsl(var(--button-hue), var(--button-saturation), var(--button-lightness));
-  outline-offset: 3px;
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
   border-radius: var(--button-height);
 }
 .alu-switch input {
@@ -328,29 +295,11 @@
 }
 .alu-switch .slider {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #e8e8e8, #d4d4d4);
-  border-radius: var(--button-height);
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  overflow: hidden;
-  box-shadow:
-    inset 0 1px 3px rgba(0, 0, 0, 0.1),
-    inset 0 -1px 2px rgba(255, 255, 255, 0.5),
-    0 1px 2px rgba(0, 0, 0, 0.1);
-}
-.alu-switch .slider::after {
-  content: '';
-  position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.05) 100%);
+  background: var(--line);
   border-radius: var(--button-height);
-  pointer-events: none;
+  transition: background-color 0.2s ease;
+  overflow: hidden;
 }
 .alu-switch .slider::before {
   content: '';
@@ -359,184 +308,75 @@
   inset-inline-start: var(--circle-offset);
   width: var(--circle-diameter);
   height: var(--circle-diameter);
-  background: linear-gradient(145deg, #ffffff, #f0f0f0);
-  border-radius: 50%;
+  background: #ffffff;
+  border-radius: var(--circle-diameter);
   transform: translateY(-50%);
   transition:
-    inset-inline-start 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55),
-    width 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55),
-    box-shadow 0.4s ease,
-    transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.15),
-    0 1px 3px rgba(0, 0, 0, 0.1),
-    inset 0 2px 4px rgba(255, 255, 255, 0.8),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.05);
-  will-change: inset-inline-start, width, transform;
+    inset-inline-start 0.2s ease,
+    width 0.2s ease,
+    transform 0.2s ease;
   z-index: 2;
 }
 .alu-switch .glow {
-  position: absolute;
-  top: 50%;
-  inset-inline-start: calc(var(--circle-diameter) / 2 + var(--circle-offset));
-  width: 0;
-  height: 0;
-  background: hsl(var(--button-hue), var(--button-saturation), var(--button-lightness));
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  transition: all 0.5s ease;
-  opacity: 0;
-  z-index: 1;
+  display: none;
 }
-[dir='rtl'] .alu-switch .glow {
-  transform: translate(50%, -50%);
+.alu-switch:hover .slider {
+  background: #d1d5db;
 }
 .alu-switch:hover .slider::before {
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.2),
-    0 2px 4px rgba(0, 0, 0, 0.15),
-    inset 0 2px 4px rgba(255, 255, 255, 0.8),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.05);
-  transform: translateY(-50%) scale(1.05);
+  transform: translateY(-50%) scale(1.08);
 }
 .alu-switch input:checked + .slider {
-  background: linear-gradient(
-    135deg,
-    hsl(var(--button-hue), var(--button-saturation), calc(var(--button-lightness) + 15%)),
-    hsl(var(--button-hue), var(--button-saturation), var(--button-lightness))
-  );
-  box-shadow:
-    inset 0 1px 3px rgba(0, 0, 0, 0.2),
-    inset 0 -1px 2px rgba(255, 255, 255, 0.3),
-    0 2px 8px hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0.3),
-    0 0 20px hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0.1);
-  animation: alu-switch-pulse 0.6s ease-out;
+  background: var(--success);
 }
 .alu-switch:hover input:checked + .slider {
-  box-shadow:
-    inset 0 1px 3px rgba(0, 0, 0, 0.2),
-    inset 0 -1px 2px rgba(255, 255, 255, 0.3),
-    0 4px 12px hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0.4),
-    0 0 30px hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0.2);
-}
-.alu-switch input:checked + .slider .glow {
-  width: 100%;
-  height: 100%;
-  opacity: 0.3;
+  background: #059669;
 }
 .alu-switch input:checked + .slider::before {
   inset-inline-start: calc(100% - var(--circle-diameter) - var(--circle-offset));
-  background: linear-gradient(145deg, #ffffff, #f5f5f5);
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.2),
-    0 2px 4px rgba(0, 0, 0, 0.15),
-    inset 0 2px 4px rgba(255, 255, 255, 0.8),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.08);
 }
 /* Press: the knob stretches across the track */
 .alu-switch input:active + .slider::before {
   width: calc(var(--button-width) - 2 * var(--circle-offset));
-  border-radius: var(--button-height);
-  transition:
-    inset-inline-start 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    border-radius 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow 0.3s ease;
 }
 .alu-switch input:active:not(:checked) + .slider::before,
 .alu-switch input:checked:active + .slider::before {
   inset-inline-start: var(--circle-offset);
-  width: calc(var(--button-width) - 2 * var(--circle-offset));
 }
 .alu-switch .icon-on,
 .alu-switch .icon-off {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  font-size: calc(var(--button-height) * 0.5);
+  font-size: calc(var(--button-height) * 0.45);
+  font-weight: 700;
   line-height: 1;
   z-index: 1;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.2s ease;
   pointer-events: none;
-  color: white;
+  color: #ffffff;
 }
 .alu-switch .icon-on {
-  inset-inline-start: 12px;
+  inset-inline-start: 0.55em;
 }
 .alu-switch .icon-off {
-  inset-inline-end: 12px;
-  color: #999;
+  inset-inline-end: 0.55em;
+  color: var(--muted);
 }
 .alu-switch input:checked + .slider .icon-on,
 .alu-switch input:not(:checked) + .slider .icon-off {
   opacity: 1;
-}
-@keyframes alu-switch-pulse {
-  0% {
-    box-shadow: 0 0 0 0 hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0.4);
-  }
-  70% {
-    box-shadow: 0 0 0 10px hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0);
-  }
 }
 .alu-switch input:disabled {
   cursor: not-allowed;
 }
 .alu-switch input:disabled + .slider {
   opacity: 0.5;
-  cursor: not-allowed;
-  filter: grayscale(30%);
-}
-.alu-switch:hover input:disabled + .slider::before {
-  transform: translateY(-50%);
-}
-/* Dark theme (the app's own theme switch, not only the OS setting) */
-:root.dark .alu-switch .slider {
-  background: linear-gradient(135deg, #3a3a3a, #2a2a2a);
-  box-shadow:
-    inset 0 1px 3px rgba(0, 0, 0, 0.3),
-    inset 0 -1px 2px rgba(255, 255, 255, 0.05),
-    0 1px 2px rgba(0, 0, 0, 0.3);
-}
-:root.dark .alu-switch .slider::before {
-  background: linear-gradient(145deg, #555, #444);
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.3),
-    0 1px 3px rgba(0, 0, 0, 0.2),
-    inset 0 2px 4px rgba(255, 255, 255, 0.1),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.2);
-}
-:root.dark .alu-switch input:checked + .slider {
-  background: linear-gradient(
-    135deg,
-    hsl(var(--button-hue), var(--button-saturation), calc(var(--button-lightness) + 15%)),
-    hsl(var(--button-hue), var(--button-saturation), var(--button-lightness))
-  );
-  box-shadow:
-    inset 0 1px 3px rgba(0, 0, 0, 0.4),
-    inset 0 -1px 2px rgba(255, 255, 255, 0.15),
-    0 2px 8px hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0.3),
-    0 0 25px hsl(var(--button-hue), var(--button-saturation), var(--button-lightness), 0.15);
-}
-@media (prefers-reduced-motion: reduce) {
-  .alu-switch .slider,
-  .alu-switch .slider::before {
-    transition-duration: 0.1s;
-  }
-  .alu-switch input:checked + .slider {
-    animation: none;
-  }
-  .alu-switch .slider::before {
-    will-change: auto;
-  }
 }
 
 /* ───────────────────────── Loader ─────────────────────────
-   The owner's bars-and-ball loader (Uiverse.io, by Nawsome), over a softly blurred page. Shown while pages
+   The owner's bars-and-ball loader (Uiverse.io, by Nawsome), over a flat white veil (no blur). Shown while pages
    load and while saves / deletes / PDFs / printing run. Above dialogs, below toasts. */
 .alu-loading-overlay {
   position: fixed;
@@ -545,9 +385,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--bg) 35%, transparent);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
+  background: rgba(255, 255, 255, 0.85);
   animation: alu-loader-in 160ms ease-out;
 }
 @keyframes alu-loader-in {
@@ -556,13 +394,10 @@
   }
 }
 .alu-loader {
-  --bar: rgb(0, 0, 0);
+  --bar: var(--ink);
   position: relative;
   width: 75px;
   height: 100px;
-}
-:root.dark .alu-loader {
-  --bar: #e7ecf5;
 }
 .alu-loader__bar {
   position: absolute;
@@ -571,7 +406,6 @@
   height: 50%;
   background: var(--bar);
   transform-origin: center bottom;
-  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.2);
 }
 .alu-loader__bar:nth-child(1) {
   left: 0px;
@@ -604,7 +438,7 @@
   left: 0;
   width: 10px;
   height: 10px;
-  background: rgb(44, 143, 255);
+  background: var(--brand);
   border-radius: 50%;
   animation: alu-ball 4s infinite;
 }
@@ -685,4 +519,35 @@
 }
 :has(> input:not(:placeholder-shown)) > .input-suffix {
   opacity: 0;
+}
+
+/* Secondary buttons sitting directly on the grey canvas (page-header actions) become white blocks so they
+   stay visible; inside white cards they keep the Gray 100 block. */
+[data-on-canvas] [data-variant='secondary'] {
+  background: var(--surface);
+}
+[data-on-canvas] [data-variant='secondary']:hover {
+  background: var(--tint-2);
+}
+
+/* Stat blocks: icon circles cycle through the palette (Blue, Emerald, Amber, Dark Gray); red when the block
+   needs action. Kept here so every summary strip in the app follows the same order. */
+.stat-strip > :nth-child(4n + 1) .stat-icon {
+  background: var(--brand);
+}
+.stat-strip > :nth-child(4n + 2) .stat-icon {
+  background: var(--success);
+}
+.stat-strip > :nth-child(4n + 3) .stat-icon {
+  background: var(--warning);
+}
+.stat-strip > :nth-child(4n + 4) .stat-icon {
+  background: var(--dark);
+}
+.stat-strip .stat-icon.is-alert,
+.stat-icon.is-alert {
+  background: var(--danger);
+}
+.stat-icon {
+  background: var(--brand);
 }

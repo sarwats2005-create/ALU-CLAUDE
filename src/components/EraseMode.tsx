@@ -162,7 +162,7 @@ export function EraseProvider({ children }: { children: ReactNode }) {
           <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-[45] border-4 border-danger" />
           <div
             role="status"
-            className="fixed inset-x-4 top-[64px] z-[46] mx-auto flex max-w-max flex-wrap items-center justify-center gap-x-3 gap-y-1.5 rounded-card bg-danger px-4 py-2 text-meta font-semibold text-white shadow-pop md:top-auto md:bottom-6"
+            className="fixed inset-x-4 top-[64px] z-[46] mx-auto flex max-w-max flex-wrap items-center justify-center gap-x-3 gap-y-1.5 rounded-card bg-danger px-4 py-2 text-meta font-semibold text-white md:top-auto md:bottom-6"
           >
             <span className="inline-flex items-center gap-1.5">
               <ShieldAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -239,7 +239,7 @@ export function EraseProvider({ children }: { children: ReactNode }) {
           </>
         }
       >
-        <p className="rounded-ctl border border-danger/30 bg-danger-tint px-4 py-3 text-body text-danger-ink">{ask?.body}</p>
+        <p className="rounded-ctl bg-danger-tint px-4 py-3 text-body text-danger-ink">{ask?.body}</p>
       </Dialog>
     </EraseCtx.Provider>
   );

@@ -186,7 +186,7 @@ export function TxnPanelProvider({ children }: { children: ReactNode }) {
       >
         {data ? (
           <div className="flex flex-col gap-4">
-            <div role="alert" className="rounded-ctl border border-danger/30 bg-danger-tint px-4 py-3 text-body text-danger-ink">
+            <div role="alert" className="rounded-ctl bg-danger-tint px-4 py-3 text-body text-danger-ink">
               <p className="font-semibold">{t('detail.deleteWarn', { kind: t(`kind.${data.kind}` as 'kind.SALE'), number: data.number })}</p>
               <p className="mt-1 text-meta">{t('detail.deleteEffects')}</p>
             </div>

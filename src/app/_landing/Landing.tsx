@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Boxes, Factory } from 'lucide-react';
 import type { Lang } from '@/lib/i18n';
 import { landingCopy } from './copy';
 import { Extrusion } from './Extrusion';
@@ -25,19 +26,18 @@ function waNumber(phone: string) {
 function ProfileMark() {
   return (
     <svg className="lp-mark" viewBox="0 0 16 16" aria-hidden="true">
-      <path
-        fillRule="evenodd"
-        d="M0 0h6.4v1.6H9.6V0H16v6.4h-1.6v3.2H16V16H9.6v-1.6H6.4V16H0V9.6h1.6V6.4H0ZM8 6.2a1.8 1.8 0 1 0 0 3.6a1.8 1.8 0 1 0 0-3.6Z"
-      />
+      <path fillRule="evenodd" d="M0 0h6.4v1.6H9.6V0H16v6.4h-1.6v3.2H16V16H9.6v-1.6H6.4V16H0V9.6h1.6V6.4H0ZM8 6.2a1.8 1.8 0 1 0 0 3.6a1.8 1.8 0 1 0 0-3.6Z" />
     </svg>
   );
 }
 
+/*
+ * Flat poster layout: Blue hero → multi-colour fact blocks → white "What we sell" → Emerald steps →
+ * Amber call-to-action → Dark footer. No shadows, no gradients; the large shapes are low-opacity decoration.
+ */
 export function Landing({ lang, data }: { lang: Lang; data: LandingData }) {
   const c = landingCopy(lang);
-  const mapUrl = data.address
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${data.name}, ${data.address}`)}`
-    : null;
+  const mapUrl = data.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${data.name}, ${data.address}`)}` : null;
   const firstPhone = data.phones[0];
   const year = new Date().getFullYear();
 
@@ -46,23 +46,28 @@ export function Landing({ lang, data }: { lang: Lang; data: LandingData }) {
       <a className="lp-skip" href="#lp-main">
         {lang === 'ku' ? 'بازدان بۆ ناوەڕۆک' : 'Skip to content'}
       </a>
-      <header className="lp-head lp-wrap">
-        <Link href="/" className="lp-brand">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={data.logo || '/app-icon.png'} alt="" width={36} height={36} />
-          <span dir="auto">{data.name}</span>
-        </Link>
-        <div className="lp-head-actions">
-          <LangSwitch lang={lang} />
-          <Link href="/login" className="lp-btn lp-btn-quiet" aria-label={c.signIn}>
-            <span className="lp-long">{c.signIn}</span>
-            <span className="lp-short">{c.signInShort}</span>
+
+      <div className="lp-top">
+        <header className="lp-head lp-wrap">
+          <Link href="/" className="lp-brand">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={data.logo || '/app-icon.png'} alt="" width={40} height={40} />
+            <span dir="auto">{data.name}</span>
           </Link>
-        </div>
-      </header>
+          <div className="lp-head-actions">
+            <LangSwitch lang={lang} />
+            <Link href="/login" className="lp-btn lp-btn-white" aria-label={c.signIn}>
+              <span className="lp-long">{c.signIn}</span>
+              <span className="lp-short">{c.signInShort}</span>
+            </Link>
+          </div>
+        </header>
+      </div>
 
       <main id="lp-main">
         <section className="lp-hero">
+          <span className="lp-deco lp-deco-circle" aria-hidden="true" />
+          <span className="lp-deco lp-deco-square" aria-hidden="true" />
           <div className="lp-wrap lp-hero-inner">
             <div className="lp-hero-text">
               <h1>{c.headline}</h1>
@@ -70,12 +75,12 @@ export function Landing({ lang, data }: { lang: Lang; data: LandingData }) {
               {firstPhone || mapUrl ? (
                 <div className="lp-ctas">
                   {firstPhone ? (
-                    <a className="lp-btn lp-btn-solid" href={`tel:${firstPhone.replace(/[^\d+]/g, '')}`}>
+                    <a className="lp-btn lp-btn-white lp-btn-lg" href={`tel:${firstPhone.replace(/[^\d+]/g, '')}`}>
                       {c.call}
                     </a>
                   ) : null}
                   {mapUrl ? (
-                    <a className="lp-btn lp-btn-line" href={mapUrl} target="_blank" rel="noopener noreferrer">
+                    <a className="lp-btn lp-btn-outline-white lp-btn-lg" href={mapUrl} target="_blank" rel="noopener noreferrer">
                       {c.directions}
                     </a>
                   ) : null}
@@ -88,14 +93,32 @@ export function Landing({ lang, data }: { lang: Lang; data: LandingData }) {
           </div>
         </section>
 
+        {/* Multi-colour fact blocks: Blue, Emerald, Amber, Dark. */}
+        <section className="lp-facts lp-wrap" aria-label={c.sellTitle}>
+          <ul>
+            {c.facts.map(([big, small]) => (
+              <li key={small}>
+                <strong dir="auto">{big}</strong>
+                <span>{small}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
         <section className="lp-sell lp-wrap" aria-labelledby="lp-sell-title">
           <h2 id="lp-sell-title">{c.sellTitle}</h2>
           <div className="lp-sell-grid">
-            <div>
+            <div className="lp-card">
+              <span className="lp-icon lp-icon-blue" aria-hidden="true">
+                <Boxes />
+              </span>
               <h3>{c.rawTitle}</h3>
               <p>{c.rawText}</p>
             </div>
-            <div>
+            <div className="lp-card">
+              <span className="lp-icon lp-icon-emerald" aria-hidden="true">
+                <Factory />
+              </span>
               <h3>{c.finishedTitle}</h3>
               <p>{c.finishedText}</p>
             </div>
@@ -116,6 +139,7 @@ export function Landing({ lang, data }: { lang: Lang; data: LandingData }) {
         </section>
 
         <section className="lp-steps" aria-labelledby="lp-steps-title">
+          <span className="lp-deco lp-deco-square-sm" aria-hidden="true" />
           <div className="lp-wrap">
             <h2 id="lp-steps-title">{c.stepsTitle}</h2>
             <ol>
@@ -134,8 +158,10 @@ export function Landing({ lang, data }: { lang: Lang; data: LandingData }) {
 
         {data.address || data.phones.length ? (
           <section className="lp-visit" aria-labelledby="lp-visit-title">
+            <span className="lp-deco lp-deco-circle-dark" aria-hidden="true" />
             <div className="lp-wrap">
               <h2 id="lp-visit-title">{c.visitTitle}</h2>
+              <p className="lp-visit-lead">{c.visitLead}</p>
               <dl className="lp-visit-grid">
                 {data.address ? (
                   <div>
@@ -145,7 +171,7 @@ export function Landing({ lang, data }: { lang: Lang; data: LandingData }) {
                         {data.address}
                       </span>
                       {mapUrl ? (
-                        <a href={mapUrl} target="_blank" rel="noopener noreferrer">
+                        <a className="lp-btn lp-btn-dark" href={mapUrl} target="_blank" rel="noopener noreferrer">
                           {c.openMap}
                         </a>
                       ) : null}
@@ -159,10 +185,10 @@ export function Landing({ lang, data }: { lang: Lang; data: LandingData }) {
                       <ul className="lp-phones">
                         {data.phones.map((p) => (
                           <li key={p}>
-                            <a href={`tel:${p.replace(/[^\d+]/g, '')}`} dir="ltr">
+                            <a className="lp-phone" href={`tel:${p.replace(/[^\d+]/g, '')}`} dir="ltr">
                               {p}
                             </a>
-                            <a className="lp-wa" href={`https://wa.me/${waNumber(p)}`} target="_blank" rel="noopener noreferrer">
+                            <a className="lp-btn lp-btn-outline-dark" href={`https://wa.me/${waNumber(p)}`} target="_blank" rel="noopener noreferrer">
                               {c.whatsapp}
                             </a>
                           </li>
@@ -177,20 +203,24 @@ export function Landing({ lang, data }: { lang: Lang; data: LandingData }) {
         ) : null}
       </main>
 
-      <footer className="lp-foot lp-wrap">
-        <p>
-          <span dir="auto">
-            © {year} {data.name}.
-          </span>{' '}
-          {c.rights}
-          {data.footerNote ? (
-            <>
-              <br />
-              <span dir="auto">{data.footerNote}</span>
-            </>
-          ) : null}
-        </p>
-        <Link href="/login">{c.signIn}</Link>
+      <footer className="lp-foot">
+        <div className="lp-wrap lp-foot-inner">
+          <p>
+            <span dir="auto">
+              © {year} {data.name}.
+            </span>{' '}
+            {c.rights}
+            {data.footerNote ? (
+              <>
+                <br />
+                <span dir="auto">{data.footerNote}</span>
+              </>
+            ) : null}
+          </p>
+          <Link href="/login" className="lp-btn lp-btn-white">
+            {c.signIn}
+          </Link>
+        </div>
       </footer>
     </div>
   );

@@ -333,7 +333,7 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
                 onIqd={setPayIqd}
                 errors={{ paidUsd: errors.paidUsd, paidIqd: errors.paidIqd }}
               />
-              <div className="rounded-ctl border border-line-soft">
+              <div className="rounded-ctl bg-surface-2">
                 <p className="border-b border-line-soft px-3 py-2 text-caption font-semibold text-muted">{t('pur.balanceEffect')}</p>
                 {beforeL && afterL ? (
                   <dl className="text-meta">

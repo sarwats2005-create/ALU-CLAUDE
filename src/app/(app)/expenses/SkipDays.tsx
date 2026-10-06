@@ -30,7 +30,7 @@ export function SkipDays({ value, onChange }: { value: Skips; onChange: (v: Skip
   };
 
   return (
-    <div className="rounded-ctl border border-line-soft bg-surface-2 p-4">
+    <div className="rounded-ctl bg-surface-2 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <label className="flex items-center gap-3 text-body font-medium text-ink">
           <Toggle checked={value.skipFridays} onChange={(v) => onChange({ ...value, skipFridays: v })} label={t('exp.skipFridays')} />
@@ -63,8 +63,8 @@ export function SkipDays({ value, onChange }: { value: Skips; onChange: (v: Skip
                     aria-disabled={fri || undefined}
                     onClick={() => toggleDay(d)}
                     className={cx(
-                      'h-9 min-w-[3.25rem] rounded-full border px-3 text-meta font-semibold transition-colors',
-                      on ? 'border-warning bg-warning-tint text-warning-ink' : 'border-line bg-surface text-muted hover:text-ink',
+                      'h-14 min-w-[4rem] rounded-ctl px-4 text-meta font-bold transition-all duration-200 hover:scale-105 active:scale-100 disabled:hover:scale-100',
+                      on ? 'bg-warning text-ink' : 'bg-surface-2 text-muted hover:text-ink',
                       fri && 'cursor-default',
                     )}
                   >
@@ -87,7 +87,7 @@ export function SkipDays({ value, onChange }: { value: Skips; onChange: (v: Skip
               <ul className="mt-3 flex flex-wrap gap-1.5">
                 {value.skipDates.map((d) => (
                   <li key={d}>
-                    <span className="inline-flex h-8 items-center gap-1 rounded-full bg-warning-tint ps-3 pe-1 text-meta font-semibold text-warning-ink">
+                    <span className="inline-flex h-14 items-center gap-1 rounded-full bg-warning-tint ps-3 pe-1 text-meta font-semibold text-warning-ink">
                       <span className="num">{fmtDate(d)}</span>
                       <button
                         type="button"

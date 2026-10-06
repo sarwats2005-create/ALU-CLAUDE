@@ -106,7 +106,7 @@ export function InvoicesView({ initialType }: { initialType: Book }) {
 
   function actionsCell(r: TxnRow) {
     const open = mayChange(r);
-    const btn = 'inline-flex h-9 w-9 items-center justify-center rounded-ctl text-muted transition-colors hover:bg-tint hover:text-ink';
+    const btn = 'inline-flex h-14 w-14 items-center justify-center rounded-ctl text-muted transition-colors hover:bg-tint hover:text-ink';
     return (
       <span className="flex items-center justify-end gap-0.5">
         <button type="button" className={btn} onClick={() => panel.open(r.id)} aria-label={t('invc.viewN', { number: r.number })} title={t('common.view')}>
@@ -208,14 +208,14 @@ export function InvoicesView({ initialType }: { initialType: Book }) {
           isSale ? (
             can('pos') ? (
               <Link href="/pos">
-                <Button size="lg" className="shadow-pop" icon={<ShoppingCart className="h-4 w-4" aria-hidden="true" />}>
+                <Button size="lg" icon={<ShoppingCart className="h-4 w-4" aria-hidden="true" />}>
                   {t('pos.newSale')}
                 </Button>
               </Link>
             ) : null
           ) : can('beneficiaries') ? (
             <Link href="/beneficiaries/purchase">
-              <Button size="lg" className="shadow-pop" icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>
+              <Button size="lg" icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>
                 {t('dash.recordPurchase')}
               </Button>
             </Link>
@@ -223,7 +223,7 @@ export function InvoicesView({ initialType }: { initialType: Book }) {
         }
       />
       {/* Two separate books. */}
-      <div role="tablist" aria-label={t('invc.title')} className="mb-5 grid grid-cols-2 gap-2 rounded-card bg-tint p-1.5 sm:inline-grid sm:min-w-[440px]">
+      <div role="tablist" aria-label={t('invc.title')} data-on-canvas className="mb-5 grid grid-cols-2 gap-1 rounded-card bg-surface p-1 sm:inline-grid sm:min-w-[480px]">
         {(['sale', 'purchase'] as const).map((b) => {
           const on = book === b;
           const n = on ? k?.all : otherCount;
@@ -235,13 +235,13 @@ export function InvoicesView({ initialType }: { initialType: Book }) {
               aria-selected={on}
               onClick={() => switchBook(b)}
               className={cx(
-                'flex h-12 items-center justify-center gap-2 rounded-ctl px-4 text-body font-semibold transition-colors',
-                on ? (b === 'sale' ? 'bg-surface text-brand-ink shadow-card' : 'bg-surface text-[#0f766e] shadow-card dark:text-[#5eead4]') : 'text-muted hover:text-ink',
+                'flex h-14 items-center justify-center gap-2 rounded-ctl px-4 text-body font-bold transition-colors',
+                on ? (b === 'sale' ? 'bg-brand text-on-brand' : 'bg-success-ink text-white') : 'text-muted hover:bg-surface-2 hover:text-ink',
               )}
             >
               {b === 'sale' ? <ShoppingCart className="h-4 w-4" aria-hidden="true" /> : <PackagePlus className="h-4 w-4" aria-hidden="true" />}
               {b === 'sale' ? t('invc.salesBook') : t('invc.purchaseBook')}
-              {n !== null && n !== undefined ? <span className="num rounded-full bg-surface-2 px-2 text-caption text-muted">{n}</span> : null}
+              {n !== null && n !== undefined ? <span className={cx('num rounded-full px-2 text-caption', on ? 'bg-white/20 text-current' : 'bg-surface-2 text-muted')}>{n}</span> : null}
             </button>
           );
         })}
@@ -388,7 +388,7 @@ function FolderBar({ when }: { when: 'attention' | 'calm' }) {
         <div className="flex min-w-0 items-start gap-3">
           <span
             className={cx(
-              'mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-ctl',
+              'mt-0.5 inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-ctl',
               s.name && !needsAccess ? 'bg-success-tint text-success-ink' : needsAccess ? 'bg-warning-tint text-warning-ink' : 'bg-tint text-brand-ink',
             )}
           >

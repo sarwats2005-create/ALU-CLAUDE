@@ -165,12 +165,12 @@ export function PartyDetail({ kind, id, editPayment }: { kind: PartyKind; id: st
                   {t('cust.refundCredit')}
                 </Button>
               ) : null}
-              <Button variant={owed ? 'primary' : 'secondary'} size="lg" className={owed ? 'shadow-pop' : undefined} onClick={() => setPay({ kind: 'CUSTOMER_PAYMENT' })} icon={<Banknote className="h-4 w-4" aria-hidden="true" />}>
+              <Button variant={owed ? 'primary' : 'secondary'} size="lg" onClick={() => setPay({ kind: 'CUSTOMER_PAYMENT' })} icon={<Banknote className="h-4 w-4" aria-hidden="true" />}>
                 {t('cust.receivePayment')}
               </Button>
               {can('pos') ? (
                 <Link href={`/pos?customer=${p.id}`}>
-                  <Button variant={owed ? 'secondary' : 'primary'} size="lg" className={owed ? undefined : 'shadow-pop'} icon={<ShoppingCart className="h-4 w-4" aria-hidden="true" />}>
+                  <Button variant={owed ? 'secondary' : 'primary'} size="lg" icon={<ShoppingCart className="h-4 w-4" aria-hidden="true" />}>
                     {t('cust.newSale')}
                   </Button>
                 </Link>
@@ -183,11 +183,11 @@ export function PartyDetail({ kind, id, editPayment }: { kind: PartyKind; id: st
                   {t('ben.receiveRefund')}
                 </Button>
               ) : null}
-              <Button variant={owed ? 'primary' : 'secondary'} size="lg" className={owed ? 'shadow-pop' : undefined} onClick={() => setPay({ kind: 'BENEFICIARY_PAYMENT' })} icon={<Banknote className="h-4 w-4" aria-hidden="true" />}>
+              <Button variant={owed ? 'primary' : 'secondary'} size="lg" onClick={() => setPay({ kind: 'BENEFICIARY_PAYMENT' })} icon={<Banknote className="h-4 w-4" aria-hidden="true" />}>
                 {t('ben.pay')}
               </Button>
               <Link href={`/beneficiaries/purchase?beneficiary=${p.id}`}>
-                <Button variant={owed ? 'secondary' : 'primary'} size="lg" className={owed ? undefined : 'shadow-pop'} icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>
+                <Button variant={owed ? 'secondary' : 'primary'} size="lg" icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>
                   {t('ben.newPurchase')}
                 </Button>
               </Link>

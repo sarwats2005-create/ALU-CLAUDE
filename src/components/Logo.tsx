@@ -9,7 +9,7 @@ export function Logo({ size = 36, className, framed }: { size?: number; classNam
       width={size}
       height={size}
       alt="ALU FACTORY"
-      className={cx('shrink-0 select-none', framed && 'rounded-[24%] ring-1 ring-white/30', className)}
+      className={cx('shrink-0 select-none', framed && 'rounded-[24%]', className)}
       draggable={false}
     />
   );

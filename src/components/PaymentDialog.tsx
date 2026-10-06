@@ -192,7 +192,7 @@ export function PaymentDialog({
           <Textarea id={`${fid}-notes`} value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={2000} />
         </Field>
         {amt.gt(0) ? (
-          <p className={cx('rounded-ctl border border-line-soft px-4 py-3 text-body font-semibold', tone(afterL.tone))}>{t('pay.afterDue', { label: afterL.text })}</p>
+          <p className={cx('rounded-ctl bg-surface-2 px-4 py-3 text-body font-semibold', tone(afterL.tone))}>{t('pay.afterDue', { label: afterL.text })}</p>
         ) : null}
       </form>
     </Dialog>

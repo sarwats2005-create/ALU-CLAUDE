@@ -101,7 +101,7 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
         // One visible action per row — the one this product needs next (Hick's law). The row itself opens history.
         <span className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
           {r.status !== 'in' && can('beneficiaries') ? (
-            <Link href={`/beneficiaries/purchase?product=${r.id}`} className="inline-flex h-9 items-center gap-1.5 rounded-ctl bg-brand px-3 text-meta font-semibold text-on-brand hover:bg-brand-strong">
+            <Link href={`/beneficiaries/purchase?product=${r.id}`} className="inline-flex h-14 items-center gap-1.5 rounded-ctl bg-brand px-3 text-meta font-semibold text-on-brand hover:bg-brand-strong">
               <PackagePlus className="h-4 w-4" aria-hidden="true" />
               {t('inv.restock')}
             </Link>
@@ -115,7 +115,7 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
               href={`/beneficiaries/purchase?product=${r.id}`}
               aria-label={`${t('inv.restock')} — ${r.name}`}
               title={t('inv.restock')}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-ctl text-muted opacity-60 transition-opacity hover:bg-tint hover:text-brand-ink hover:opacity-100 focus-visible:opacity-100"
+              className="inline-flex h-14 w-14 items-center justify-center rounded-ctl text-muted opacity-60 transition-opacity hover:bg-tint hover:text-brand-ink hover:opacity-100 focus-visible:opacity-100"
             >
               <PackagePlus className="h-4 w-4" aria-hidden="true" />
             </Link>
@@ -133,7 +133,7 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
         actions={
           can('beneficiaries') ? (
             <Link href="/beneficiaries/purchase">
-              <Button size="lg" className="shadow-pop" icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>{t('dash.recordPurchase')}</Button>
+              <Button size="lg" icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>{t('dash.recordPurchase')}</Button>
             </Link>
           ) : null
         }
@@ -173,7 +173,7 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
             </Select>
           </div>
           {L.filters.status ? (
-            <button type="button" onClick={() => L.setFilter('status', '')} className="inline-flex h-9 items-center gap-1.5 self-start rounded-full bg-danger-tint px-3 text-meta font-semibold text-danger-ink hover:bg-danger-tint/70">
+            <button type="button" onClick={() => L.setFilter('status', '')} className="inline-flex h-14 items-center gap-1.5 self-start rounded-full bg-danger-tint px-3 text-meta font-semibold text-danger-ink hover:bg-danger-tint/70">
               {t('inv.needsRestock')}
               <X className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
@@ -349,7 +349,7 @@ function ProcessDialog({ row, edit, onClose }: { row: Pick<Row, 'id' | 'name' | 
                 <button
                   type="button"
                   onClick={() => setInputKg(available.toDecimalPlaces(3).toString())}
-                  className="h-11 shrink-0 rounded-ctl border border-brand px-3 text-meta font-extrabold tracking-[0.04em] text-brand-ink hover:bg-brand hover:text-on-brand md:h-10"
+                  className="h-14 shrink-0 rounded-ctl border-4 border-brand px-4 text-meta font-extrabold tracking-[0.04em] text-brand-ink transition-all duration-200 hover:scale-105 active:scale-100 disabled:hover:scale-100 hover:bg-brand hover:text-on-brand"
                 >
                   {t('common.max')}
                 </button>
@@ -389,7 +389,7 @@ function ProcessDialog({ row, edit, onClose }: { row: Pick<Row, 'id' | 'name' | 
 
           {/* Live result: raw in → loss → finished out */}
           {okPreview ? (
-            <div className="rounded-ctl border border-line-soft">
+            <div className="rounded-ctl bg-surface-2">
               <div className="grid grid-cols-3 divide-x divide-line-soft text-center rtl:divide-x-reverse">
                 <div className="px-3 py-3">
                   <p className="text-caption text-muted">{t('state.RAW')}</p>
@@ -525,7 +525,7 @@ function HistoryDialog({ row, onClose, onProcess }: { row: Row; onClose: () => v
                               onClick={() => void erase.eraseTxn(h.txnId, h.number)}
                               aria-label={t('erase.txnN', { number: h.number })}
                               title={t('erase.txn')}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-ctl text-danger-ink transition-colors hover:bg-danger-tint"
+                              className="inline-flex h-14 w-14 items-center justify-center rounded-ctl text-danger-ink transition-colors hover:bg-danger-tint"
                             >
                               <Eraser className="h-4 w-4" aria-hidden="true" />
                             </button>

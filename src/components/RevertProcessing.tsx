@@ -73,7 +73,7 @@ export function RevertProcessingDialog({ txnId, onClose, onDone }: { txnId: stri
       ) : (
         <form id="revert-form" onSubmit={go} noValidate className="flex flex-col gap-4">
           {/* What moves, in the order it happens: finished out, loss back, raw in. */}
-          <dl className="overflow-hidden rounded-card border border-line-soft">
+          <dl className="overflow-hidden rounded-card bg-surface-2">
             {row(t('prc.revertFinished'), `− ${fmtKg(d.outputKg ?? 0)}`, 'neg')}
             {row(t('prc.revertLoss'), `+ ${fmtKg(d.lossKg ?? 0)}`, 'pos')}
             <div className="flex justify-center bg-surface-2 py-1 text-muted" aria-hidden="true">

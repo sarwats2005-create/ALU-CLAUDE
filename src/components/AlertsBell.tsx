@@ -56,7 +56,7 @@ export function AlertsBell({ className, onBrand, align = 'end' }: { className?: 
         aria-haspopup="dialog"
         aria-label={t('alerts.open', { n: unread })}
         className={cx(
-          'relative inline-flex h-11 w-11 items-center justify-center rounded-full transition-colors md:h-10 md:w-10',
+          'relative inline-flex h-14 w-14 items-center justify-center rounded-full transition-colors',
           onBrand ? 'text-sidebar-muted hover:bg-sidebar-active hover:text-sidebar-ink' : 'text-muted hover:bg-tint hover:text-ink',
         )}
       >
@@ -72,7 +72,7 @@ export function AlertsBell({ className, onBrand, align = 'end' }: { className?: 
           role="dialog"
           aria-label={t('alerts.title')}
           className={cx(
-            'anim-sheet fixed inset-x-3 top-16 z-50 max-h-[70dvh] overflow-hidden rounded-card border border-line bg-surface shadow-pop md:absolute md:inset-x-auto md:top-12 md:w-[380px]',
+            'anim-sheet fixed inset-x-3 top-16 z-50 max-h-[70dvh] overflow-hidden rounded-card border-2 border-ink bg-surface md:absolute md:inset-x-auto md:top-12 md:w-[380px]',
             align === 'end' ? 'md:end-0' : 'md:start-0',
           )}
         >

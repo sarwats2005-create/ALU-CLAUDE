@@ -13,14 +13,20 @@ import { cx } from '@/lib/cx';
 export { cx };
 
 // ─── Button ────────────────────────────────────────────────────────────────────────────────────────
-type BtnVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'quiet';
+// Flat buttons: solid colour blocks, no shadow. Feedback is a colour shift plus a snappy scale (hover:scale-105).
+// Every button is a large touch target (h-14 / h-16).
+type BtnVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'quiet';
 const BTN: Record<BtnVariant, string> = {
-  primary: 'bg-brand text-on-brand hover:bg-brand-strong dark:hover:bg-brand/85 shadow-card',
-  secondary: 'bg-surface text-ink border border-line hover:bg-surface-2',
+  primary: 'bg-brand text-on-brand hover:bg-brand-strong',
+  // Muted block. On the grey page canvas it turns white (see PageHeader / [data-on-canvas]).
+  secondary: 'bg-surface-2 text-ink hover:bg-line',
+  // Thick outline that fills with colour on hover.
+  outline: 'border-4 border-brand bg-transparent text-brand-ink hover:bg-brand hover:text-on-brand',
   ghost: 'text-brand-ink hover:bg-tint',
-  quiet: 'text-muted hover:text-ink hover:bg-tint',
-  danger: 'bg-danger text-white hover:bg-danger-ink shadow-card',
+  quiet: 'text-muted hover:text-ink hover:bg-surface-2',
+  danger: 'bg-danger text-white hover:bg-danger-ink',
 };
+export const BTN_MOTION = 'transition-all duration-200 hover:scale-105 active:scale-100 disabled:hover:scale-100 motion-reduce:hover:scale-100';
 
 export const Button = forwardRef<
   HTMLButtonElement,
@@ -32,11 +38,13 @@ export const Button = forwardRef<
       type={type}
       disabled={disabled || busy}
       aria-busy={busy || undefined}
+      data-variant={variant}
       className={cx(
-        'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-ctl font-semibold transition-colors disabled:opacity-55',
-        size === 'sm' && 'h-9 px-3 text-meta',
-        size === 'md' && 'h-11 px-4 text-body md:h-10',
-        size === 'lg' && 'h-12 px-5 text-lead',
+        'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-ctl font-semibold disabled:opacity-55',
+        BTN_MOTION,
+        size === 'sm' && 'h-14 px-5 text-body',
+        size === 'md' && 'h-14 px-6 text-body',
+        size === 'lg' && 'h-16 px-8 text-lead',
         block && 'w-full',
         BTN[variant],
         className,
@@ -55,7 +63,7 @@ export function IconButton({ label, children, className, ...rest }: ButtonHTMLAt
       type="button"
       aria-label={label}
       title={label}
-      className={cx('inline-flex h-11 w-11 items-center justify-center rounded-ctl text-muted transition-colors hover:bg-tint hover:text-ink md:h-10 md:w-10', className)}
+      className={cx('inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-ctl text-muted hover:bg-surface-2 hover:text-ink', BTN_MOTION, className)}
       {...rest}
     >
       {children}
@@ -97,10 +105,10 @@ export function Field({
   return (
     <div className={cx('flex min-w-0 flex-col gap-1.5', className)}>
       <div className="flex items-baseline justify-between gap-2">
-        <label htmlFor={htmlFor} className="text-meta font-medium text-ink">
+        <label htmlFor={htmlFor} className="text-caption font-semibold uppercase tracking-wider text-ink">
           {label}
           {required ? <span className="text-danger-ink" aria-hidden="true"> *</span> : null}
-          {optionalLabel ? <span className="font-normal text-muted"> ({optionalLabel})</span> : null}
+          {optionalLabel ? <span className="font-medium normal-case tracking-normal text-muted"> ({optionalLabel})</span> : null}
         </label>
         {trailing}
       </div>
@@ -118,8 +126,9 @@ export function Field({
   );
 }
 
+// Flat inputs: Gray 100 block, no visible border. Focus: white with a hard 2px Primary border, no glow.
 const INPUT =
-  'h-11 w-full min-w-0 rounded-ctl border bg-surface px-3 text-body text-ink placeholder:text-muted/80 transition-colors focus:border-brand focus:outline-none focus:ring-[3px] focus:ring-[var(--focus)] disabled:bg-surface-2 disabled:text-muted md:h-10';
+  'h-14 w-full min-w-0 rounded-ctl border-2 bg-surface-2 px-4 text-body text-ink placeholder:text-muted transition-colors duration-200 focus:border-brand focus:bg-surface focus:outline-none disabled:text-muted disabled:opacity-70';
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean; numeric?: boolean }>(function Input(
   { invalid, numeric, className, ...rest },
@@ -133,7 +142,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
       dir={numeric ? 'ltr' : rest.dir}
       inputMode={numeric ? 'decimal' : rest.inputMode}
       autoComplete={numeric ? 'off' : rest.autoComplete}
-      className={cx(INPUT, invalid ? 'border-danger' : 'border-line', numeric && 'num text-left', !numeric && 'bidi', className)}
+      className={cx(INPUT, invalid ? 'border-danger' : 'border-transparent', numeric && 'num text-left', !numeric && 'bidi', className)}
       {...rest}
       // Always set (a blank one when none is given) so CSS can tell an empty field from a filled one —
       // used to hide the unit/currency label inside a field once something is typed.
@@ -150,7 +159,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
     <textarea
       ref={ref}
       aria-invalid={invalid || undefined}
-      className={cx(INPUT, 'bidi h-auto min-h-[84px] py-2 md:h-auto', invalid ? 'border-danger' : 'border-line', className)}
+      className={cx(INPUT, 'bidi h-auto min-h-[96px] py-3', invalid ? 'border-danger' : 'border-transparent', className)}
       {...rest}
     />
   );
@@ -164,7 +173,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
     <select
       ref={ref}
       aria-invalid={invalid || undefined}
-      className={cx(INPUT, 'select-chevron appearance-none pe-9', invalid ? 'border-danger' : 'border-line', className)}
+      className={cx(INPUT, 'select-chevron appearance-none pe-9', invalid ? 'border-danger' : 'border-transparent', className)}
       {...rest}
     >
       {children}
@@ -192,7 +201,7 @@ export function Segmented<T extends string>({
 }) {
   const gid = useId();
   return (
-    <div role="radiogroup" aria-label={label} className={cx('inline-flex rounded-ctl bg-tint p-0.5', className)}>
+    <div role="radiogroup" aria-label={label} className={cx('inline-flex max-w-full gap-1 rounded-ctl bg-surface-2 p-1', className)}>
       {options.map((o) => {
         const on = o.value === value;
         return (
@@ -204,9 +213,10 @@ export function Segmented<T extends string>({
             name={name ?? gid}
             onClick={() => onChange(o.value)}
             className={cx(
-              'min-w-0 flex-1 whitespace-nowrap rounded-[6px] px-3 font-semibold transition-colors',
-              size === 'sm' ? 'h-8 text-meta' : 'h-10 text-body md:h-9',
-              on ? 'bg-surface text-ink shadow-card' : 'text-muted hover:text-ink',
+              // Long labels wrap to two lines on narrow phones instead of pushing the page sideways.
+              'min-w-0 flex-1 rounded-[5px] px-3 py-1 font-semibold leading-tight transition-all duration-200 sm:whitespace-nowrap sm:px-4',
+              size === 'sm' ? 'min-h-12 text-body' : 'min-h-12 text-body',
+              on ? 'bg-brand text-on-brand' : 'text-muted hover:bg-line hover:text-ink',
             )}
           >
             {o.label}
@@ -235,7 +245,7 @@ export function Toggle({ checked, onChange, label, id, disabled }: { checked: bo
 // ─── Surfaces ──────────────────────────────────────────────────────────────────────────────────────
 export function Card({ children, className, as: As = 'section', ...rest }: { children: ReactNode; className?: string; as?: 'section' | 'div' | 'article'; 'aria-labelledby'?: string }) {
   return (
-    <As className={cx('rounded-card border border-line-soft bg-surface shadow-card', className)} {...rest}>
+    <As className={cx('rounded-card bg-surface', className)} {...rest}>
       {children}
     </As>
   );
@@ -246,10 +256,14 @@ export function PageHeader({ title, subtitle, actions, back }: { title: ReactNod
     <header className="subline-host mb-5 flex flex-col gap-3 md:mb-7 md:flex-row md:items-end md:justify-between">
       <div className="min-w-0">
         {back}
-        <h1 className="bidi text-large font-bold tracking-[-0.02em] text-ink md:text-[34px] md:leading-[40px]">{title}</h1>
+        <h1 className="bidi text-large font-extrabold tracking-[-0.02em] text-ink md:text-[44px] md:leading-[46px]">{title}</h1>
         {subtitle ? <p className="subline mt-1 text-body text-muted">{subtitle}</p> : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? (
+        <div data-on-canvas className="flex flex-wrap items-center gap-3">
+          {actions}
+        </div>
+      ) : null}
     </header>
   );
 }
@@ -257,8 +271,8 @@ export function PageHeader({ title, subtitle, actions, back }: { title: ReactNod
 export function EmptyState({ icon, title, body, action }: { icon?: ReactNode; title?: ReactNode; body: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
-      {icon ? <div className="flex h-12 w-12 items-center justify-center rounded-full bg-tint text-brand-ink">{icon}</div> : null}
-      {title ? <h3 className="text-title font-semibold text-ink">{title}</h3> : null}
+      {icon ? <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand text-on-brand">{icon}</div> : null}
+      {title ? <h3 className="text-title font-bold text-ink">{title}</h3> : null}
       <p className="max-w-md text-body text-muted">{body}</p>
       {action}
     </div>
@@ -271,13 +285,13 @@ export function Skeleton({ className }: { className?: string }) {
 
 export function Badge({ tone = 'neutral', children, className }: { tone?: 'neutral' | 'brand' | 'success' | 'danger' | 'warning'; children: ReactNode; className?: string }) {
   const tones = {
-    neutral: 'bg-tint text-muted',
-    brand: 'bg-tint text-brand-ink',
+    neutral: 'bg-surface-2 text-muted',
+    brand: 'bg-tint-2 text-brand-ink',
     success: 'bg-success-tint text-success-ink',
     danger: 'bg-danger-tint text-danger-ink',
     warning: 'bg-warning-tint text-warning-ink',
   };
-  return <span className={cx('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-caption font-semibold', tones[tone], className)}>{children}</span>;
+  return <span className={cx('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-caption font-semibold', tones[tone], className)}>{children}</span>;
 }
 
 /** Amount span: tabular, LTR, optional tone. */

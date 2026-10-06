@@ -14,9 +14,6 @@ import {
   BarChart3,
   Settings,
   LogOut,
-  Sun,
-  Moon,
-  MonitorSmartphone,
   Ellipsis,
   Menu,
   Info,
@@ -53,19 +50,6 @@ const NAV: Record<Page, { icon: LucideIcon; label: DictKey; short?: DictKey }> =
 };
 const TAB_PRIORITY: Page[] = ['dashboard', 'customers', 'pos', 'invoices', 'inventory', 'beneficiaries', 'expenses', 'vault', 'reports', 'settings'];
 
-type Theme = 'light' | 'dark' | 'system';
-
-function applyTheme(theme: Theme) {
-  document.cookie = `alu_theme=${theme}; path=/; max-age=31536000; samesite=lax`;
-  const dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  document.documentElement.classList.toggle('dark', dark);
-}
-
-function readTheme(): Theme {
-  const m = /(?:^|; )alu_theme=([^;]+)/.exec(document.cookie);
-  return m && (m[1] === 'light' || m[1] === 'dark') ? m[1] : 'system';
-}
-
 export function AppShell(props: { user: ClientUser; lang: Lang; rate: string; company: string; children: ReactNode }) {
   return (
     <AppProvider user={props.user} lang={props.lang} rate={props.rate} company={props.company}>
@@ -85,21 +69,7 @@ export function AppShell(props: { user: ClientUser; lang: Lang; rate: string; co
 function usePrefs() {
   const router = useRouter();
   const { lang } = useApp();
-  const [theme, setTheme] = useState<Theme>('system');
-  useEffect(() => setTheme(readTheme()), []);
-  useEffect(() => {
-    if (theme !== 'system') return;
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const on = () => applyTheme('system');
-    mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
-  }, [theme]);
   return {
-    theme,
-    setTheme: (th: Theme) => {
-      setTheme(th);
-      applyTheme(th);
-    },
     setLang: async (l: Lang) => {
       if (l === lang) return;
       await api('/api/auth/lang', { method: 'PUT', body: { lang: l } });
@@ -127,20 +97,6 @@ function PrefControls({ onBrand }: { onBrand?: boolean }) {
           options={[
             { value: 'en', label: 'EN' },
             { value: 'ku', label: <span lang="ckb">کوردی</span> },
-          ]}
-        />
-      </div>
-      <div className={cx(onBrand && '[&_[role=radiogroup]]:bg-sidebar-active [&_[aria-checked=false]]:text-sidebar-muted')}>
-        <Segmented<Theme>
-          label={t('nav.theme')}
-          size="sm"
-          className="w-full"
-          value={p.theme}
-          onChange={p.setTheme}
-          options={[
-            { value: 'light', label: <Sun className="mx-auto h-4 w-4" aria-label={t('nav.themeLight')} /> },
-            { value: 'dark', label: <Moon className="mx-auto h-4 w-4" aria-label={t('nav.themeDark')} /> },
-            { value: 'system', label: <MonitorSmartphone className="mx-auto h-4 w-4" aria-label={t('nav.themeSystem')} /> },
           ]}
         />
       </div>
@@ -179,7 +135,7 @@ function Shell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-dvh">
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:z-[70] focus:rounded-ctl focus:bg-surface focus:px-3 focus:py-2 focus:shadow-pop">
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:z-[70] focus:rounded-ctl focus:bg-surface focus:px-3 focus:py-2">
         {t('nav.skip')}
       </a>
 
@@ -194,10 +150,15 @@ function Shell({ children }: { children: ReactNode }) {
         aria-label={t('nav.menu')}
         className={cx(
           'fixed inset-y-0 start-0 z-40 flex w-[17rem] flex-col bg-sidebar text-sidebar-ink motion-safe:transition-[width,transform] motion-safe:duration-200 motion-safe:ease-out',
-          expanded ? 'translate-x-0 shadow-pop' : '-translate-x-full rtl:translate-x-full lg:w-[72px] lg:translate-x-0 lg:rtl:translate-x-0',
+          expanded ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full lg:w-[72px] lg:translate-x-0 lg:rtl:translate-x-0',
         )}
       >
-        <div className="flex h-[72px] shrink-0 items-center gap-2 px-3.5">
+        {/* Poster-style decoration: large flat shapes at low opacity behind the menu. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <span className="absolute -bottom-28 -start-28 h-80 w-80 rounded-full bg-white/[0.07]" />
+          <span className="absolute -end-16 top-1/3 h-40 w-40 rotate-45 rounded-card bg-white/[0.05]" />
+        </div>
+        <div className="flex h-[80px] shrink-0 items-center gap-2 px-2">
           <button
             type="button"
             onClick={() => setExpanded(true)}
@@ -205,25 +166,25 @@ function Shell({ children }: { children: ReactNode }) {
             aria-expanded={expanded}
             aria-controls="app-sidebar"
             title={expanded ? undefined : t('nav.openMenu')}
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-ctl text-sidebar-ink hover:bg-sidebar-active"
+            className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-ctl text-sidebar-ink transition-all duration-200 hover:scale-105 hover:bg-sidebar-active"
           >
             <Menu className="h-[22px] w-[22px]" aria-hidden="true" />
           </button>
           <span className={cx('flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden whitespace-nowrap transition-opacity', expanded ? 'opacity-100' : 'pointer-events-none opacity-0')}>
             <Logo size={28} framed />
-            <span className="truncate text-[14px] font-extrabold tracking-[0.03em]" dir="ltr">
+            <span className="truncate text-[17px] font-extrabold tracking-[0.02em]" dir="ltr">
               ALU FACTORY
             </span>
           </span>
           {expanded ? <AlertsBell onBrand align="end" /> : null}
         </div>
         {!expanded ? (
-          <div className="hidden px-3.5 pb-2 lg:block">
+          <div className="hidden px-2 pb-2 lg:block">
             <AlertsBell onBrand align="start" />
           </div>
         ) : null}
-        <nav aria-label={t('nav.menu')} className="scroll-thin flex-1 overflow-y-auto overflow-x-hidden px-3">
-          <ul className="flex flex-col gap-0.5">
+        <nav aria-label={t('nav.menu')} className="scroll-thin flex-1 overflow-y-auto overflow-x-hidden px-2">
+          <ul className="flex flex-col gap-1">
             {allowed.map((p) => {
               const Icon = NAV[p].icon;
               const active = isActive(p);
@@ -236,39 +197,39 @@ function Shell({ children }: { children: ReactNode }) {
                     aria-label={expanded ? undefined : label}
                     title={expanded ? undefined : label}
                     className={cx(
-                      'flex h-11 items-center gap-3 overflow-hidden whitespace-nowrap rounded-ctl px-3.5 text-body font-medium transition-colors',
-                      active ? 'bg-sidebar-active text-sidebar-ink' : 'text-sidebar-muted hover:bg-sidebar-active hover:text-sidebar-ink',
+                      'flex h-14 items-center gap-3 overflow-hidden whitespace-nowrap rounded-ctl px-[17px] text-body font-semibold transition-all duration-200',
+                      active ? 'bg-white text-brand-ink' : 'text-sidebar-muted hover:bg-sidebar-active hover:text-sidebar-ink',
                     )}
                   >
-                    <Icon className="h-[19px] w-[19px] shrink-0" strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />
+                    <Icon className="h-[22px] w-[22px] shrink-0" strokeWidth={active ? 2.5 : 2} aria-hidden="true" />
                     <span className={cx('truncate transition-opacity', expanded ? 'opacity-100' : 'opacity-0')}>{label}</span>
                   </Link>
                 </li>
               );
             })}
             {/* "How the app works" — open to every signed-in user, not a permission page. */}
-            <li className="mt-2 border-t border-white/10 pt-2">
+            <li className="mt-3">
               <Link
                 href="/about"
                 aria-current={pathname === '/about' ? 'page' : undefined}
                 aria-label={expanded ? undefined : t('nav.about')}
                 title={expanded ? undefined : t('nav.about')}
                 className={cx(
-                  'flex h-11 items-center gap-3 overflow-hidden whitespace-nowrap rounded-ctl px-3.5 text-body font-medium transition-colors',
-                  pathname === '/about' ? 'bg-sidebar-active text-sidebar-ink' : 'text-sidebar-muted hover:bg-sidebar-active hover:text-sidebar-ink',
+                  'flex h-14 items-center gap-3 overflow-hidden whitespace-nowrap rounded-ctl px-[17px] text-body font-semibold transition-all duration-200',
+                  pathname === '/about' ? 'bg-white text-brand-ink' : 'text-sidebar-muted hover:bg-sidebar-active hover:text-sidebar-ink',
                 )}
               >
-                <Info className="h-[19px] w-[19px] shrink-0" strokeWidth={pathname === '/about' ? 2.2 : 1.8} aria-hidden="true" />
+                <Info className="h-[22px] w-[22px] shrink-0" strokeWidth={pathname === '/about' ? 2.5 : 2} aria-hidden="true" />
                 <span className={cx('truncate transition-opacity', expanded ? 'opacity-100' : 'opacity-0')}>{t('nav.about')}</span>
               </Link>
             </li>
           </ul>
         </nav>
-        <div className={cx('flex flex-col gap-3 border-t border-white/15 pb-5 pt-4', expanded ? 'px-4' : 'items-center px-2')}>
+        <div className={cx('flex flex-col gap-3 bg-black/10 pb-5 pt-4', expanded ? 'px-4' : 'items-center px-2')}>
           {expanded ? (
             <>
               <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-meta font-bold" aria-hidden="true">
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white text-meta font-bold text-brand-ink" aria-hidden="true">
                   {initials(user.name)}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -282,9 +243,9 @@ function Shell({ children }: { children: ReactNode }) {
                   onClick={prefs.logout}
                   aria-label={t('nav.logout')}
                   title={t('nav.logout')}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-ctl text-sidebar-muted hover:bg-sidebar-active hover:text-sidebar-ink"
+                  className="inline-flex h-14 w-14 items-center justify-center rounded-ctl text-sidebar-muted transition-all duration-200 hover:scale-105 hover:bg-sidebar-active hover:text-sidebar-ink"
                 >
-                  <LogOut className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+                  <LogOut className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
                 </button>
               </div>
               <PrefControls onBrand />
@@ -296,7 +257,7 @@ function Shell({ children }: { children: ReactNode }) {
                 onClick={() => setExpanded(true)}
                 title={user.name}
                 aria-label={user.name}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-meta font-bold hover:bg-white/25"
+                className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-meta font-bold text-brand-ink transition-all duration-200 hover:scale-105"
               >
                 {initials(user.name)}
               </button>
@@ -305,9 +266,9 @@ function Shell({ children }: { children: ReactNode }) {
                 onClick={prefs.logout}
                 aria-label={t('nav.logout')}
                 title={t('nav.logout')}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-ctl text-sidebar-muted hover:bg-sidebar-active hover:text-sidebar-ink"
+                className="inline-flex h-14 w-14 items-center justify-center rounded-ctl text-sidebar-muted transition-all duration-200 hover:scale-105 hover:bg-sidebar-active hover:text-sidebar-ink"
               >
-                <LogOut className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+                <LogOut className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
               </button>
             </>
           )}
@@ -315,19 +276,19 @@ function Shell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Mobile / tablet top bar */}
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-line-soft bg-glass px-2 backdrop-blur-xl lg:hidden">
+      <header className="sticky top-0 z-30 flex h-[72px] items-center gap-2 bg-surface px-2 lg:hidden">
         <button
           type="button"
           onClick={() => setExpanded(true)}
           aria-label={t('nav.openMenu')}
           aria-expanded={expanded}
           aria-controls="app-sidebar"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-ctl text-ink hover:bg-tint"
+          className="inline-flex h-14 w-14 items-center justify-center rounded-ctl text-ink transition-all duration-200 hover:scale-105 hover:bg-surface-2"
         >
           <Menu className="h-[22px] w-[22px]" aria-hidden="true" />
         </button>
         <Logo size={28} />
-        <span className="flex-1 text-[15px] font-extrabold tracking-[0.06em] text-ink" dir="ltr">
+        <span className="flex-1 text-[17px] font-extrabold tracking-[0.02em] text-ink" dir="ltr">
           ALU FACTORY
         </span>
         <AlertsBell />
@@ -340,7 +301,7 @@ function Shell({ children }: { children: ReactNode }) {
       </div>
 
       {/* Mobile / tablet bottom tabs */}
-      <nav aria-label={t('nav.menu')} className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-line bg-glass backdrop-blur-xl lg:hidden">
+      <nav aria-label={t('nav.menu')} className="safe-bottom fixed inset-x-0 bottom-0 z-30 bg-surface lg:hidden">
         <ul className="mx-auto flex max-w-xl">
           {tabs.map((p) => {
             const Icon = NAV[p].icon;
@@ -350,7 +311,7 @@ function Shell({ children }: { children: ReactNode }) {
                 <Link
                   href={PAGE_HREF[p]}
                   aria-current={active ? 'page' : undefined}
-                  className={cx('flex h-[60px] flex-col items-center justify-center gap-0.5 text-[11px] font-semibold', active ? 'text-brand-ink' : 'text-muted')}
+                  className={cx('flex h-16 flex-col items-center justify-center gap-0.5 text-[12px] font-semibold transition-colors duration-200', active ? 'bg-brand text-on-brand' : 'text-muted hover:text-ink')}
                 >
                   <Icon className="h-[22px] w-[22px]" strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />
                   <span className="max-w-full truncate px-1">{t(NAV[p].short ?? NAV[p].label)}</span>
@@ -363,7 +324,7 @@ function Shell({ children }: { children: ReactNode }) {
               type="button"
               onClick={() => setMoreOpen(true)}
               aria-haspopup="dialog"
-              className={cx('flex h-[60px] w-full flex-col items-center justify-center gap-0.5 text-[11px] font-semibold', overflow.some(isActive) || pathname === '/about' ? 'text-brand-ink' : 'text-muted')}
+              className={cx('flex h-16 w-full flex-col items-center justify-center gap-0.5 text-[12px] font-semibold transition-colors duration-200', overflow.some(isActive) || pathname === '/about' ? 'bg-brand text-on-brand' : 'text-muted hover:text-ink')}
             >
               <Ellipsis className="h-[22px] w-[22px]" aria-hidden="true" />
               <span>{t('nav.more')}</span>
@@ -378,7 +339,7 @@ function Shell({ children }: { children: ReactNode }) {
             const Icon = NAV[p].icon;
             return (
               <li key={p}>
-                <Link href={PAGE_HREF[p]} className="flex h-12 items-center gap-3 rounded-ctl px-2 text-lead font-medium text-ink hover:bg-tint">
+                <Link href={PAGE_HREF[p]} className="flex h-14 items-center gap-3 rounded-ctl px-3 text-lead font-semibold text-ink transition-colors duration-200 hover:bg-tint">
                   <Icon className="h-5 w-5 text-brand-ink" aria-hidden="true" />
                   {t(NAV[p].label)}
                 </Link>
@@ -386,7 +347,7 @@ function Shell({ children }: { children: ReactNode }) {
             );
           })}
           <li>
-            <Link href="/about" className="flex h-12 items-center gap-3 rounded-ctl px-2 text-lead font-medium text-ink hover:bg-tint">
+            <Link href="/about" className="flex h-14 items-center gap-3 rounded-ctl px-3 text-lead font-semibold text-ink transition-colors duration-200 hover:bg-tint">
               <Info className="h-5 w-5 text-brand-ink" aria-hidden="true" />
               {t('nav.about')}
             </Link>
@@ -394,7 +355,7 @@ function Shell({ children }: { children: ReactNode }) {
         </ul>
         <div className={cx('mt-4 flex flex-col gap-3 border-t border-line-soft pt-4')}>
           <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tint text-meta font-bold text-brand-ink" aria-hidden="true">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-tint text-meta font-bold text-brand-ink" aria-hidden="true">
               {initials(user.name)}
             </span>
             <div className="min-w-0 flex-1">
@@ -405,7 +366,7 @@ function Shell({ children }: { children: ReactNode }) {
             </div>
           </div>
           <PrefControls />
-          <button type="button" onClick={prefs.logout} className="flex h-11 items-center justify-center gap-2 rounded-ctl border border-line text-body font-semibold text-danger-ink hover:bg-danger-tint">
+          <button type="button" onClick={prefs.logout} className="flex h-14 items-center justify-center gap-2 rounded-ctl bg-danger-tint text-body font-semibold text-danger-ink transition-all duration-200 hover:scale-105 hover:bg-[#fee2e2]">
             <LogOut className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
             {t('nav.logout')}
           </button>

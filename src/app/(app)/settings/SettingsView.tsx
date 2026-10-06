@@ -81,7 +81,7 @@ export function SettingsView({ initial }: { initial: string }) {
                           type="button"
                           onClick={() => go(s.id)}
                           aria-current={sec === s.id ? 'page' : undefined}
-                          className={cx('flex h-10 w-full items-center gap-3 rounded-ctl px-3 text-start text-body font-medium transition-colors', sec === s.id ? 'bg-tint text-brand-ink' : 'text-muted hover:bg-surface hover:text-ink')}
+                          className={cx('flex h-14 w-full items-center gap-3 rounded-ctl px-4 text-start text-body font-semibold transition-colors', sec === s.id ? 'bg-brand text-on-brand' : 'text-muted hover:bg-surface hover:text-ink')}
                         >
                           <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                           <span className="truncate">{t(s.label)}</span>
@@ -180,7 +180,7 @@ function CompanySection() {
       <form onSubmit={save} noValidate className="flex flex-col gap-4">
         <div className="flex items-center gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={f.logo ?? '/app-icon.png'} alt="" className="h-16 w-16 rounded-[22%] border border-line-soft bg-surface object-contain" />
+          <img src={f.logo ?? '/app-icon.png'} alt="" className="h-16 w-16 rounded-card bg-surface-2 object-contain" />
           <div>
             <p className="text-meta font-medium text-ink">{t('set.logo')}</p>
             {!f.logo ? <p className="text-caption text-muted">{t('set.logoDefault')}</p> : null}
@@ -323,9 +323,9 @@ function ExpensesSection() {
         {!cats.data ? (
           <Skeleton className="h-32 w-full" />
         ) : !cats.data.length ? (
-          <p className="rounded-ctl border border-dashed border-line px-4 py-6 text-center text-meta text-muted">{t('set.expEmpty')}</p>
+          <p className="rounded-ctl bg-surface-2 px-4 py-6 text-center text-meta text-muted">{t('set.expEmpty')}</p>
         ) : (
-          <ul className="divide-y divide-line-soft rounded-ctl border border-line-soft">
+          <ul className="divide-y-2 divide-surface rounded-ctl bg-surface-2">
             {cats.data.map((c) => (
               <li key={c.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
                 <span className="flex min-w-0 flex-wrap items-center gap-2">
@@ -462,7 +462,7 @@ function TypesSection() {
       {!data ? (
         <Skeleton className="h-40 w-full" />
       ) : (
-        <ul className="divide-y divide-line-soft rounded-ctl border border-line-soft">
+        <ul className="divide-y-2 divide-surface rounded-ctl bg-surface-2">
           {data.map((r) => (
             <li key={r.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
               <span className="flex min-w-0 items-center gap-2">
@@ -560,7 +560,7 @@ function ProductsSection() {
       ) : !data.length ? (
         <p className="py-8 text-center text-body text-muted">{t('set.productsEmpty')}</p>
       ) : (
-        <ul className="divide-y divide-line-soft rounded-ctl border border-line-soft">
+        <ul className="divide-y-2 divide-surface rounded-ctl bg-surface-2">
           {list.map((r) => (
             <li key={r.id} className="flex flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
               <span className="min-w-0">
@@ -839,7 +839,7 @@ function UsersSection() {
         <Skeleton className="h-40 w-full" />
       ) : (
         <>
-          <ul className="divide-y divide-line-soft rounded-ctl border border-line-soft">
+          <ul className="divide-y-2 divide-surface rounded-ctl bg-surface-2">
             {data.map((u) => (
               <li key={u.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="min-w-0">
@@ -912,7 +912,7 @@ function UsersSection() {
                   <legend className="mb-2 text-meta font-semibold text-ink">{t('set.pageAccess')}</legend>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {PAGES.map((p) => (
-                      <label key={p} className="flex items-center gap-3 rounded-ctl border border-line-soft px-3 py-2 text-body text-ink">
+                      <label key={p} className="flex items-center gap-3 rounded-ctl bg-surface-2 px-3 py-2 text-body text-ink">
                         <Toggle checked={f.permissions.includes(pageKey(p))} onChange={(v) => toggle(pageKey(p), v)} label={t(NAV_LABEL[p])} />
                         {t(NAV_LABEL[p])}
                       </label>
@@ -924,7 +924,7 @@ function UsersSection() {
                   {ACTIONS.map((a) => {
                     const k = `set.perm.${a}`;
                     return (
-                      <label key={a} className="flex items-center gap-3 rounded-ctl border border-line-soft px-3 py-2 text-body text-ink">
+                      <label key={a} className="flex items-center gap-3 rounded-ctl bg-surface-2 px-3 py-2 text-body text-ink">
                         <Toggle checked={f.permissions.includes(actionKey(a))} onChange={(v) => toggle(actionKey(a), v)} label={hasKey(k) ? t(k) : a} />
                         {hasKey(k) ? t(k) : a}
                       </label>

@@ -204,7 +204,7 @@ export function BackupSection() {
         {!rows.length ? (
           <p className="rounded-ctl bg-surface-2 px-4 py-6 text-center text-meta text-muted">{t('bk.noPoints')}</p>
         ) : (
-          <ul className="divide-y divide-line-soft rounded-ctl border border-line-soft">
+          <ul className="divide-y-2 divide-surface rounded-ctl bg-surface-2">
             {rows.map((s) => (
               <li key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
                 <span className="min-w-0 flex-1">
@@ -227,7 +227,7 @@ export function BackupSection() {
                       onClick={() => void erase.eraseSnapshots(s.id).then((ok) => ok && snaps.reload())}
                       aria-label={t('erase.snap')}
                       title={t('erase.snap')}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-ctl text-danger-ink transition-colors hover:bg-danger-tint"
+                      className="inline-flex h-14 w-14 items-center justify-center rounded-ctl text-danger-ink transition-colors hover:bg-danger-tint"
                     >
                       <Eraser className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -244,7 +244,7 @@ export function BackupSection() {
       <Card className="border-danger/40 p-5 md:p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
               <ShieldAlert className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
@@ -269,7 +269,7 @@ function Block({ icon, title, hint, action, children }: { icon: ReactNode; title
     <Card className="p-5 md:p-6">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-tint text-brand-ink">{icon}</span>
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-tint text-brand-ink">{icon}</span>
           <div>
             <h2 className="text-title font-semibold text-ink">{title}</h2>
             <p className="mt-1 max-w-2xl text-meta text-muted">{hint}</p>
@@ -357,7 +357,7 @@ function RestoreDialog({ source, onClose }: { source: Source; onClose: () => voi
       }
     >
       <form id="bk-restore" onSubmit={go} noValidate className="flex flex-col gap-4">
-        <div className="rounded-ctl border border-line-soft bg-surface-2 px-4 py-3">
+        <div className="rounded-ctl bg-surface-2 px-4 py-3">
           <p className="text-caption text-muted">{source.kind === 'file' ? source.name : t(KIND_LABEL[source.snap.kind] ?? 'bk.kManual')}</p>
           <p className="mt-0.5 text-body font-semibold text-ink">{t('bk.takenAt', { date: fmtDateTime(when) })}</p>
           <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-3">
@@ -369,7 +369,7 @@ function RestoreDialog({ source, onClose }: { source: Source; onClose: () => voi
             ))}
           </dl>
         </div>
-        <p role="alert" className="rounded-ctl border border-danger/30 bg-danger-tint px-4 py-3 text-meta text-danger-ink">
+        <p role="alert" className="rounded-ctl bg-danger-tint px-4 py-3 text-meta text-danger-ink">
           {t('bk.confirmBody')}
         </p>
         <PinField pin={pin} setPin={setPin} error={err} />
@@ -427,11 +427,11 @@ function FreshDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
     >
       <form id="bk-fresh" onSubmit={go} noValidate className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="rounded-ctl border border-danger/30 bg-danger-tint px-4 py-3">
+          <div className="rounded-ctl bg-danger-tint px-4 py-3">
             <p className="text-meta font-semibold text-danger-ink">{t('bk.cleared')}</p>
             <p className="mt-1 text-caption text-danger-ink">{t('bk.clearedList')}</p>
           </div>
-          <div className="rounded-ctl border border-success/30 bg-success-tint px-4 py-3">
+          <div className="rounded-ctl bg-success-tint px-4 py-3">
             <p className="text-meta font-semibold text-success-ink">{t('bk.kept')}</p>
             <p className="mt-1 text-caption text-success-ink">{t('bk.keptList')}</p>
           </div>

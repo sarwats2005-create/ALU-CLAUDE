@@ -42,12 +42,12 @@ export function BeneficiariesView({ initialTab }: { initialTab: Tab }) {
               {t('ben.add')}
             </Button>
             <Link href="/beneficiaries/purchase">
-              <Button size="lg" className="shadow-pop" icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>{t('ben.newPurchase')}</Button>
+              <Button size="lg" icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>{t('ben.newPurchase')}</Button>
             </Link>
           </>
         }
       />
-      <div role="tablist" aria-label={t('ben.title')} className="mb-5 flex gap-6 border-b border-line">
+      <div role="tablist" aria-label={t('ben.title')} className="mb-5 inline-flex max-w-full gap-1 overflow-x-auto rounded-ctl bg-surface p-1">
         {tabs.map((x) => (
           <button
             key={x.id}
@@ -61,8 +61,8 @@ export function BeneficiariesView({ initialTab }: { initialTab: Tab }) {
               router.replace(x.id === 'list' ? '/beneficiaries' : '/beneficiaries?tab=purchases', { scroll: false });
             }}
             className={cx(
-              '-mb-px h-11 border-b-2 text-body font-semibold transition-colors',
-              tab === x.id ? 'border-brand text-brand-ink' : 'border-transparent text-muted hover:text-ink',
+              'h-12 rounded-ctl px-5 text-body font-bold transition-colors',
+              tab === x.id ? 'bg-brand text-on-brand' : 'text-muted hover:text-ink',
             )}
           >
             {x.label}

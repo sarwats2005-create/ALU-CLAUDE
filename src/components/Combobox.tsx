@@ -101,8 +101,8 @@ export function Combobox<T>({
           aria-invalid={invalid || undefined}
           aria-describedby={invalid ? `${id}-error` : undefined}
           className={cx(
-            'flex h-11 w-full min-w-0 items-center gap-2 rounded-ctl border bg-surface ps-3 pe-2 text-start text-body text-ink transition-colors hover:border-brand/60 focus:border-brand focus:outline-none focus:ring-[3px] focus:ring-[var(--focus)] disabled:bg-surface-2 disabled:text-muted md:h-10',
-            invalid ? 'border-danger' : 'border-line',
+            'flex h-14 w-full min-w-0 items-center gap-2 rounded-ctl border-2 bg-surface-2 ps-4 pe-2 text-start text-body text-ink transition-colors duration-200 hover:bg-tint focus:border-brand focus:bg-surface focus:outline-none disabled:text-muted disabled:opacity-70',
+            invalid ? 'border-danger' : 'border-transparent',
           )}
         >
           <span className="min-w-0 flex-1 truncate">{renderOption ? renderOption(value) : <span className="bidi">{value.label}</span>}</span>
@@ -115,7 +115,7 @@ export function Combobox<T>({
                 e.stopPropagation();
                 onChange(null);
               }}
-              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted hover:bg-tint hover:text-ink"
+              className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-muted hover:bg-tint hover:text-ink"
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </span>
@@ -163,18 +163,18 @@ export function Combobox<T>({
               }
             }}
             className={cx(
-              'bidi h-11 w-full min-w-0 rounded-ctl border bg-surface ps-3 pe-9 text-body text-ink placeholder:text-muted/80 focus:border-brand focus:outline-none focus:ring-[3px] focus:ring-[var(--focus)] md:h-10',
-              invalid ? 'border-danger' : 'border-line',
+              'bidi h-14 w-full min-w-0 rounded-ctl border-2 bg-surface-2 ps-4 pe-10 text-body text-ink placeholder:text-muted transition-colors duration-200 focus:border-brand focus:bg-surface focus:outline-none',
+              invalid ? 'border-danger' : 'border-transparent',
             )}
           />
-          <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-muted">{loading && open ? <Spinner /> : <ChevronDown className="h-4 w-4" aria-hidden="true" />}</span>
+          <span className="pointer-events-none absolute end-4 top-1/2 -translate-y-1/2 text-muted">{loading && open ? <Spinner /> : <ChevronDown className="h-4 w-4" aria-hidden="true" />}</span>
         </div>
       )}
       {open ? (
         <ul
           id={listId}
           role="listbox"
-          className="scroll-thin absolute inset-x-0 top-full z-40 mt-1 max-h-72 overflow-y-auto rounded-ctl border border-line bg-surface py-1 shadow-pop"
+          className="scroll-thin absolute inset-x-0 top-full z-40 mt-1 max-h-72 overflow-y-auto rounded-ctl border-2 border-brand bg-surface py-1"
         >
           {items.map((o, i) => (
             <li

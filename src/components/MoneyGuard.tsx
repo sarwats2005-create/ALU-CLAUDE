@@ -149,7 +149,7 @@ export function DuesTable({ vault, onEmpty }: { vault: Cur; onEmpty?: () => void
               {t('due.payAll')}
             </Button>
           </div>
-          <ul className="flex flex-col divide-y divide-line-soft rounded-ctl border border-line-soft md:hidden">
+          <ul className="flex flex-col divide-y-2 divide-surface rounded-ctl bg-surface-2 md:hidden">
             {data.rows.map((r) => (
               <li key={r.id} className="flex items-start justify-between gap-3 px-4 py-3">
                 <span className="min-w-0">
@@ -168,7 +168,7 @@ export function DuesTable({ vault, onEmpty }: { vault: Cur; onEmpty?: () => void
               </li>
             ))}
           </ul>
-          <div className="scroll-thin hidden overflow-x-auto rounded-ctl border border-line-soft md:block">
+          <div className="scroll-thin hidden overflow-x-auto rounded-ctl bg-surface-2 md:block">
             <table className="w-full min-w-[760px] text-meta">
               <thead>
                 <tr className="border-b border-line-soft bg-surface-2 text-caption text-muted">
@@ -227,7 +227,7 @@ export function DuesTable({ vault, onEmpty }: { vault: Cur; onEmpty?: () => void
 
 function Figure({ label, value, tone }: { label: string; value: string; tone?: 'danger' | 'success' }) {
   return (
-    <div className="rounded-ctl border border-line-soft bg-surface-2 px-4 py-3">
+    <div className="rounded-ctl bg-surface-2 px-4 py-3">
       <p className="text-caption text-muted">{label}</p>
       <p className={`num mt-1 text-lead font-bold ${tone === 'danger' ? 'text-danger-ink' : tone === 'success' ? 'text-success-ink' : 'text-ink'}`}>{value}</p>
     </div>

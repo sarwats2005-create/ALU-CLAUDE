@@ -71,17 +71,17 @@ export function SearchBox({ value, onChange, placeholder, className, label }: { 
   const { t } = useApp();
   return (
     <div className={cx('relative min-w-0', className)}>
-      <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+      <Search className="pointer-events-none absolute start-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" aria-hidden="true" />
       <input
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={label ?? placeholder}
-        className="bidi h-11 w-full rounded-ctl border border-line bg-surface ps-9 pe-9 text-body text-ink placeholder:text-muted/80 focus:border-brand focus:outline-none focus:ring-[3px] focus:ring-[var(--focus)] md:h-10 [&::-webkit-search-cancel-button]:hidden"
+        className="bidi h-14 w-full rounded-ctl border-2 border-transparent bg-surface-2 ps-11 pe-12 focus:bg-surface text-body text-ink placeholder:text-muted transition-colors duration-200 focus:border-brand focus:outline-none [&::-webkit-search-cancel-button]:hidden"
       />
       {value ? (
-        <button type="button" onClick={() => onChange('')} aria-label={t('common.clear')} className="absolute end-1.5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted hover:bg-tint hover:text-ink">
+        <button type="button" onClick={() => onChange('')} aria-label={t('common.clear')} className="absolute end-1 top-1/2 inline-flex h-14 w-14 -translate-y-1/2 items-center justify-center rounded-ctl text-muted hover:bg-surface-2 hover:text-ink">
           <X className="h-4 w-4" aria-hidden="true" />
         </button>
       ) : null}
@@ -223,12 +223,12 @@ export function Pager({ total, page, size, onPage, onSize }: { total: number; pa
   const from = total ? (page - 1) * size + 1 : 0;
   const to = Math.min(total, page * size);
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-soft px-5 py-3 text-meta text-muted">
+    <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-2 px-5 py-3 text-meta text-muted">
       <p className="num">{t('common.showing', { from, to, total })}</p>
       <div className="flex items-center gap-2">
         <label className="flex items-center gap-2">
           <span className="hidden sm:inline">{t('common.perPage')}</span>
-          <select value={size} onChange={(e) => onSize(Number(e.target.value))} className="select-chevron h-9 appearance-none rounded-ctl border border-line bg-surface ps-2 pe-8 text-meta text-ink">
+          <select value={size} onChange={(e) => onSize(Number(e.target.value))} className="select-chevron h-14 appearance-none rounded-ctl border-2 border-transparent bg-surface ps-4 pe-9 text-body text-ink focus:border-brand focus:outline-none">
             {[25, 50, 100].map((n) => (
               <option key={n} value={n}>
                 {n}
@@ -237,10 +237,10 @@ export function Pager({ total, page, size, onPage, onSize }: { total: number; pa
           </select>
         </label>
         <span className="num px-1">{t('common.page', { n: page, total: pages })}</span>
-        <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label={t('common.prev')} className="inline-flex h-9 w-9 items-center justify-center rounded-ctl border border-line text-ink hover:bg-tint disabled:opacity-40">
+        <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label={t('common.prev')} className="inline-flex h-14 w-14 items-center justify-center rounded-ctl bg-surface text-ink transition-all duration-200 hover:scale-105 hover:bg-tint-2 disabled:opacity-40 disabled:hover:scale-100">
           <ChevronLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
         </button>
-        <button type="button" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label={t('common.next')} className="inline-flex h-9 w-9 items-center justify-center rounded-ctl border border-line text-ink hover:bg-tint disabled:opacity-40">
+        <button type="button" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label={t('common.next')} className="inline-flex h-14 w-14 items-center justify-center rounded-ctl bg-surface text-ink transition-all duration-200 hover:scale-105 hover:bg-tint-2 disabled:opacity-40 disabled:hover:scale-100">
           <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
         </button>
       </div>
@@ -262,8 +262,8 @@ export function FilterPills<T extends string>({ value, onChange, options, label 
             aria-checked={on}
             onClick={() => onChange(o.value)}
             className={cx(
-              'h-9 shrink-0 rounded-full border px-3.5 text-meta font-semibold transition-colors',
-              on ? 'border-brand bg-brand text-on-brand' : 'border-line bg-surface text-muted hover:text-ink',
+              'h-14 shrink-0 rounded-ctl px-5 text-meta font-bold transition-all duration-200 hover:scale-105 active:scale-100 disabled:hover:scale-100',
+              on ? 'bg-brand text-on-brand' : 'bg-surface-2 text-muted hover:text-ink',
             )}
           >
             {o.label}

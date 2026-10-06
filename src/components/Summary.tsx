@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { cx } from '@/lib/cx';
 
-// Shared page-summary pieces (used on every main page, same as the dashboard):
-//  • Gestalt — related figures sit in ONE card, same shape, divided by hairlines.
-//  • Colour & Von Restorff — a cell only gets colour when it needs action (alert) or is clearly good.
-//  • Least effort — every figure can link straight to the place that explains it.
+// Shared page-summary pieces (used on every main page, same as the dashboard). Flat "colour block" stats:
+//  • Each figure is its own white block on the grey canvas, separated by space, never by lines or shadows.
+//  • Each block's icon sits in a solid circle; the circles cycle Blue, Emerald, Amber, Dark Gray so a row of
+//    stats reads as a multi-colour poster. A block that needs action turns red.
+//  • Least effort — every figure can link straight to the place that explains it (hover: scale + icon pop).
 
 const COLS = { 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4' } as const;
 
@@ -16,7 +17,7 @@ export function SummaryStrip({ children, cols = 4, className }: { children: Reac
     <div
       className={cx(
         // gap-px over a hairline-coloured background = dividers that work for any number of cells, in LTR and RTL.
-        'grid grid-cols-2 gap-px overflow-hidden rounded-card border border-line-soft bg-line-soft shadow-card',
+        'stat-strip grid grid-cols-2 gap-3',
         // Odd number of cells on a 2-column phone grid: the last one takes the full row (no empty hole).
         cols === 3 ? 'max-sm:[&>*:last-child:nth-child(odd)]:col-span-2' : 'max-lg:[&>*:last-child:nth-child(odd)]:col-span-2',
         cols === 3 && 'sm:grid-cols-3',
@@ -50,10 +51,12 @@ export function SummaryCell({ icon, label, value, sub, tone, alert, active, href
   const body = (
     <>
       <span className="flex items-center gap-2 text-meta font-medium text-muted">
-        {icon ? <span className={cx('flex h-8 w-8 shrink-0 items-center justify-center rounded-full', alert ? 'bg-danger text-white' : 'bg-tint text-brand-ink')}>{icon}</span> : null}
+        {icon ? (
+          <span className={cx('stat-icon flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white transition-transform duration-200 group-hover:scale-110', alert && 'is-alert')}>{icon}</span>
+        ) : null}
         <span className="min-w-0 leading-tight">{label}</span>
       </span>
-      <span className={cx('fig mt-3 block break-words text-heading font-bold md:text-large', tone === 'danger' ? 'text-danger-ink' : tone === 'success' ? 'text-success-ink' : 'text-ink')}>{value}</span>
+      <span className={cx('fig mt-4 block break-words text-heading font-extrabold md:text-large', tone === 'danger' ? 'text-danger-ink' : tone === 'success' ? 'text-success-ink' : 'text-ink')}>{value}</span>
       {sub ? (
         <span className={cx('mt-1.5 flex items-center gap-1 text-caption', alert ? 'font-semibold text-danger-ink' : 'text-muted')}>
           <span className="min-w-0">{sub}</span>
@@ -63,11 +66,12 @@ export function SummaryCell({ icon, label, value, sub, tone, alert, active, href
     </>
   );
   const cls = cx(
-    'group block min-w-0 p-4 text-start md:p-5',
-    alert ? 'bg-danger-tint' : 'bg-surface',
-    active && 'shadow-[inset_0_-3px_0_var(--brand)]',
-    go && 'transition-colors',
-    go && (alert ? 'hover:bg-danger-tint/70' : 'hover:bg-surface-2'),
+    'group relative block min-w-0 overflow-hidden rounded-card p-5 text-start md:p-6',
+    alert ? 'bg-danger-tint' : active ? 'bg-tint-2' : 'bg-surface',
+    // Selected filter: a solid Primary bar along the bottom edge (flat, no shadow).
+    active && 'after:absolute after:inset-x-0 after:bottom-0 after:h-1.5 after:bg-brand',
+    go && 'cursor-pointer transition-all duration-200 hover:scale-[1.02] motion-reduce:hover:scale-100',
+    go && (alert ? 'hover:bg-danger-tint' : active ? '' : 'hover:bg-tint'),
     className,
   );
   if (href)
@@ -89,7 +93,7 @@ export function SummaryCell({ icon, label, value, sub, tone, alert, active, href
 export function SectionLabel({ id, children, action }: { id?: string; children: ReactNode; action?: ReactNode }) {
   return (
     <div className="mb-2.5 flex items-center justify-between gap-3">
-      <h2 id={id} className="text-meta font-semibold uppercase tracking-[0.06em] text-muted">
+      <h2 id={id} className="text-caption font-bold uppercase tracking-wider text-muted">
         {children}
       </h2>
       {action}
@@ -101,8 +105,8 @@ export function SectionLabel({ id, children, action }: { id?: string; children: 
 export function StepLabel({ n, children, aside }: { n: number; children: ReactNode; aside?: ReactNode }) {
   return (
     <div className="mb-2.5 flex items-center justify-between gap-3">
-      <h2 className="flex items-center gap-2 text-meta font-semibold uppercase tracking-[0.06em] text-muted">
-        <span className="num flex h-6 w-6 items-center justify-center rounded-full bg-brand text-caption font-bold text-on-brand" aria-hidden="true">
+      <h2 className="flex items-center gap-2.5 text-caption font-bold uppercase tracking-wider text-ink">
+        <span className="num flex h-8 w-8 items-center justify-center rounded-full bg-brand text-meta font-bold text-on-brand" aria-hidden="true">
           {n}
         </span>
         {children}

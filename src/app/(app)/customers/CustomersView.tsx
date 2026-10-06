@@ -13,7 +13,7 @@ export function CustomersView() {
       <PageHeader
         title={t('cust.title')}
         actions={
-          <Button size="lg" className="shadow-pop" onClick={() => setAdding(true)} icon={<UserPlus className="h-4 w-4" aria-hidden="true" />}>
+          <Button size="lg" onClick={() => setAdding(true)} icon={<UserPlus className="h-4 w-4" aria-hidden="true" />}>
             {t('cust.add')}
           </Button>
         }

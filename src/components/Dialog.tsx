@@ -106,26 +106,40 @@ export function Dialog({
         aria-modal="true"
         aria-labelledby={titleId}
         className={cx(
-          'anim-sheet relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[16px] bg-surface shadow-pop md:rounded-card',
+          'anim-sheet relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-card bg-surface md:rounded-card',
           width,
         )}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-line-soft px-5 pb-3 pt-4 md:px-6">
+        {/* Flat sheet: no divider lines. The footer is a Gray 100 colour block instead. */}
+        <div className="flex items-start justify-between gap-3 px-5 pb-2 pt-5 md:px-7 md:pt-6">
           <div className="min-w-0">
-            <h2 id={titleId} className="bidi text-title font-semibold text-ink">
+            <h2 id={titleId} className="bidi text-heading font-extrabold text-ink">
               {title}
             </h2>
-            {description ? <p className="mt-0.5 text-meta text-muted">{description}</p> : null}
+            {description ? <p className="mt-1 text-meta text-muted">{description}</p> : null}
           </div>
           {dismissible ? (
-            <button type="button" onClick={onClose} aria-label={t('common.close')} className="-me-2 -mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted hover:bg-tint hover:text-ink">
-              <X className="h-5 w-5" aria-hidden="true" />
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t('common.close')}
+              className="-me-2 -mt-2 inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-ctl text-muted transition-all duration-200 hover:scale-105 hover:bg-surface-2 hover:text-ink"
+            >
+              <X className="h-6 w-6" strokeWidth={2.5} aria-hidden="true" />
             </button>
           ) : null}
         </div>
         {banner}
-        <div data-dialog-body className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-6">{children}</div>
-        {footer ? <div data-dialog-footer className="safe-bottom flex flex-col-reverse gap-2 border-t border-line-soft bg-surface px-5 py-3 md:flex-row md:justify-end md:px-6">{footer}</div> : null}
+        <div data-dialog-body className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-7">{children}</div>
+        {footer ? (
+          <div
+            data-dialog-footer
+            data-on-canvas
+            className="safe-bottom flex flex-col-reverse gap-3 bg-surface-2 px-5 py-4 md:flex-row md:justify-end md:px-7"
+          >
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>,
     document.body,

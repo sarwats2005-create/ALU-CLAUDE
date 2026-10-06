@@ -74,7 +74,7 @@ export function VaultView({ editOp }: { editOp: TxnDetail | null }) {
             <Button variant="secondary" size="lg" onClick={() => setOp({ kind: 'VAULT_WITHDRAWAL' })} icon={<ArrowUpRight className="h-4 w-4" aria-hidden="true" />}>
               {t('vault.withdraw')}
             </Button>
-            <Button size="lg" className="order-first shadow-pop sm:order-none" onClick={() => setOp({ kind: 'VAULT_DEPOSIT' })} icon={<ArrowDownLeft className="h-4 w-4" aria-hidden="true" />}>
+            <Button size="lg" className="order-first sm:order-none" onClick={() => setOp({ kind: 'VAULT_DEPOSIT' })} icon={<ArrowDownLeft className="h-4 w-4" aria-hidden="true" />}>
               {t('vault.deposit')}
             </Button>
           </>
@@ -382,7 +382,7 @@ function VaultOpDialog({ kind, edit, balances, onClose }: { kind: OpKind; edit?:
             </Field>
             <div className="flex flex-col gap-1.5">
               <span className="text-meta font-medium text-ink">{t('vault.converted')}</span>
-              <span className="num flex h-11 items-center justify-end rounded-ctl bg-success-tint px-3 text-body font-bold text-success-ink md:h-10">{converted ? `+${fmtMoney(converted, toVault)}` : '—'}</span>
+              <span className="num flex h-14 items-center justify-end rounded-ctl bg-success-tint px-4 text-title font-extrabold text-success-ink">{converted ? `+${fmtMoney(converted, toVault)}` : '—'}</span>
             </div>
           </div>
         ) : (

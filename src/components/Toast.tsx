@@ -35,13 +35,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={x.id}
             className={cx(
-              'anim-sheet pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-card border bg-surface px-4 py-3 text-body shadow-pop',
-              x.tone === 'success' ? 'border-success/30' : 'border-danger/30',
+              // Flat dark block; the solid icon circle carries the tone (Emerald = done, Red = problem).
+              'anim-sheet pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-card bg-dark px-4 py-3 text-body text-white',
             )}
           >
-            {x.tone === 'success' ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" /> : <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-danger" aria-hidden="true" />}
-            <p className="bidi min-w-0 flex-1 font-medium text-ink">{x.text}</p>
-            <button type="button" onClick={() => dismiss(x.id)} className="-me-1 rounded p-0.5 text-muted hover:text-ink" aria-label={t('common.close')}>
+            <span className={cx('flex h-14 w-14 shrink-0 items-center justify-center rounded-full', x.tone === 'success' ? 'bg-success' : 'bg-danger')} aria-hidden="true">
+              {x.tone === 'success' ? <CheckCircle2 className="h-5 w-5" strokeWidth={2.5} /> : <AlertTriangle className="h-5 w-5" strokeWidth={2.5} />}
+            </span>
+            <p className="bidi min-w-0 flex-1 font-semibold">{x.text}</p>
+            <button type="button" onClick={() => dismiss(x.id)} className="-me-2 inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-ctl text-white/70 hover:bg-white/10 hover:text-white" aria-label={t('common.close')}>
               <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>

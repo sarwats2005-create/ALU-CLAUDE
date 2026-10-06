@@ -82,7 +82,7 @@ function Tooltip({ x, y, value, label, color, width }: { x: number; y: number; v
   const w = 168;
   const left = Math.max(4, Math.min(width - w - 4, x - w / 2));
   return (
-    <div role="presentation" className="pointer-events-none absolute z-10 rounded-ctl border border-line bg-surface px-3 py-2 shadow-pop" style={{ left, top: Math.max(0, y - 64), width: w }}>
+    <div role="presentation" className="pointer-events-none absolute z-10 rounded-ctl bg-dark px-3 py-2 text-white [&_*]:!text-white" style={{ left, top: Math.max(0, y - 64), width: w }}>
       <p className="fig text-body font-bold text-ink">{value}</p>
       <p className="mt-0.5 flex items-center gap-1.5 text-caption text-muted">
         <span className="inline-block h-0.5 w-3 rounded" style={{ background: color }} aria-hidden="true" />
@@ -367,7 +367,7 @@ export function ChartCard({
   const { t } = useT();
   const [view, setView] = useState<'chart' | 'table'>('chart');
   return (
-    <section className={cx('subline-host flex min-w-0 flex-col rounded-card border border-line-soft bg-surface p-5 shadow-card', className)}>
+    <section className={cx('subline-host flex min-w-0 flex-col rounded-card bg-surface p-5', className)}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-body font-semibold text-ink">{title}</h2>

@@ -165,7 +165,7 @@ export function SplitPayment({
       ) : null}
 
       {has ? (
-        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-ctl border border-line-soft bg-line-soft text-meta">
+        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-ctl bg-line-soft text-meta">
           <div className="bg-surface px-3 py-2">
             <dt className="text-caption text-muted">{t('pay.totalPaid')}</dt>
             <dd className="num font-semibold text-success-ink">{fmtMoney(s.paid, currency)}</dd>

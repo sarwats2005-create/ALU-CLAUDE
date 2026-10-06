@@ -56,8 +56,8 @@ export function DateInput({
         }}
         onBlur={(e) => commit(e.target.value)}
         className={cx(
-          'num h-11 w-full min-w-0 rounded-ctl border bg-surface ps-3 pe-11 text-body text-ink placeholder:text-muted/80 focus:border-brand focus:outline-none focus:ring-[3px] focus:ring-[var(--focus)] md:h-10',
-          invalid ? 'border-danger' : 'border-line',
+          'num h-14 w-full min-w-0 rounded-ctl border-2 bg-surface-2 ps-4 pe-14 text-body text-ink placeholder:text-muted transition-colors duration-200 focus:border-brand focus:bg-surface focus:outline-none',
+          invalid ? 'border-danger' : 'border-transparent',
         )}
       />
       <button
@@ -73,9 +73,9 @@ export function DateInput({
           }
         }}
         aria-label={t('common.openCalendar')}
-        className="absolute end-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-ctl text-muted hover:bg-tint hover:text-ink md:h-8 md:w-8"
+        className="absolute end-1 top-1/2 inline-flex h-14 w-14 -translate-y-1/2 items-center justify-center rounded-ctl text-muted hover:bg-tint-2 hover:text-ink"
       >
-        <CalendarDays className="h-4 w-4" aria-hidden="true" />
+        <CalendarDays className="h-5 w-5" aria-hidden="true" />
       </button>
       <input
         ref={native}
