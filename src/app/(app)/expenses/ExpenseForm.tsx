@@ -159,8 +159,7 @@ export function ExpenseForm({
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Field label={t('exp.category')} htmlFor="exp-cat" error={errors.categoryId} required>
-            <Select id="exp-cat" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} invalid={!!errors.categoryId}>
-              <option value="">{t('exp.categoryPick')}</option>
+            <Select id="exp-cat" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} invalid={!!errors.categoryId} placeholder={t('exp.categoryPick')}>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}

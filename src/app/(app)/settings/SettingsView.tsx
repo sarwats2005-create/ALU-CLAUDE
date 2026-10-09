@@ -625,8 +625,7 @@ function ProductsSection() {
             </Field>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label={t('common.aluminumType')} htmlFor="p-type" error={errors.typeId} required>
-                <Select id="p-type" value={edit.typeId} onChange={(e) => setEdit({ ...edit, typeId: e.target.value })} invalid={!!errors.typeId}>
-                  <option value="">{t('common.select')}</option>
+                <Select id="p-type" value={edit.typeId} onChange={(e) => setEdit({ ...edit, typeId: e.target.value })} invalid={!!errors.typeId} placeholder={t('common.select')}>
                   {(types.data ?? []).map((x) => (
                     <option key={x.id} value={x.id}>
                       {x.name}

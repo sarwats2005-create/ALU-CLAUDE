@@ -6,7 +6,7 @@ import { fmtDate, isValidIsoDate } from '@/lib/dates';
 import { D, Dec, fmtMoney } from '@/lib/money';
 import { REPORT_META, type ReportData } from '@/lib/reports-meta';
 import { getCompany } from '../common';
-import { statementRows, type PartyKind } from '../q/parties';
+import { statementRows, type PartyKind } from '@/lib/server/q/parties';
 import { notFound } from '../errors';
 import { docHtml, esc, num } from './shell';
 
@@ -68,6 +68,7 @@ export async function statementDocument(kind: PartyKind, id: string, lang: Lang,
       { label: L('rep.transactions'), value: num(rows.length) },
     ],
     body,
+    decor: false,
   });
   return { html, name: party.name };
 }
@@ -117,6 +118,7 @@ export async function reportDocument(data: ReportData, lang: Lang) {
     company,
     heading: L(meta.title),
     meta: [{ label: L('doc.period'), value: num(`${fmtDate(data.from)} – ${fmtDate(data.to)}`) }],
+    fit: true,
     body: `<p class="s m block bidi">${esc(L(meta.desc))}</p>${summary}${tables}`,
   });
   return { html, landscape: meta.landscape };

@@ -82,6 +82,16 @@ async function render(html: string): Promise<Buffer> {
     page.on('request', (r) => (r.url().startsWith('data:') ? r.continue() : r.abort()));
     await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
     await page.evaluate(() => (document as Document & { fonts: FontFaceSet }).fonts.ready);
+    // Reports: lay out at the printable width, then let the document shrink itself onto one page if it can.
+    const fit = /<html[^>]*\sdata-fit-w="(\d+(?:\.\d+)?)"\s+data-fit-h="(\d+(?:\.\d+)?)"/.exec(html);
+    if (fit) {
+      const px = (mm: string) => Math.floor((Number(mm) * 96) / 25.4);
+      const w = px(fit[1]);
+      const h = px(fit[2]);
+      await page.setViewport({ width: w, height: h });
+      await page.emulateMediaType('print');
+      await page.evaluate((W, H) => (window as unknown as { __fitPage?: (w: number, h: number) => number }).__fitPage?.(W, H), w, h);
+    }
     const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true, timeout: 60000 });
     return Buffer.from(pdf);
   } finally {

@@ -1,0 +1,117 @@
+/* Alu Factory invoice · everything is scoped under .inv so it can't leak into (or be hit by) the app's own CSS */
+.inv {
+  --blue: #3b82f6; --green: #10b981; --amber: #f59e0b; --navy: #111827;
+  --tile: rgba(243, 244, 246, 0.82); --muted: #5b6472; --line: #e5e7eb; --grid: #cbd0d8; --ink: #111827;
+  position: relative; display: flex; flex-direction: column;
+  width: 210mm; min-height: 297mm; overflow: hidden;
+  background: #fff; color: var(--ink); line-height: 1.35;
+  font-family: "Cairo", "Segoe UI", Tahoma, sans-serif;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.inv, .inv *, .inv *::before, .inv *::after { box-sizing: border-box; }
+.inv--a5 { width: 148mm; min-height: 210mm; }
+.inv__sprite { position: absolute; width: 0; height: 0; }
+.inv__num { direction: ltr; unicode-bidi: isolate; display: inline-block; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* watermark + random factory icons (behind everything) */
+.inv__wm { position: absolute; left: 50%; top: 50%; width: 520px; height: 520px; transform: translate(-50%, -50%); opacity: 0.085; pointer-events: none; z-index: 0; }
+.inv__icons { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.inv__cn { position: absolute; width: 180px; height: 180px; }
+.inv__cn--tl { left: 8px; top: 16px; } .inv__cn--tr { right: 8px; top: 16px; }
+.inv__cn--bl { left: 8px; bottom: 8px; } .inv__cn--br { right: 8px; bottom: 8px; }
+.inv__ico { position: absolute; fill: none; stroke: #6b7280; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+.inv__strip { position: relative; z-index: 2; display: flex; height: 8px; }
+.inv__strip i { flex: 1; }
+.inv__strip i:nth-child(1) { background: var(--blue); } .inv__strip i:nth-child(2) { background: var(--green); }
+.inv__strip i:nth-child(3) { background: var(--amber); } .inv__strip i:nth-child(4) { background: var(--navy); }
+.inv__in { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; padding: 34px 46px 30px; }
+
+/* header */
+.inv__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+.inv__brand { display: flex; align-items: center; gap: 12px; }
+.inv__logo { width: 64px; height: 64px; display: block; flex: none; }
+.inv__brand b { display: block; font-size: 24px; font-weight: 800; letter-spacing: -0.3px; line-height: 1; }
+.inv__brand span { display: block; margin-top: 4px; font-size: 11.5px; font-weight: 400; letter-spacing: 0.2px; color: #6b7280; }
+.inv__contact { display: flex; flex-direction: column; gap: 5px; font-size: 11.5px; color: var(--muted); text-align: start; }
+.inv__contact > div { display: flex; align-items: center; gap: 7px; }
+.inv__ci { width: 15px; height: 15px; flex: none; fill: none; stroke: var(--blue); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* title row */
+.inv__title { display: flex; justify-content: space-between; align-items: flex-end; margin: 30px 0 16px; }
+.inv__title h1 { margin: 0; font-size: 44px; font-weight: 800; letter-spacing: -1.2px; line-height: 1; }
+.inv__tr { display: flex; align-items: center; gap: 10px; }
+.inv__pill { background: var(--navy); color: #fff; border-radius: 99px; padding: 6px 20px; font-size: 18px; font-weight: 700; }
+.inv__stat { border: 1.5px solid; border-radius: 99px; padding: 5px 14px; font-size: 12px; font-weight: 800; }
+.inv__stat--paid { background: #d1fae5; color: #065f46; border-color: #10b981; }
+.inv__stat--part { background: #fef3c7; color: #92400e; border-color: #f59e0b; }
+.inv__stat--due { background: #dbeafe; color: #1e3a8a; border-color: #3b82f6; }
+
+/* meta cards */
+.inv__meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.inv__card { background: var(--tile); border-radius: 8px; padding: 10px 12px; border-top: 4px solid var(--c); }
+.inv__card--blue { --c: var(--blue); } .inv__card--green { --c: var(--green); } .inv__card--amber { --c: var(--amber); }
+.inv__card small, .inv__k { display: block; font-size: 11px; font-weight: 600; color: var(--muted); }
+.inv__card strong { font-size: 14px; font-weight: 700; }
+
+/* bill to (full width) */
+.inv__bill { position: relative; overflow: hidden; margin: 20px 0 22px; padding: 20px 18px 14px; border-radius: 8px; background: var(--tile); }
+.inv__bill::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: linear-gradient(90deg, var(--blue) 25%, var(--green) 25% 50%, var(--amber) 50% 75%, var(--navy) 75%); }
+.inv__k { margin-bottom: 4px; }
+.inv__bl { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 14px; }
+.inv__bl h3 { margin: 0; font-size: 20px; font-weight: 800; }
+.inv__bd { display: flex; flex-wrap: wrap; gap: 22px; font-size: 13px; color: #374151; }
+.inv__it { display: flex; align-items: center; gap: 6px; }
+
+/* table: full grey grid, everything centred */
+.inv__table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.inv__table th, .inv__table td { border: 1px solid var(--grid); padding: 12px; text-align: center; vertical-align: middle; }
+.inv__table thead th { white-space: nowrap; background: var(--navy); color: #fff; font-size: 12px; font-weight: 700; }
+.inv__table .inv__idx { width: 30px; }
+.inv__table tbody tr { break-inside: avoid; }
+.inv__name b { display: block; font-size: 14px; font-weight: 700; }
+.inv__sku { display: inline-block; margin-top: 3px; padding: 1px 7px; border-radius: 4px; background: #f3f4f6; font-size: 11px; color: var(--muted); }
+.inv__desc { font-size: 12px; line-height: 1.5; color: #4b5563; }
+.inv__table tfoot td { background: var(--tile); font-weight: 700; }
+
+/* notes (stretches to the bottom of the totals) + totals */
+.inv__bottom { display: grid; grid-template-columns: 1fr 290px; gap: 28px; align-items: stretch; margin-top: 26px; }
+.inv__note { display: flex; flex-direction: column; min-height: 120px; padding: 14px 16px; border-radius: 8px; background: var(--tile); font-size: 12.5px; line-height: 1.7; color: #374151; }
+.inv__note b { color: var(--ink); }
+.inv__note-body { flex: 1; white-space: pre-wrap; overflow-wrap: anywhere; } /* leave empty space for handwriting */
+.inv__row { display: flex; justify-content: space-between; padding: 7px 4px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.inv__row--disc b { color: #047857; }
+.inv__row--bal { margin-top: 6px; border: 0; border-radius: 6px; background: rgba(245, 158, 11, 0.16); font-weight: 800; }
+.inv__grand { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding: 14px 16px; border-radius: 8px; border-inline-start: 8px solid var(--amber); background: var(--navy); color: #fff; }
+.inv__grand span { font-size: 15px; font-weight: 700; }
+.inv__grand strong { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+.inv__grand + .inv__row { margin-top: 6px; }
+.inv__paid { margin-top: 8px; padding: 8px; border: 1px solid #6ee7b7; border-radius: 8px; background: #d1fae5; color: #065f46; font-size: 13px; font-weight: 800; text-align: center; }
+.inv__iqd { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; padding: 0 4px; font-size: 13px; font-weight: 700; }
+.inv__iqd small { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+
+/* signatures + footer */
+.inv__sign { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: auto; padding-top: 50px; }
+.inv__sign div { padding-top: 6px; border-top: 1.5px solid var(--navy); font-size: 12px; font-weight: 600; color: var(--muted); }
+.inv__foot { display: flex; justify-content: space-between; align-items: center; margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.inv__foot b { font-size: 13px; font-weight: 700; color: var(--ink); }
+
+/* A5 */
+.inv--a5 .inv__in { padding: 22px 24px 20px; }
+.inv--a5 .inv__logo { width: 50px; height: 50px; }
+.inv--a5 .inv__brand b { font-size: 19px; } .inv--a5 .inv__brand span { font-size: 10px; }
+.inv--a5 .inv__contact { gap: 3px; font-size: 10px; }
+.inv--a5 .inv__title { margin: 18px 0 12px; } .inv--a5 .inv__title h1 { font-size: 32px; }
+.inv--a5 .inv__pill { padding: 4px 14px; font-size: 14px; }
+.inv--a5 .inv__meta { gap: 6px; } .inv--a5 .inv__card strong { font-size: 12px; }
+.inv--a5 .inv__bill { margin: 14px 0 16px; } .inv--a5 .inv__bl h3 { font-size: 16px; }
+.inv--a5 .inv__bd { gap: 14px; font-size: 11.5px; }
+.inv--a5 .inv__table { font-size: 11px; } .inv--a5 .inv__table th, .inv--a5 .inv__table td { padding: 7px 5px; }
+.inv--a5 .inv__desc { font-size: 10.5px; }
+.inv--a5 .inv__bottom { grid-template-columns: 1fr; gap: 14px; margin-top: 18px; }
+.inv--a5 .inv__note { min-height: 80px; }
+.inv--a5 .inv__sign { gap: 24px; padding-top: 30px; }
+.inv--a5 .inv__wm { width: 380px; height: 380px; }
+.inv--a5 .inv__cn { transform: scale(0.65); }
+.inv--a5 .inv__cn--tl { transform-origin: 0 0; } .inv--a5 .inv__cn--tr { transform-origin: 100% 0; }
+.inv--a5 .inv__cn--bl { transform-origin: 0 100%; } .inv--a5 .inv__cn--br { transform-origin: 100% 100%; }

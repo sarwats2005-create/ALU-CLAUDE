@@ -551,3 +551,12 @@
 .stat-icon {
   background: var(--brand);
 }
+
+/* Dropdown showing its placeholder (nothing picked yet): muted text in the field, but the items in the open list
+   keep the normal ink colour (some browsers otherwise inherit the muted colour into the options). */
+select[data-empty] {
+  color: var(--muted);
+}
+select[data-empty] option {
+  color: var(--ink);
+}

@@ -252,8 +252,7 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
                     </button>
                   }
                 >
-                  <Select id="pur-np-type" value={npType} onChange={(e) => setNpType(e.target.value)} invalid={!!errors['newProduct.typeId']}>
-                    <option value="">{t('common.select')}</option>
+                  <Select id="pur-np-type" value={npType} onChange={(e) => setNpType(e.target.value)} invalid={!!errors['newProduct.typeId']} placeholder={t('common.select')}>
                     {(types.data ?? []).map((x) => (
                       <option key={x.id} value={x.id}>
                         {x.name}

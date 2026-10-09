@@ -39,6 +39,17 @@ async function printDoc(url: string): Promise<{ ok: boolean; error?: string }> {
           [...win.document.images].map((img) => (img.complete ? Promise.resolve() : new Promise((r) => ((img.onload = r), (img.onerror = r))))),
         );
       } catch {}
+      // Reports shrink onto one page when they can (the same rule as the PDF export): lay the hidden frame out at
+      // the printable width, let the document zoom itself, then print.
+      const root = win.document.documentElement;
+      const fitPage = (win as Window & { __fitPage?: (w: number, h: number) => number }).__fitPage;
+      if (fitPage && root.dataset.fitW && root.dataset.fitH) {
+        const px = (mm: string) => Math.floor((Number(mm) * 96) / 25.4);
+        Object.assign(frame.style, { width: `${px(root.dataset.fitW)}px`, height: `${px(root.dataset.fitH)}px` });
+        try {
+          fitPage(px(root.dataset.fitW), px(root.dataset.fitH));
+        } catch {}
+      }
       win.focus();
       win.addEventListener('afterprint', cleanup, { once: true });
       win.print();

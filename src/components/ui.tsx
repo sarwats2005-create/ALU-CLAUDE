@@ -165,17 +165,28 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
   );
 });
 
-export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }>(function Select(
-  { invalid, className, children, ...rest },
+/**
+ * Dropdown. `placeholder` is shown in the field while nothing is picked (muted, like a text field's hint) but is
+ * never offered in the open list: it is a hidden, disabled option, so it can't be chosen. Picking an item replaces it.
+ */
+export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean; placeholder?: string }>(function Select(
+  { invalid, className, children, placeholder, ...rest },
   ref,
 ) {
+  const empty = placeholder !== undefined && (rest.value === '' || rest.value === undefined || rest.value === null);
   return (
     <select
       ref={ref}
       aria-invalid={invalid || undefined}
+      data-empty={empty || undefined}
       className={cx(INPUT, 'select-chevron appearance-none pe-9', invalid ? 'border-danger' : 'border-transparent', className)}
       {...rest}
     >
+      {placeholder !== undefined ? (
+        <option value="" disabled hidden>
+          {placeholder}
+        </option>
+      ) : null}
       {children}
     </select>
   );

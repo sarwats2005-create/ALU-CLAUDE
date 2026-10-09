@@ -10,6 +10,10 @@ import { txnDetail } from '@/lib/server/q/history';
 import { statementRows } from '@/lib/server/q/parties';
 import { notFound } from '../errors';
 import { docHtml, esc, num, type PageSize } from './shell';
+import { invoiceHtml } from './invoice/render';
+
+/** Not a type guard on purpose: the shell code below still names SALE/PURCHASE in shared conditions. */
+const isInvoice = (k: Kind): boolean => k === 'SALE' || k === 'PURCHASE';
 
 const HEAD: Record<ReturnType<typeof docKindOf>, 'doc.invoice' | 'doc.receipt' | 'doc.voucher'> = { invoice: 'doc.invoice', receipt: 'doc.receipt', voucher: 'doc.voucher' };
 
@@ -36,6 +40,33 @@ export async function txnDocument(id: string, lang: Lang, size: PageSize = 'A5')
     if (r) balance = { before: D(r.running).minus(D(r.effectUsd)).toString(), after: r.running };
   }
 
+  // Sales and purchase invoices use the invoice design (docs/invoice); receipts and vouchers keep the shell below.
+  if (isInvoice(kind)) {
+    const html = await invoiceHtml(
+      {
+        kind: kind as 'SALE' | 'PURCHASE',
+        number: d.number,
+        date: d.date,
+        currency: cur,
+        rate: d.rate,
+        total: d.total,
+        totalUsd: d.totalUsd,
+        cashPaid: d.cashPaid,
+        paidUsd: d.paidUsd,
+        paidIqd: d.paidIqd,
+        notes: d.notes,
+        deleted: !!d.deletedAt,
+        party: party ? { name: party.name, phone: party.phone, address: party.address } : null,
+        lines: d.lines,
+        balance: balance && party ? { before: balanceLabel(side, balance.before, lang).text, after: balanceLabel(side, balance.after, lang).text } : null,
+      },
+      company,
+      lang,
+      size,
+    );
+    return { html, number: d.number, kind };
+  }
+
   const parts: string[] = [];
   if (party) {
     parts.push(`<section class="block row">
@@ -48,67 +79,6 @@ export async function txnDocument(id: string, lang: Lang, size: PageSize = 'A5')
         <div class="val">${esc(L(`cur.${cur}`))}${d.vault ? ` · ${esc(L(`vault.${d.vault}` as 'vault.USD'))}` : ''}</div>
         <div class="s m">${esc(L('doc.rateApplied'))}: ${num(rateLine(d.rate))}</div>
       </div>`}
-    </section>`);
-  }
-
-  if (kind === 'SALE' || kind === 'PURCHASE') {
-    const totalKg = d.lines.reduce((sum, l) => sum.plus(D(l.kg)), D(0));
-    parts.push(`<section class="block tablewrap"><table class="lines">
-      <colgroup><col class="cn"><col><col class="cs hs"><col class="ck"><col class="cp"><col class="ct"></colgroup>
-      <thead><tr><th class="c">${esc(L('doc.line'))}</th><th>${esc(L('common.product'))}</th><th class="hs">${esc(L('doc.state'))}</th><th class="e">${esc(L('common.kg'))}</th><th class="e">${esc(L('common.unitPriceShort'))}</th><th class="e">${esc(L('common.total'))}</th></tr></thead>
-      <tbody>${d.lines
-        .map(
-          (l, i) => `<tr><td class="c m">${num(i + 1)}</td><td><div class="pname bidi">${esc(l.productName)}</div><div class="pmeta"><span class="chip n">${esc(l.sku)}</span> <span class="bidi">${esc(l.typeName)}</span></div></td>
-          <td class="s hs">${esc(L(`state.${l.state}` as 'state.RAW'))}</td><td class="e">${num(fmtKg(l.kg))}</td><td class="e">${num(fmtPrice(l.unitPrice, cur))}</td><td class="e b">${num(fmtMoney(l.lineTotal, cur))}</td></tr>`,
-        )
-        .join('')}</tbody>
-      <tfoot><tr><td></td><td>${esc(L('doc.itemsN', { n: d.lines.length }))}</td><td class="hs"></td><td class="e">${num(fmtKg(totalKg))}</td><td></td><td class="e">${num(fmtMoney(d.total, cur))}</td></tr></tfoot>
-    </table></section>`);
-    const due = D(d.total).minus(D(d.cashPaid));
-    // Split payment: each currency on its own line, with what it is worth in the invoice currency.
-    const r = D(d.rate);
-    const usd = D(d.paidUsd);
-    const iqd = D(d.paidIqd);
-    const worth = (amount: ReturnType<typeof D>, from: Cur) =>
-      from !== cur ? `<div class="s m">= ${num(fmtMoney(roundMoney(convert(amount, from, cur, r), cur), cur))}</div>` : '';
-    const vaultWord = (v: Cur) => (kind === 'SALE' ? L('pay.toVault', { vault: L(`vault.${v}` as 'vault.USD') }) : L('pay.fromVault', { vault: L(`vault.${v}` as 'vault.USD') }));
-    const payRow = (amount: ReturnType<typeof D>, from: Cur) =>
-      amount.gt(0)
-        ? `<tr><td class="m">${esc(L(from === 'USD' ? 'pay.inUsd' : 'pay.inIqd'))}<div class="s m">${esc(vaultWord(from))}</div></td><td class="e">${num(fmtMoney(amount, from))}${worth(amount, from)}</td></tr>`
-        : '';
-    const crossed = (cur === 'USD' && iqd.gt(0)) || (cur === 'IQD' && usd.gt(0));
-    // Split payment (both currencies, or paid in the other currency): one line per currency. Otherwise the
-    // invoice stays simple: the amount paid and the vault it went to.
-    const split = crossed || (usd.gt(0) && iqd.gt(0));
-    const paidVault: Cur | null = usd.gt(0) ? 'USD' : iqd.gt(0) ? 'IQD' : null;
-    parts.push(`<section class="block sumrow">
-      <div class="facts">
-        <div>${esc(L('doc.payCurrency'))}: <b>${esc(L(`cur.${cur}`))}</b></div>
-        ${!split && paidVault ? `<div>${esc(L('doc.vaultUsed'))}: <b>${esc(L(`vault.${paidVault}` as 'vault.USD'))}</b></div>` : ''}
-        <div>${esc(L('doc.rateApplied'))}: <b>${num(rateLine(d.rate))}</b></div>
-        ${
-          crossed
-            ? // Only the amounts are isolated left-to-right, so the sentence wraps and reads correctly in Kurdish too.
-              `<div>${esc(
-                cur === 'USD'
-                  ? L('pay.iqdWorth', { iqd: '\u0001', usd: '\u0002', rate: '\u0003' })
-                  : L('pay.usdWorth', { usd: '\u0001', iqd: '\u0002', rate: '\u0003' }),
-              )
-                .replace('\u0001', num(cur === 'USD' ? fmtMoney(iqd, 'IQD') : fmtMoney(usd)))
-                .replace('\u0002', num(cur === 'USD' ? fmtMoney(convert(iqd, 'IQD', 'USD', r).toDecimalPlaces(2)) : fmtMoney(roundMoney(convert(usd, 'USD', 'IQD', r), 'IQD'), 'IQD')))
-                .replace('\u0003', num(fmtRate(r)))}</div>`
-            : ''
-        }
-      </div>
-      <table class="totals">
-        <tr><td class="m">${esc(L('doc.subtotal'))}</td><td class="e b">${num(fmtMoney(d.total, cur))}</td></tr>
-        ${cur === 'IQD' ? `<tr><td class="m">${esc(L('common.usdEquivalent'))}</td><td class="e">${num(fmtMoney(d.totalUsd))}</td></tr>` : ''}
-        ${split ? payRow(usd, 'USD') + payRow(iqd, 'IQD') : ''}
-        <tr><td class="m">${esc(kind === 'SALE' ? L('doc.paidByCustomer') : L('doc.paidToSupplier'))}</td><td class="e b">${num(fmtMoney(d.cashPaid, cur))}</td></tr>
-        <tr class="grand"><td>${esc(due.isNegative() ? L('doc.overpaid') : kind === 'SALE' ? L('doc.amountDue') : L('doc.balanceToPay'))}</td><td class="e ${due.gt(0) ? 'neg' : ''}">${num(fmtMoney(due.abs(), cur))}${
-          due.gt(0) && cur === 'USD' ? `<div class="s">= ${num(fmtMoney(roundMoney(convert(due, 'USD', 'IQD', r), 'IQD'), 'IQD'))}</div>` : ''
-        }</td></tr>
-      </table>
     </section>`);
   }
 
