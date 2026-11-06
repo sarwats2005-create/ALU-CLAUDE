@@ -1,0 +1,9 @@
+{
+  "name": "ALU FACTORY",
+  "install": "set -euo pipefail; script=; for c in \"$PWD\" \"$PWD/repos/ALU-CLAUDE\" \"$PWD/ALU-CLAUDE\" /agent/repos/ALU-CLAUDE /workspace/ALU-CLAUDE /workspace/repos/ALU-CLAUDE; do if [ -f \"$c/.cursor/install.sh\" ]; then script=\"$c/.cursor/install.sh\"; break; fi; done; if [ -z \"$script\" ]; then echo \"ALU-CLAUDE .cursor/install.sh not found\" >&2; exit 1; fi; bash \"$script\"",
+  "start": "set -euo pipefail; script=; for c in \"$PWD\" \"$PWD/repos/ALU-CLAUDE\" \"$PWD/ALU-CLAUDE\" /agent/repos/ALU-CLAUDE /workspace/ALU-CLAUDE /workspace/repos/ALU-CLAUDE; do if [ -f \"$c/.cursor/start.sh\" ]; then script=\"$c/.cursor/start.sh\"; break; fi; done; if [ -z \"$script\" ]; then echo \"ALU-CLAUDE .cursor/start.sh not found\" >&2; exit 1; fi; bash \"$script\"",
+  "ports": [
+    { "name": "ALU FACTORY", "port": 3000 }
+  ],
+  "chromeExecutablePath": "/usr/local/bin/google-chrome"
+}
