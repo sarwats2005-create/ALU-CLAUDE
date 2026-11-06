@@ -35,6 +35,9 @@
   --sidebar-ink: #ffffff;
   --sidebar-muted: rgba(255, 255, 255, 0.85);
   --sidebar-active: rgba(255, 255, 255, 0.2);
+  /* Rail and expanded drawer. The icon column is exactly one rail wide, so glyphs stay put as the drawer grows. */
+  --sidebar-rail: 4.5rem;
+  --sidebar-wide: 18.5rem;
   --overlay: rgba(17, 24, 39, 0.6);
   --focus: #3b82f6;
   --bar-glass: #ffffff;
@@ -195,6 +198,163 @@
   }
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* ───────────────────────── App sidebar ─────────────────────────
+   Phones and tablets: an off-canvas drawer (opened from the top bar).
+   Desktop: a fixed icon rail. Hover and keyboard focus widen it over the page; leaving collapses it.
+   Touch desktops keep the rail and open it from the menu button (no hover).
+   Safe-area padding sits outside the rail so icons stay centered on the same line as the page offset. */
+.app-sidebar {
+  --side-safe: env(safe-area-inset-left, 0px);
+  position: fixed;
+  z-index: 40;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-height: 100dvh;
+  width: min(calc(var(--sidebar-wide) + var(--side-safe)), calc(100vw - 3.25rem));
+  max-width: calc(100vw - 3.25rem);
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: var(--side-safe);
+  background: var(--sidebar);
+  color: var(--sidebar-ink);
+}
+html[dir='rtl'] .app-sidebar {
+  --side-safe: env(safe-area-inset-right, 0px);
+  left: auto;
+  right: 0;
+  padding-left: 0;
+  padding-right: var(--side-safe);
+}
+@media (max-width: 1023.98px) {
+  .app-sidebar {
+    transform: translate3d(-100%, 0, 0);
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      width 200ms ease,
+      transform 200ms ease,
+      visibility 0s linear 200ms;
+  }
+  html[dir='rtl'] .app-sidebar {
+    transform: translate3d(100%, 0, 0);
+  }
+  .app-sidebar[data-open],
+  html[dir='rtl'] .app-sidebar[data-open] {
+    transform: translate3d(0, 0, 0);
+    visibility: visible;
+    pointer-events: auto;
+    transition:
+      width 200ms ease,
+      transform 200ms ease,
+      visibility 0s linear 0s;
+  }
+}
+@media (min-width: 1024px) {
+  .app-sidebar,
+  html[dir='rtl'] .app-sidebar {
+    width: calc(var(--sidebar-rail) + var(--side-safe));
+    transform: none;
+    transition: width 200ms ease;
+  }
+  .app-sidebar[data-open],
+  .app-sidebar[data-expanded],
+  html[dir='rtl'] .app-sidebar[data-open],
+  html[dir='rtl'] .app-sidebar[data-expanded] {
+    width: calc(min(var(--sidebar-wide), calc(100vw - var(--sidebar-rail) - 1rem)) + var(--side-safe));
+  }
+}
+.app-sidebar :focus-visible {
+  outline-color: #fff;
+}
+.app-sidebar nav {
+  overscroll-behavior: contain;
+}
+.app-sidebar:not([data-expanded]) nav {
+  scrollbar-width: none;
+}
+.app-sidebar:not([data-expanded]) nav::-webkit-scrollbar {
+  display: none;
+}
+.app-main-offset {
+  min-width: 0;
+}
+@media (min-width: 1024px) {
+  .app-main-offset {
+    padding-left: calc(var(--sidebar-rail) + env(safe-area-inset-left, 0px));
+  }
+  html[dir='rtl'] .app-main-offset {
+    padding-left: 0;
+    padding-right: calc(var(--sidebar-rail) + env(safe-area-inset-right, 0px));
+  }
+}
+.app-main {
+  width: 100%;
+  max-width: 1400px;
+  margin-inline: auto;
+  padding-top: 1.25rem;
+  padding-bottom: calc(8rem + env(safe-area-inset-bottom, 0px));
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  outline: none;
+}
+@media (min-width: 768px) {
+  .app-main {
+    padding-left: max(1.5rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1.5rem, env(safe-area-inset-right, 0px));
+  }
+}
+@media (min-width: 1024px) {
+  .app-main {
+    padding-top: 2rem;
+    padding-bottom: 5rem;
+  }
+  html:not([dir='rtl']) .app-main {
+    padding-left: 2rem;
+    padding-right: max(2rem, env(safe-area-inset-right, 0px));
+  }
+  html[dir='rtl'] .app-main {
+    padding-right: 2rem;
+    padding-left: max(2rem, env(safe-area-inset-left, 0px));
+  }
+}
+.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: calc(4.5rem + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+  background: var(--surface);
+}
+@media (min-width: 1024px) {
+  .app-topbar {
+    display: none;
+  }
+}
+.app-tabbar {
+  position: fixed;
+  z-index: 30;
+  inset-inline: 0;
+  bottom: 0;
+  background: var(--surface);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+@media (min-width: 1024px) {
+  .app-tabbar {
+    display: none;
   }
 }
 

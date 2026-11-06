@@ -46,7 +46,7 @@ export function ExchangeRateFab() {
         type="button"
         onClick={openDialog}
         aria-label={`${t('vault.editRateTitle')}: ${t('vault.rateLine', { rate: fmtRate(rate) })}`}
-        className="fixed bottom-[calc(76px+env(safe-area-inset-bottom))] end-4 z-30 inline-flex h-14 items-center gap-2.5 rounded-full bg-dark ps-2 pe-5 text-body font-semibold text-white transition-all duration-200 hover:scale-105 hover:bg-[#1f2937] md:bottom-6 md:end-6"
+        className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] end-4 z-30 inline-flex h-14 items-center gap-2.5 rounded-full bg-dark ps-2 pe-5 text-body font-semibold text-white transition-all duration-200 hover:scale-105 hover:bg-[#1f2937] lg:bottom-6 lg:end-6"
       >
         <span className="flex h-14 w-14 items-center justify-center rounded-full bg-brand text-on-brand">
           <ArrowLeftRight className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
