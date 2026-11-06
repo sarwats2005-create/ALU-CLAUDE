@@ -254,9 +254,9 @@ export function Toggle({ checked, onChange, label, id, disabled }: { checked: bo
 }
 
 // ─── Surfaces ──────────────────────────────────────────────────────────────────────────────────────
-export function Card({ children, className, as: As = 'section', ...rest }: { children: ReactNode; className?: string; as?: 'section' | 'div' | 'article'; 'aria-labelledby'?: string }) {
+export function Card({ children, className, as: As = 'section', elevated, ...rest }: { children: ReactNode; className?: string; as?: 'section' | 'div' | 'article'; elevated?: boolean; 'aria-labelledby'?: string }) {
   return (
-    <As className={cx('rounded-card bg-surface', className)} {...rest}>
+    <As className={cx('rounded-card bg-surface shadow-[var(--shadow-card)] transition-shadow duration-300', elevated && 'shadow-[var(--shadow-pop)]', className)} {...rest}>
       {children}
     </As>
   );

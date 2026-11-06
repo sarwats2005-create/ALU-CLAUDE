@@ -1,129 +1,121 @@
 'use client';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, Boxes, CheckCircle2, Eraser, Factory, PackagePlus, Undo2, Wallet, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeftRight,
+  Banknote,
+  Boxes,
+  Building2,
+  CheckCircle2,
+  Eraser,
+  Factory,
+  MapPin,
+  PackagePlus,
+  Pencil,
+  Plus,
+  Undo2,
+  Wallet,
+  X,
+} from 'lucide-react';
 import type { listInventory, productHistory } from '@/lib/server/q/inventory';
+import type { listInventories } from '@/lib/server/inventories';
 import type { TxnDetail } from '@/lib/server/q/history';
 import { useApp } from '@/lib/client/app-context';
 import { api, qs } from '@/lib/client/api';
 import { useRemote } from '@/lib/client/use-remote';
 import { fmtDate, localTodayIso } from '@/lib/dates';
-import { D, Dec, fmtCost, fmtKg, fmtMoney, fmtPct, parseDec } from '@/lib/money';
+import { D, Dec, fmtCost, fmtKg, fmtMoney, fmtPct, parseDec, type Cur } from '@/lib/money';
 import { cx } from '@/lib/cx';
 import { Badge, Button, Card, EmptyState, Field, Input, PageHeader, Segmented, Select, Skeleton, Textarea } from '@/components/ui';
 import { SummaryCell, SummaryStrip } from '@/components/Summary';
-import { DataTable, Pager, SearchBox, useListState, type Column } from '@/components/DataTable';
+import { Pager, SearchBox, useListState } from '@/components/DataTable';
 import { DateInput } from '@/components/DateInput';
 import { Dialog, EditingBanner } from '@/components/Dialog';
 import { useTxnPanel } from '@/components/TxnPanel';
 import { useToast } from '@/components/Toast';
 import { useErase } from '@/components/EraseMode';
 import { RevertProcessingDialog } from '@/components/RevertProcessing';
+import { useMoneyGuard } from '@/components/MoneyGuard';
 
 type Inv = Awaited<ReturnType<typeof listInventory>>;
 type Row = Inv['rows'][number];
 type Hist = Awaited<ReturnType<typeof productHistory>>;
+type InventoryRow = Awaited<ReturnType<typeof listInventories>>[number];
 
 const STATUS_TONE = { in: 'success', low: 'warning', out: 'danger' } as const;
 
 export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | null }) {
-  const { t, can } = useApp();
+  const { t, can, bump } = useApp();
   const router = useRouter();
-  const L = useListState('name', 'asc', { typeId: '', status: '' });
+  const guard = useMoneyGuard();
+  const L = useListState('name', 'asc', { typeId: '', status: '', inventoryId: '' });
+  const locs = useRemote<InventoryRow[]>('/api/inventories', { keepPrevious: true });
   const { data, loading } = useRemote<Inv>(`/api/inventory${L.query}`, { keepPrevious: true });
   const types = useRemote<{ id: string; name: string }[]>('/api/lookup/types');
+  const toast = useToast();
+
   const [process, setProcess] = useState<{ row: Pick<Row, 'id' | 'name' | 'sku' | 'rawKg' | 'rawAvg'>; edit?: TxnDetail } | null>(null);
   const [history, setHistory] = useState<Row | null>(null);
+  const [createLoc, setCreateLoc] = useState(false);
+  const [editLoc, setEditLoc] = useState<InventoryRow | null>(null);
+  const [rentLoc, setRentLoc] = useState<InventoryRow | null>(null);
+  const [transfer, setTransfer] = useState<Row | null>(null);
+  const [payRentBusy, setPayRentBusy] = useState(false);
 
-  // /inventory?edit=<processingId> — open the processing dialog in edit mode.
+  const selectedLoc = useMemo(
+    () => locs.data?.find((x) => x.id === L.filters.inventoryId) ?? locs.data?.find((x) => x.isDefault) ?? locs.data?.[0],
+    [locs.data, L.filters.inventoryId],
+  );
+  const otherLocs = useMemo(() => (locs.data ?? []).filter((x) => x.id !== L.filters.inventoryId), [locs.data, L.filters.inventoryId]);
+  const inventoryId = L.filters.inventoryId || selectedLoc?.id || '';
+
+  useEffect(() => {
+    if (!locs.data?.length || L.filters.inventoryId) return;
+    const def = locs.data.find((x) => x.isDefault) ?? locs.data[0];
+    L.setFilter('inventoryId', def.id);
+  }, [locs.data, L.filters.inventoryId]);
+
   useEffect(() => {
     if (!editProcessing?.product) return;
-    api<Row[]>(`/api/lookup/products${qs({ ids: editProcessing.product.id })}`).then((r) => {
+    const editInv = editProcessing.inventoryId || inventoryId;
+    if (editInv && editInv !== L.filters.inventoryId) L.setFilter('inventoryId', editInv);
+    api<Row[]>(`/api/lookup/products${qs({ ids: editProcessing.product.id, inventoryId: editInv || undefined })}`).then((r) => {
       const p = r.ok ? r.data[0] : undefined;
       setProcess({
-        row: { id: editProcessing.product!.id, name: editProcessing.product!.name, sku: editProcessing.product!.sku, rawKg: p?.rawKg ?? '0', rawAvg: p?.rawAvg ?? '0' },
+        row: {
+          id: editProcessing.product!.id,
+          name: editProcessing.product!.name,
+          sku: editProcessing.product!.sku,
+          rawKg: p?.rawKg ?? '0',
+          rawAvg: p?.rawAvg ?? '0',
+        },
         edit: editProcessing,
       });
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editProcessing]);
 
-  const cols: Column<Row>[] = [
-    {
-      key: 'name',
-      label: t('common.product'),
-      sortable: true,
-      render: (r) => (
-        <span className="block min-w-0">
-          <span className="flex items-center gap-2">
-            <span className="bidi truncate font-semibold text-ink">{r.name}</span>
-            {r.isDemo ? <Badge tone="brand">{t('app.demo')}</Badge> : null}
-          </span>
-          <span className="mt-0.5 flex items-center gap-1.5 text-caption text-muted">
-            <span className="num rounded bg-tint px-1.5 font-semibold text-brand-ink">{r.sku}</span>
-            <span className="bidi">{r.typeName}</span>
-          </span>
-        </span>
-      ),
-    },
-    {
-      key: 'raw',
-      label: t('inv.rawKg'),
-      sortable: true,
-      align: 'end',
-      render: (r) => (
-        <span className="block">
-          <span className="num block font-semibold text-ink">{fmtKg(r.rawKg)}</span>
-          <span className="num block text-caption text-muted">{D(r.rawKg).gt(0) ? `${fmtCost(r.rawAvg)}/kg` : '—'}</span>
-        </span>
-      ),
-    },
-    {
-      key: 'finished',
-      label: t('inv.finishedKg'),
-      sortable: true,
-      align: 'end',
-      render: (r) => (
-        <span className="block">
-          <span className="num block font-semibold text-ink">{fmtKg(r.finishedKg)}</span>
-          <span className="num block text-caption text-muted">{D(r.finishedKg).gt(0) ? `${fmtCost(r.finishedAvg)}/kg` : '—'}</span>
-        </span>
-      ),
-    },
-    { key: 'value', label: t('inv.stockValue'), sortable: true, align: 'end', render: (r) => <span className="num font-semibold text-ink">{fmtMoney(r.value)}</span> },
-    // Only problems get a badge (Von Restorff): "In stock" is the normal state and stays quiet.
-    { key: 'status', label: t('common.status'), render: (r) => (r.status === 'in' ? <span className="text-meta text-muted">—</span> : <Badge tone={STATUS_TONE[r.status]}>{t(r.status === 'low' ? 'inv.low' : 'inv.out')}</Badge>) },
-    {
-      key: 'actions',
-      label: <span className="sr-only">{t('common.actions')}</span>,
-      align: 'end',
-      render: (r) => (
-        // One visible action per row — the one this product needs next (Hick's law). The row itself opens history.
-        <span className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-          {r.status !== 'in' && can('beneficiaries') ? (
-            <Link href={`/beneficiaries/purchase?product=${r.id}`} className="inline-flex h-14 items-center gap-1.5 rounded-ctl bg-brand px-3 text-meta font-semibold text-on-brand hover:bg-brand-strong">
-              <PackagePlus className="h-4 w-4" aria-hidden="true" />
-              {t('inv.restock')}
-            </Link>
-          ) : D(r.rawKg).gt(0) ? (
-            <Button size="sm" variant="secondary" onClick={() => setProcess({ row: r })} icon={<Factory className="h-4 w-4" aria-hidden="true" />}>
-              {t('inv.process')}
-            </Button>
-          ) : null}
-          {r.status === 'in' && can('beneficiaries') ? (
-            <Link
-              href={`/beneficiaries/purchase?product=${r.id}`}
-              aria-label={`${t('inv.restock')} — ${r.name}`}
-              title={t('inv.restock')}
-              className="inline-flex h-14 w-14 items-center justify-center rounded-ctl text-muted opacity-60 transition-opacity hover:bg-tint hover:text-brand-ink hover:opacity-100 focus-visible:opacity-100"
-            >
-              <PackagePlus className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          ) : null}
-        </span>
-      ),
-    },
-  ];
+  async function payRent(inv: InventoryRow) {
+    setPayRentBusy(true);
+    const res = await guard.send<{ id: string; number: string }>(`/api/inventories/${inv.id}/rent`, {
+      method: 'POST',
+      body: { date: localTodayIso() },
+    });
+    setPayRentBusy(false);
+    if (!res.ok) {
+      if (res.code !== 'vault.shortCancelled') toast.error(res.error);
+      return;
+    }
+    toast.success(t('inv.rentPaid', { number: res.data.number }));
+    bump();
+  }
+
+  function onLocSaved(id: string) {
+    bump();
+    L.setFilter('inventoryId', id);
+  }
 
   return (
     <div>
@@ -133,11 +125,126 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
         actions={
           can('beneficiaries') ? (
             <Link href="/beneficiaries/purchase">
-              <Button size="lg" icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>{t('dash.recordPurchase')}</Button>
+              <Button size="lg" icon={<PackagePlus className="h-4 w-4" aria-hidden="true" />}>
+                {t('dash.recordPurchase')}
+              </Button>
             </Link>
           ) : null
         }
       />
+
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-caption font-semibold uppercase tracking-wide text-muted">{t('inv.locations')}</p>
+          <div role="tablist" aria-label={t('inv.locations')} className="scroll-thin mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
+            {(locs.data ?? []).map((loc) => {
+              const on = loc.id === L.filters.inventoryId;
+              return (
+                <button
+                  key={loc.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  onClick={() => L.setFilter('inventoryId', loc.id)}
+                  className={cx(
+                    'inline-flex h-14 shrink-0 items-center gap-2 rounded-ctl px-4 text-meta font-bold transition-all duration-200 hover:scale-[1.02]',
+                    on ? 'bg-brand text-on-brand shadow-[var(--shadow-pop)]' : 'bg-surface-2 text-muted hover:text-ink',
+                  )}
+                >
+                  <Building2 className="h-4 w-4 shrink-0 opacity-80" aria-hidden="true" />
+                  <span className="bidi max-w-[12rem] truncate">{loc.name}</span>
+                  {loc.isDefault ? (
+                    <Badge tone={on ? 'neutral' : 'brand'} className={on ? 'bg-white/20 text-current' : undefined}>
+                      {t('inv.mainBadge')}
+                    </Badge>
+                  ) : null}
+                  {loc.rentDue ? <span className="h-2 w-2 shrink-0 rounded-full bg-danger-ink" aria-hidden="true" /> : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {can('inventory') ? (
+          <Button variant="secondary" size="lg" onClick={() => setCreateLoc(true)} icon={<Plus className="h-4 w-4" aria-hidden="true" />} className="shrink-0 self-start sm:self-center">
+            {t('inv.addLoc')}
+          </Button>
+        ) : null}
+      </div>
+
+      {selectedLoc ? (
+        <Card elevated className="mb-5 overflow-hidden">
+          <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <Building2 className="h-5 w-5 text-brand-ink" aria-hidden="true" />
+                <h2 className="bidi text-heading font-bold text-ink">{selectedLoc.name}</h2>
+                {selectedLoc.isDefault ? <Badge tone="brand">{t('inv.mainBadge')}</Badge> : null}
+                {can('inventory') ? (
+                  <Button variant="quiet" size="sm" onClick={() => setEditLoc(selectedLoc)} icon={<Pencil className="h-3.5 w-3.5" aria-hidden="true" />} aria-label={t('inv.editLoc')}>
+                    {t('inv.editLoc')}
+                  </Button>
+                ) : null}
+              </div>
+              {selectedLoc.address || selectedLoc.size ? (
+                <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-body text-muted">
+                  {selectedLoc.address ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <MapPin className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span className="bidi">{selectedLoc.address}</span>
+                    </span>
+                  ) : null}
+                  {selectedLoc.size ? <span className="bidi">{selectedLoc.size}</span> : null}
+                </p>
+              ) : null}
+            </div>
+            <div className="w-full rounded-ctl bg-tint px-4 py-4 lg:max-w-md">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="flex items-center gap-1.5 text-meta font-semibold text-muted">
+                    <Banknote className="h-4 w-4" aria-hidden="true" />
+                    {t('inv.rentTitle')}
+                  </p>
+                  {selectedLoc.rentAmount && selectedLoc.rentVault ? (
+                    <>
+                      <p className="num mt-1 text-title font-bold text-ink">{fmtMoney(selectedLoc.rentAmount, selectedLoc.rentVault)}</p>
+                      {selectedLoc.rentNextDue ? (
+                        <p className="num mt-0.5 text-caption text-muted">
+                          {t('inv.rentNext')}: {fmtDate(selectedLoc.rentNextDue)}
+                        </p>
+                      ) : null}
+                    </>
+                  ) : (
+                    <p className="mt-1 text-body text-muted">{t('inv.rentNotSet')}</p>
+                  )}
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  {selectedLoc.rentAmount && selectedLoc.rentVault ? (
+                    selectedLoc.rentDue ? (
+                      <Badge tone="danger">{t('inv.rentDueNow')}</Badge>
+                    ) : (
+                      <Badge tone="success">{t('inv.rentPaidUp')}</Badge>
+                    )
+                  ) : null}
+                </div>
+              </div>
+              {can('inventory') ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {selectedLoc.rentDue && selectedLoc.rentAmount ? (
+                    <Button size="sm" busy={payRentBusy} onClick={() => void payRent(selectedLoc)} icon={<Banknote className="h-4 w-4" aria-hidden="true" />}>
+                      {t('inv.rentPay')}
+                    </Button>
+                  ) : null}
+                  <Button size="sm" variant="secondary" onClick={() => setRentLoc(selectedLoc)}>
+                    {selectedLoc.rentAmount ? t('inv.rentEdit') : t('inv.rentSet')}
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </Card>
+      ) : locs.loading ? (
+        <Skeleton className="mb-5 h-36 w-full rounded-card" />
+      ) : null}
 
       <SummaryStrip className="mb-5">
         <SummaryCell icon={<Boxes className="h-[18px] w-[18px]" aria-hidden="true" />} label={t('inv.totalRaw')} value={data ? fmtKg(data.totals.rawKg) : '—'} />
@@ -161,15 +268,25 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
 
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 px-5 pb-4 pt-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <h2 className="text-title font-semibold text-ink">{t('inv.products')}</h2>
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <SearchBox value={L.q} onChange={L.setQ} placeholder={t('inv.searchPh')} className="sm:w-72" />
             <Select aria-label={t('common.aluminumType')} value={L.filters.typeId} onChange={(e) => L.setFilter('typeId', e.target.value)} className="sm:w-48">
-              <option value="">{t('common.aluminumType')}: {t('common.all')}</option>
+              <option value="">
+                {t('common.aluminumType')}: {t('common.all')}
+              </option>
               {(types.data ?? []).map((x) => (
                 <option key={x.id} value={x.id}>
                   {x.name}
                 </option>
               ))}
+            </Select>
+            <Select aria-label={t('common.sortBy', { col: t('common.product') })} value={L.sort} onChange={(e) => L.onSort(e.target.value)} className="sm:w-44">
+              <option value="name">{t('common.product')}</option>
+              <option value="sku">SKU</option>
+              <option value="raw">{t('inv.rawKg')}</option>
+              <option value="finished">{t('inv.finishedKg')}</option>
+              <option value="value">{t('inv.stockValue')}</option>
             </Select>
           </div>
           {L.filters.status ? (
@@ -179,18 +296,16 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
             </button>
           ) : null}
         </div>
-        <DataTable
-          rows={data?.rows}
-          columns={cols}
-          sort={L.sort}
-          dir={L.dir}
-          onSort={L.onSort}
-          loading={loading}
-          onRowClick={(r) => setHistory(r)}
-          minWidth={960}
-          caption={t('inv.title')}
-          empty={
-            L.hasFilters ? (
+
+        {loading && !data?.rows?.length ? (
+          <div className="grid grid-cols-1 gap-4 px-5 pb-5 sm:grid-cols-2 xl:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-56 w-full rounded-card" />
+            ))}
+          </div>
+        ) : !data?.rows?.length ? (
+          <div className="px-5 pb-8 pt-2">
+            {L.hasFilters ? (
               <p className="text-body text-muted">{t('common.noResults')}</p>
             ) : (
               <EmptyState
@@ -204,36 +319,22 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
                   ) : undefined
                 }
               />
-            )
-          }
-          mobile={(r) => (
-            <span className="block">
-              <span className="flex items-start justify-between gap-3">
-                <span className="min-w-0">
-                  <span className="bidi block truncate text-body font-semibold text-ink">{r.name}</span>
-                  <span className="num text-caption text-muted">
-                    {r.sku} · {r.typeName}
-                  </span>
-                </span>
-                {r.status === 'in' ? null : <Badge tone={STATUS_TONE[r.status]}>{t(r.status === 'low' ? 'inv.low' : 'inv.out')}</Badge>}
-              </span>
-              <span className="mt-2 grid grid-cols-3 gap-2 text-caption">
-                <span>
-                  <span className="block text-muted">{t('state.RAW')}</span>
-                  <span className="num block font-semibold text-ink">{fmtKg(r.rawKg)}</span>
-                </span>
-                <span>
-                  <span className="block text-muted">{t('state.FINISHED')}</span>
-                  <span className="num block font-semibold text-ink">{fmtKg(r.finishedKg)}</span>
-                </span>
-                <span className="text-end">
-                  <span className="block text-muted">{t('common.value')}</span>
-                  <span className="num block font-semibold text-ink">{fmtMoney(r.value)}</span>
-                </span>
-              </span>
-            </span>
-          )}
-        />
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 px-5 pb-5 sm:grid-cols-2 xl:grid-cols-3">
+            {data.rows.map((r) => (
+              <ProductCard
+                key={r.id}
+                row={r}
+                canTransfer={can('inventory') && otherLocs.length > 0}
+                onOpen={() => setHistory(r)}
+                onProcess={() => setProcess({ row: r })}
+                onTransfer={() => setTransfer(r)}
+              />
+            ))}
+          </div>
+        )}
         {data ? <Pager total={data.total} page={L.page} size={L.size} onPage={L.setPage} onSize={L.setSize} /> : null}
       </Card>
 
@@ -241,14 +342,417 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
         <ProcessDialog
           row={process.row}
           edit={process.edit}
+          inventoryId={inventoryId}
           onClose={() => {
             setProcess(null);
             if (editProcessing) router.replace('/inventory');
           }}
         />
       ) : null}
-      {history ? <HistoryDialog row={history} onClose={() => setHistory(null)} onProcess={() => (setHistory(null), setProcess({ row: history }))} /> : null}
+      {history ? (
+        <HistoryDialog
+          row={history}
+          inventoryId={inventoryId}
+          onClose={() => setHistory(null)}
+          onProcess={() => (setHistory(null), setProcess({ row: history }))}
+        />
+      ) : null}
+      {createLoc ? <InventoryLocDialog onClose={() => setCreateLoc(false)} onSaved={onLocSaved} /> : null}
+      {editLoc ? <InventoryLocDialog loc={editLoc} onClose={() => setEditLoc(null)} onSaved={onLocSaved} /> : null}
+      {rentLoc ? <RentDialog loc={rentLoc} onClose={() => setRentLoc(null)} /> : null}
+      {transfer && inventoryId ? (
+        <TransferDialog
+          row={transfer}
+          fromInventoryId={inventoryId}
+          fromName={selectedLoc?.name ?? data?.inventoryName ?? ''}
+          destinations={otherLocs}
+          onClose={() => setTransfer(null)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function ProductCard({
+  row: r,
+  canTransfer,
+  onOpen,
+  onProcess,
+  onTransfer,
+}: {
+  row: Row;
+  canTransfer: boolean;
+  onOpen: () => void;
+  onProcess: () => void;
+  onTransfer: () => void;
+}) {
+  const { t, can } = useApp();
+  const hasRaw = D(r.rawKg).gt(0);
+  const hasFin = D(r.finishedKg).gt(0);
+  const canXfer = canTransfer && (hasRaw || hasFin);
+
+  return (
+    <article
+      className={cx(
+        'group flex flex-col rounded-card border-2 border-transparent bg-surface p-5 shadow-[var(--shadow-card)] transition-all duration-200',
+        'hover:scale-[1.01] hover:border-brand/30 hover:shadow-[var(--shadow-pop)] focus-within:ring-2 focus-within:ring-brand/40',
+      )}
+    >
+      <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-start">
+        <span className="flex items-start justify-between gap-2">
+          <span className="min-w-0">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="bidi block truncate text-body font-bold text-ink">{r.name}</span>
+              {r.isDemo ? <Badge tone="brand">{t('app.demo')}</Badge> : null}
+            </span>
+            <span className="mt-1 flex flex-wrap items-center gap-1.5 text-caption text-muted">
+              <span className="num rounded bg-tint px-1.5 font-semibold text-brand-ink">{r.sku}</span>
+              <span className="bidi">{r.typeName}</span>
+            </span>
+          </span>
+          {r.status === 'in' ? null : <Badge tone={STATUS_TONE[r.status]}>{t(r.status === 'low' ? 'inv.low' : 'inv.out')}</Badge>}
+        </span>
+        <div className="mt-4 grid grid-cols-3 gap-3 rounded-ctl bg-tint px-3 py-3">
+          <div>
+            <p className="text-caption text-muted">{t('inv.cardRaw')}</p>
+            <p className="num text-body font-bold text-ink">{fmtKg(r.rawKg)}</p>
+            <p className="num text-caption text-muted">{hasRaw ? `${fmtCost(r.rawAvg)}/kg` : '—'}</p>
+          </div>
+          <div>
+            <p className="text-caption text-muted">{t('inv.cardFinished')}</p>
+            <p className="num text-body font-bold text-ink">{fmtKg(r.finishedKg)}</p>
+            <p className="num text-caption text-muted">{hasFin ? `${fmtCost(r.finishedAvg)}/kg` : '—'}</p>
+          </div>
+          <div className="text-end">
+            <p className="text-caption text-muted">{t('inv.cardValue')}</p>
+            <p className="num text-body font-bold text-ink">{fmtMoney(r.value)}</p>
+          </div>
+        </div>
+      </button>
+      <div className="mt-4 flex flex-wrap gap-2 border-t border-line-soft pt-4" onClick={(e) => e.stopPropagation()}>
+        {r.status !== 'in' && can('beneficiaries') ? (
+          <Link href={`/beneficiaries/purchase?product=${r.id}`} className="inline-flex h-12 flex-1 items-center justify-center gap-1.5 rounded-ctl bg-brand px-3 text-meta font-semibold text-on-brand hover:bg-brand-strong sm:flex-none sm:px-4">
+            <PackagePlus className="h-4 w-4" aria-hidden="true" />
+            {t('inv.restock')}
+          </Link>
+        ) : hasRaw ? (
+          <Button size="sm" variant="secondary" onClick={onProcess} icon={<Factory className="h-4 w-4" aria-hidden="true" />}>
+            {t('inv.process')}
+          </Button>
+        ) : null}
+        {canXfer ? (
+          <Button size="sm" variant="secondary" onClick={onTransfer} icon={<ArrowLeftRight className="h-4 w-4" aria-hidden="true" />}>
+            {t('inv.transfer')}
+          </Button>
+        ) : null}
+        {r.status === 'in' && can('beneficiaries') && !hasRaw ? (
+          <Link
+            href={`/beneficiaries/purchase?product=${r.id}`}
+            className="inline-flex h-12 items-center justify-center gap-1.5 rounded-ctl px-3 text-meta font-semibold text-muted hover:bg-tint hover:text-brand-ink"
+          >
+            <PackagePlus className="h-4 w-4" aria-hidden="true" />
+            {t('inv.restock')}
+          </Link>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function InventoryLocDialog({ loc, onClose, onSaved }: { loc?: InventoryRow; onClose: () => void; onSaved: (id: string) => void }) {
+  const { t, bump } = useApp();
+  const toast = useToast();
+  const editing = !!loc;
+  const [name, setName] = useState(loc?.name ?? '');
+  const [address, setAddress] = useState(loc?.address ?? '');
+  const [size, setSize] = useState(loc?.size ?? '');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    const er: Record<string, string> = {};
+    if (!name.trim()) er.name = t('v.required');
+    setErrors(er);
+    if (Object.keys(er).length) return;
+    setBusy(true);
+    const res = await api<InventoryRow>(editing ? `/api/inventories/${loc!.id}` : '/api/inventories', {
+      method: editing ? 'PUT' : 'POST',
+      body: { name: name.trim(), address: address.trim(), size: size.trim() },
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setErrors(res.fieldErrors ?? {});
+      if (!res.fieldErrors) toast.error(res.error);
+      return;
+    }
+    toast.success(editing ? t('inv.locUpdated') : t('inv.locCreated'));
+    bump();
+    onSaved(res.data.id);
+    onClose();
+  }
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={editing ? t('inv.editLoc') : t('inv.addLoc')}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" form="loc-form" busy={busy}>
+            {t('common.save')}
+          </Button>
+        </>
+      }
+    >
+      <form id="loc-form" onSubmit={submit} noValidate className="flex flex-col gap-4">
+        <Field label={t('inv.locName')} htmlFor="loc-name" error={errors.name} required>
+          <Input id="loc-name" value={name} onChange={(e) => setName(e.target.value)} invalid={!!errors.name} data-autofocus />
+        </Field>
+        <Field label={t('inv.locAddress')} htmlFor="loc-address" error={errors.address} optionalLabel={t('common.optional')}>
+          <Input id="loc-address" value={address} onChange={(e) => setAddress(e.target.value)} invalid={!!errors.address} />
+        </Field>
+        <Field label={t('inv.locSize')} htmlFor="loc-size" error={errors.size} optionalLabel={t('common.optional')}>
+          <Input id="loc-size" value={size} onChange={(e) => setSize(e.target.value)} invalid={!!errors.size} placeholder={t('inv.locSizePh')} />
+        </Field>
+      </form>
+    </Dialog>
+  );
+}
+
+function RentDialog({ loc, onClose }: { loc: InventoryRow; onClose: () => void }) {
+  const { t, bump } = useApp();
+  const toast = useToast();
+  const [amount, setAmount] = useState(loc.rentAmount ?? '');
+  const [vault, setVault] = useState<Cur>((loc.rentVault as Cur) ?? 'USD');
+  const [nextDue, setNextDue] = useState(loc.rentNextDue ?? localTodayIso());
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [clearing, setClearing] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    const er: Record<string, string> = {};
+    if (!amount.trim()) er.amount = t('v.required');
+    setErrors(er);
+    if (Object.keys(er).length) return;
+    setBusy(true);
+    const res = await api<InventoryRow>(`/api/inventories/${loc.id}/rent`, {
+      method: 'PUT',
+      body: { amount: amount.trim(), vault, nextDue },
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setErrors(res.fieldErrors ?? {});
+      if (!res.fieldErrors) toast.error(res.error);
+      return;
+    }
+    toast.success(t('inv.rentSaved'));
+    bump();
+    onClose();
+  }
+
+  async function clearRent() {
+    setClearing(true);
+    const res = await api<InventoryRow>(`/api/inventories/${loc.id}/rent`, { method: 'PUT', body: { amount: null } });
+    setClearing(false);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success(t('inv.rentSaved'));
+    bump();
+    onClose();
+  }
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={loc.rentAmount ? t('inv.rentEdit') : t('inv.rentSet')}
+      description={loc.name}
+      footer={
+        <>
+          {loc.rentAmount ? (
+            <Button variant="danger" className="md:me-auto" busy={clearing} onClick={() => void clearRent()}>
+              {t('inv.rentClear')}
+            </Button>
+          ) : null}
+          <Button variant="secondary" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" form="rent-form" busy={busy}>
+            {t('common.save')}
+          </Button>
+        </>
+      }
+    >
+      <form id="rent-form" onSubmit={submit} noValidate className="flex flex-col gap-4">
+        <Field label={t('inv.rentAmount')} htmlFor="rent-amt" error={errors.amount} required>
+          <Input id="rent-amt" numeric value={amount} onChange={(e) => setAmount(e.target.value)} invalid={!!errors.amount} data-autofocus />
+        </Field>
+        <Field label={t('inv.rentVault')} htmlFor="rent-vault">
+          <Segmented<Cur>
+            label={t('inv.rentVault')}
+            value={vault}
+            onChange={setVault}
+            options={[
+              { value: 'USD', label: t('vault.USD') },
+              { value: 'IQD', label: t('vault.IQD') },
+            ]}
+            className="w-full"
+          />
+        </Field>
+        <Field label={t('inv.rentNext')} htmlFor="rent-due" error={errors.nextDue} required>
+          <DateInput id="rent-due" value={nextDue} onChange={setNextDue} />
+        </Field>
+      </form>
+    </Dialog>
+  );
+}
+
+function TransferDialog({
+  row,
+  fromInventoryId,
+  fromName,
+  destinations,
+  onClose,
+}: {
+  row: Row;
+  fromInventoryId: string;
+  fromName: string;
+  destinations: InventoryRow[];
+  onClose: () => void;
+}) {
+  const { t, bump } = useApp();
+  const toast = useToast();
+  const [state, setState] = useState<'RAW' | 'FINISHED'>(D(row.rawKg).gt(0) ? 'RAW' : 'FINISHED');
+  const [toId, setToId] = useState(destinations[0]?.id ?? '');
+  const [kg, setKg] = useState('');
+  const [date, setDate] = useState(localTodayIso());
+  const [notes, setNotes] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+
+  const maxKg = state === 'RAW' ? D(row.rawKg) : D(row.finishedKg);
+  const stateOptions = useMemo(
+    () =>
+      [
+        D(row.rawKg).gt(0) ? ({ value: 'RAW' as const, label: t('state.RAW') }) : null,
+        D(row.finishedKg).gt(0) ? ({ value: 'FINISHED' as const, label: t('state.FINISHED') }) : null,
+      ].filter(Boolean) as { value: 'RAW' | 'FINISHED'; label: string }[],
+    [row.rawKg, row.finishedKg, t],
+  );
+
+  useEffect(() => {
+    if (!stateOptions.some((o) => o.value === state)) setState(stateOptions[0]?.value ?? 'RAW');
+  }, [state, stateOptions]);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    const er: Record<string, string> = {};
+    const k = parseDec(kg);
+    if (!toId) er.toInventoryId = t('v.required');
+    if (!kg) er.kg = t('v.required');
+    else if (!k || !k.gt(0)) er.kg = t('v.positive');
+    else if (k.gt(maxKg)) er.kg = t('v.processTooMuch', { kg: fmtKg(maxKg) });
+    setErrors(er);
+    if (Object.keys(er).length) return;
+    setBusy(true);
+    const res = await api<{ id: string; number: string }>('/api/inventory/transfer', {
+      method: 'POST',
+      body: { productId: row.id, state, kg, fromInventoryId, toInventoryId: toId, date, notes },
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setErrors(res.fieldErrors ?? {});
+      if (!res.fieldErrors) toast.error(res.error);
+      return;
+    }
+    toast.success(t('inv.transferOk', { number: res.data.number }));
+    bump();
+    onClose();
+  }
+
+  if (!destinations.length) {
+    return (
+      <Dialog open onClose={onClose} title={t('inv.transfer')} footer={<Button onClick={onClose}>{t('common.close')}</Button>}>
+        <p className="text-body text-muted">{t('inv.noOtherLoc')}</p>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={t('inv.transfer')}
+      description={`${row.name} · ${row.sku}`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" form="xfer-form" busy={busy} icon={<ArrowLeftRight className="h-4 w-4" aria-hidden="true" />}>
+            {t('inv.transfer')}
+          </Button>
+        </>
+      }
+    >
+      <form id="xfer-form" onSubmit={submit} noValidate className="flex flex-col gap-4">
+        <Field label={t('pur.stateReceived')} htmlFor="xfer-state">
+          <Segmented<'RAW' | 'FINISHED'>
+            label={t('pur.stateReceived')}
+            value={state}
+            onChange={setState}
+            options={stateOptions}
+            className="w-full"
+          />
+        </Field>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label={t('inv.transferFrom')} htmlFor="xfer-from">
+            <Input id="xfer-from" value={fromName} readOnly className="bidi opacity-70" aria-readonly />
+          </Field>
+          <Field label={t('inv.transferTo')} htmlFor="xfer-to" error={errors.toInventoryId} required>
+            <Select id="xfer-to" value={toId} onChange={(e) => setToId(e.target.value)} invalid={!!errors.toInventoryId}>
+              {destinations.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        <div className="flex items-center justify-between rounded-ctl bg-tint px-4 py-3">
+          <span className="text-meta text-muted">{t('common.max')}</span>
+          <span className="num text-title font-bold text-ink">{fmtKg(maxKg)}</span>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label={t('common.kg')} htmlFor="xfer-kg" error={errors.kg} required>
+            <div className="flex gap-2">
+              <Input id="xfer-kg" numeric value={kg} onChange={(e) => setKg(e.target.value)} invalid={!!errors.kg} placeholder="0.000" data-autofocus />
+              <button
+                type="button"
+                disabled={!maxKg.gt(0)}
+                onClick={() => setKg(maxKg.toDecimalPlaces(3).toString())}
+                className="h-14 shrink-0 rounded-ctl border-4 border-brand px-4 text-meta font-extrabold tracking-[0.04em] text-brand-ink transition-all duration-200 hover:scale-105 active:scale-100 disabled:border-line disabled:text-muted disabled:hover:scale-100 hover:bg-brand hover:text-on-brand"
+              >
+                {t('common.max')}
+              </button>
+            </div>
+          </Field>
+          <Field label={t('common.date')} htmlFor="xfer-date" required>
+            <DateInput id="xfer-date" value={date} onChange={setDate} />
+          </Field>
+        </div>
+        <Field label={t('common.notes')} htmlFor="xfer-notes" optionalLabel={t('common.optional')}>
+          <Textarea id="xfer-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={2000} />
+        </Field>
+      </form>
+    </Dialog>
   );
 }
 
@@ -263,7 +767,17 @@ function previewLoss(input: Dec, method: 'PERCENT' | 'KG', pct: Dec | null, kg: 
   return { loss, pct: input.gt(0) ? loss.div(input).times(100) : new Dec(0), out: input.minus(loss) };
 }
 
-function ProcessDialog({ row, edit, onClose }: { row: Pick<Row, 'id' | 'name' | 'sku' | 'rawKg' | 'rawAvg'>; edit?: TxnDetail; onClose: () => void }) {
+function ProcessDialog({
+  row,
+  edit,
+  inventoryId,
+  onClose,
+}: {
+  row: Pick<Row, 'id' | 'name' | 'sku' | 'rawKg' | 'rawAvg'>;
+  edit?: TxnDetail;
+  inventoryId: string;
+  onClose: () => void;
+}) {
   const { t, bump } = useApp();
   const toast = useToast();
   const available = D(row.rawKg).plus(edit ? D(edit.inputKg) : 0);
@@ -280,7 +794,6 @@ function ProcessDialog({ row, edit, onClose }: { row: Pick<Row, 'id' | 'name' | 
   const valid = input && input.gt(0);
   const prev = valid ? previewLoss(input, method, parseDec(pct), parseDec(lossKg)) : null;
   const okPreview = prev && prev.out.gt(0) && !prev.loss.isNegative() && (method === 'KG' ? !!lossKg : !!pct);
-  // Cost of raw consumed moves into finished stock; the loss raises the finished cost per kg.
   const finishedCost = okPreview ? D(row.rawAvg).times(input!).div(prev!.out) : null;
 
   async function submit(e: FormEvent) {
@@ -303,7 +816,7 @@ function ProcessDialog({ row, edit, onClose }: { row: Pick<Row, 'id' | 'name' | 
     setBusy(true);
     const res = await api<{ id: string; number: string }>(edit ? `/api/processing/${edit.id}` : '/api/processing', {
       method: edit ? 'PUT' : 'POST',
-      body: { productId: row.id, date, inputKg, method, lossPercent: pct, lossKg, notes },
+      body: { productId: row.id, date, inputKg, method, lossPercent: pct, lossKg, notes, inventoryId },
     });
     setBusy(false);
     if (!res.ok) {
@@ -387,7 +900,6 @@ function ProcessDialog({ row, edit, onClose }: { row: Pick<Row, 'id' | 'name' | 
             </Field>
           )}
 
-          {/* Live result: raw in → loss → finished out */}
           {okPreview ? (
             <div className="rounded-ctl bg-surface-2">
               <div className="grid grid-cols-3 divide-x divide-line-soft text-center rtl:divide-x-reverse">
@@ -427,16 +939,28 @@ const MV_LABEL = {
   sale: 'inv.mvSale',
   processOut: 'inv.mvProcessOut',
   processIn: 'inv.mvProcessIn',
+  transferOut: 'inv.mvTransferOut',
+  transferIn: 'inv.mvTransferIn',
   reversal: 'inv.mvReversal',
   adjust: 'inv.mvAdjust',
 } as const;
 
-function HistoryDialog({ row, onClose, onProcess }: { row: Row; onClose: () => void; onProcess: () => void }) {
+function HistoryDialog({
+  row,
+  inventoryId,
+  onClose,
+  onProcess,
+}: {
+  row: Row;
+  inventoryId: string;
+  onClose: () => void;
+  onProcess: () => void;
+}) {
   const { t, can } = useApp();
   const panel = useTxnPanel();
   const erase = useErase();
   const [revert, setRevert] = useState<string | null>(null);
-  const { data } = useRemote<Hist>(`/api/inventory/${row.id}`);
+  const { data } = useRemote<Hist>(`/api/inventory/${row.id}${qs({ inventoryId })}`);
   const txnCount = new Set((data?.rows ?? []).map((h) => h.txnId)).size;
   return (
     <Dialog
@@ -447,7 +971,6 @@ function HistoryDialog({ row, onClose, onProcess }: { row: Row; onClose: () => v
       description={`${row.sku} · ${row.typeName}`}
       footer={
         <>
-          {/* Erase mode only: wipe this product's whole stock history (the product itself stays). */}
           {erase.active && txnCount ? (
             <Button variant="danger" className="md:me-auto" onClick={() => void erase.eraseProduct(row.id, row.name, txnCount)} icon={<Eraser className="h-4 w-4" aria-hidden="true" />}>
               {t('erase.prodAll')}
@@ -485,13 +1008,27 @@ function HistoryDialog({ row, onClose, onProcess }: { row: Row; onClose: () => v
               <table className="w-full min-w-[820px] text-meta [&_td]:px-2 [&_th]:px-2">
                 <thead>
                   <tr className="border-b border-line text-caption text-muted">
-                    <th scope="col" className="py-2 text-start font-semibold">{t('common.date')}</th>
-                    <th scope="col" className="py-2 text-start font-semibold">{t('common.number')}</th>
-                    <th scope="col" className="py-2 text-start font-semibold">{t('inv.movement')}</th>
-                    <th scope="col" className="py-2 text-end font-semibold">{t('common.kg')}</th>
-                    <th scope="col" className="py-2 text-end font-semibold">{t('inv.cost')}</th>
-                    <th scope="col" className="py-2 text-end font-semibold">{t('inv.rawRunning')}</th>
-                    <th scope="col" className="py-2 text-end font-semibold">{t('inv.finishedRunning')}</th>
+                    <th scope="col" className="py-2 text-start font-semibold">
+                      {t('common.date')}
+                    </th>
+                    <th scope="col" className="py-2 text-start font-semibold">
+                      {t('common.number')}
+                    </th>
+                    <th scope="col" className="py-2 text-start font-semibold">
+                      {t('inv.movement')}
+                    </th>
+                    <th scope="col" className="py-2 text-end font-semibold">
+                      {t('common.kg')}
+                    </th>
+                    <th scope="col" className="py-2 text-end font-semibold">
+                      {t('inv.cost')}
+                    </th>
+                    <th scope="col" className="py-2 text-end font-semibold">
+                      {t('inv.rawRunning')}
+                    </th>
+                    <th scope="col" className="py-2 text-end font-semibold">
+                      {t('inv.finishedRunning')}
+                    </th>
                     <th scope="col" className="py-2">
                       <span className="sr-only">{t('common.actions')}</span>
                     </th>

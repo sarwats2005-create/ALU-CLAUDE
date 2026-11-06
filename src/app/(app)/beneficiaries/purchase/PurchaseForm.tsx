@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, PackagePlus, Plus } from 'lucide-react';
 import type { TxnDetail } from '@/lib/server/q/history';
 import type { lookupProducts } from '@/lib/server/q/inventory';
+import type { listInventories } from '@/lib/server/inventories';
 import { useApp } from '@/lib/client/app-context';
 import { api, qs } from '@/lib/client/api';
 import { useRemote } from '@/lib/client/use-remote';
@@ -25,6 +26,7 @@ import { StepLabel } from '@/components/Summary';
 import { useInvoiceAutoSave } from '@/components/useInvoiceAutoSave';
 
 type Product = Awaited<ReturnType<typeof lookupProducts>>[number];
+type InventoryRow = Awaited<ReturnType<typeof listInventories>>[number];
 type Ben = { id: string; name: string; phone: string; balance: string };
 type Type = { id: string; name: string };
 type State = 'RAW' | 'FINISHED';
@@ -41,13 +43,20 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
   const [ben, setBen] = useState<Option<Ben> | null>(null);
   const [date, setDate] = useState(edit?.date ?? localTodayIso());
   const [mode, setMode] = useState<'existing' | 'new'>('existing');
+  const locs = useRemote<InventoryRow[]>('/api/inventories');
+  const [inventoryId, setInventoryId] = useState(edit?.inventoryId ?? '');
   // Restocking is the usual case; only a brand-new factory (no products yet) starts on "create".
   useEffect(() => {
     if (edit || productId) return;
-    void api<Product[]>('/api/lookup/products').then((r) => {
+    void api<Product[]>(`/api/lookup/products${qs({ inventoryId: inventoryId || undefined })}`).then((r) => {
       if (r.ok && !r.data.length) setMode('new');
     });
-  }, [edit, productId]);
+  }, [edit, productId, inventoryId]);
+  useEffect(() => {
+    if (inventoryId || !locs.data?.length) return;
+    const def = locs.data.find((x) => x.isDefault) ?? locs.data[0];
+    setInventoryId(def.id);
+  }, [locs.data, inventoryId]);
   const [product, setProduct] = useState<Option<Product> | null>(null);
   const [npName, setNpName] = useState('');
   const [npType, setNpType] = useState('');
@@ -74,7 +83,7 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
       });
     const pid = line?.productId ?? productId;
     if (pid)
-      api<Product[]>(`/api/lookup/products${qs({ ids: pid })}`).then((r) => {
+      api<Product[]>(`/api/lookup/products${qs({ ids: pid, inventoryId: inventoryId || undefined })}`).then((r) => {
         if (r.ok && r.data[0]) setProduct(productOption(r.data[0]));
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,6 +136,7 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
         kg,
         unitPrice: price,
         currency,
+        inventoryId,
         paidUsd: payUsd || '0',
         paidIqd: payIqd || '0',
         notes,
@@ -191,6 +201,16 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
             <Field label={t('common.date')} htmlFor="pur-date" error={errors.date} required>
               <DateInput id="pur-date" value={date} onChange={setDate} invalid={!!errors.date} />
             </Field>
+            <Field label={t('inv.pickLoc')} htmlFor="pur-inv" className="sm:col-span-2">
+              <Select id="pur-inv" value={inventoryId} onChange={(e) => setInventoryId(e.target.value)} disabled={!!edit}>
+                {(locs.data ?? []).map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.name}
+                    {x.isDefault ? ` · ${t('inv.mainBadge')}` : ''}
+                  </option>
+                ))}
+              </Select>
+            </Field>
           </Card>
           </section>
 
@@ -217,7 +237,7 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
                   id="pur-product"
                   value={product}
                   onChange={setProduct}
-                  source={(q) => `/api/lookup/products${qs({ q })}`}
+                  source={(q) => `/api/lookup/products${qs({ q, inventoryId: inventoryId || undefined })}`}
                   toOption={productOption}
                   placeholder={t('inv.searchPh')}
                   invalid={!!errors.productId}

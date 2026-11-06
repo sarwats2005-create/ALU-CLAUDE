@@ -79,7 +79,11 @@ async function eraseOne(tx: Tx, id: string): Promise<{ number: string; vaults: C
   await lockProducts(tx, [...t.lines.map((l) => l.productId), ...(t.productId ? [t.productId] : [])]);
 
   const vaults = (await tx.vaultEntry.findMany({ where: { txnId: id }, distinct: ['vault'], select: { vault: true } })).map((v) => v.vault);
-  const keys = (await tx.stockEntry.groupBy({ by: ['productId', 'state'], where: { txnId: id } })).map((k) => ({ productId: k.productId, state: k.state }));
+  const keys = (await tx.stockEntry.groupBy({ by: ['productId', 'state', 'inventoryId'], where: { txnId: id } })).map((k) => ({
+    productId: k.productId,
+    state: k.state,
+    inventoryId: k.inventoryId,
+  }));
 
   await tx.vaultEntry.deleteMany({ where: { txnId: id } });
   await tx.vaultDue.deleteMany({ where: { txnId: id } });
@@ -98,16 +102,30 @@ async function settle(tx: Tx, done: { number: string; vaults: Currency[]; keys: 
   }
   const seen = new Set<string>();
   for (const k of done.flatMap((d) => d.keys)) {
-    const id = `${k.productId}:${k.state}`;
+    const id = `${k.inventoryId}:${k.productId}:${k.state}`;
     if (seen.has(id)) continue;
     seen.add(id);
-    const pos = await stockPos(tx, k.productId, k.state);
+    const pos = await stockPos(tx, k.productId, k.state, k.inventoryId);
     if (!pos.kg.isZero() || pos.value.isZero()) continue;
     // Empty stock still carrying cost (rounding left by sales): clear it on the latest remaining movement.
-    const last = await tx.stockEntry.findFirst({ where: { productId: k.productId, state: k.state }, orderBy: { id: 'desc' } });
+    const last = await tx.stockEntry.findFirst({
+      where: { productId: k.productId, state: k.state, inventoryId: k.inventoryId },
+      orderBy: { id: 'desc' },
+    });
     if (!last) continue;
     await tx.stockEntry.create({
-      data: { productId: k.productId, state: k.state, kg: '0', valueUsd: pos.value.neg().toString(), unitCostUsd: '0', txnId: last.txnId, sourceType: last.sourceType, date: last.date, isReversal: true },
+      data: {
+        productId: k.productId,
+        inventoryId: k.inventoryId,
+        state: k.state,
+        kg: '0',
+        valueUsd: pos.value.neg().toString(),
+        unitCostUsd: '0',
+        txnId: last.txnId,
+        sourceType: last.sourceType,
+        date: last.date,
+        isReversal: true,
+      },
     });
   }
   for (const v of new Set(done.flatMap((d) => d.vaults))) {

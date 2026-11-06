@@ -17,6 +17,7 @@ export const COUNTER_FOR: Record<TxnKind, string> = {
   VAULT_TRANSFER: 'VLT',
   PROCESSING: 'PRC',
   EXPENSE: 'EXP',
+  STOCK_TRANSFER: 'STR',
 };
 
 /**
@@ -59,8 +60,8 @@ export async function vaultBalance(tx: Tx, vault: Currency): Promise<Dec> {
   return bal;
 }
 
-export async function stockPos(tx: Tx, productId: string, state: StockState): Promise<{ kg: Dec; value: Dec }> {
-  const a = await tx.stockEntry.aggregate({ where: { productId, state }, _sum: { kg: true, valueUsd: true } });
+export async function stockPos(tx: Tx, productId: string, state: StockState, inventoryId: string): Promise<{ kg: Dec; value: Dec }> {
+  const a = await tx.stockEntry.aggregate({ where: { productId, state, inventoryId }, _sum: { kg: true, valueUsd: true } });
   return { kg: D(a._sum.kg), value: D(a._sum.valueUsd) };
 }
 
@@ -148,11 +149,21 @@ export async function partyMove(
   });
 }
 
-export async function stockIn(tx: Tx, src: Src, productId: string, state: StockState, kg: Dec, valueUsd: Dec, isReversal = false) {
+export async function stockIn(
+  tx: Tx,
+  src: Src,
+  productId: string,
+  state: StockState,
+  kg: Dec,
+  valueUsd: Dec,
+  inventoryId: string,
+  isReversal = false,
+) {
   if (kg.isZero() && valueUsd.isZero()) return;
   await tx.stockEntry.create({
     data: {
       productId,
+      inventoryId,
       state,
       kg: kg.toString(),
       valueUsd: round4(valueUsd).toString(),
@@ -176,8 +187,9 @@ export async function stockOut(
   state: StockState,
   kg: Dec,
   productName: string,
+  inventoryId: string,
 ): Promise<{ valueUsd: Dec; unitCostUsd: Dec }> {
-  const pos = await stockPos(tx, productId, state);
+  const pos = await stockPos(tx, productId, state, inventoryId);
   if (kg.gt(pos.kg)) {
     throw new AppError(422, 'v.insufficientStock', { kg: fmtKg(pos.kg.isNegative() ? 0 : pos.kg), product: productName });
   }
@@ -186,6 +198,7 @@ export async function stockOut(
   await tx.stockEntry.create({
     data: {
       productId,
+      inventoryId,
       state,
       kg: kg.neg().toString(),
       valueUsd: valueUsd.neg().toString(),
@@ -198,7 +211,7 @@ export async function stockOut(
   return { valueUsd, unitCostUsd };
 }
 
-export type StockKey = { productId: string; state: StockState };
+export type StockKey = { productId: string; state: StockState; inventoryId: string };
 
 /**
  * Reverse every ledger effect a document currently has (net of earlier reversals), by appending
@@ -226,13 +239,17 @@ export async function reverseEffects(tx: Tx, src: Src): Promise<StockKey[]> {
     if (!net.isZero()) await partyMove(tx, rev, { customerId: r.customerId, beneficiaryId: r.beneficiaryId }, net.neg(), true);
   }
 
-  const sg = await tx.stockEntry.groupBy({ by: ['productId', 'state'], where: { txnId: src.txnId }, _sum: { kg: true, valueUsd: true } });
+  const sg = await tx.stockEntry.groupBy({
+    by: ['productId', 'state', 'inventoryId'],
+    where: { txnId: src.txnId },
+    _sum: { kg: true, valueUsd: true },
+  });
   const keys: StockKey[] = [];
   for (const r of sg) {
     const kg = D(r._sum.kg);
     const val = D(r._sum.valueUsd);
-    keys.push({ productId: r.productId, state: r.state });
-    if (!kg.isZero() || !val.isZero()) await stockIn(tx, rev, r.productId, r.state, kg.neg(), val.neg(), true);
+    keys.push({ productId: r.productId, state: r.state, inventoryId: r.inventoryId });
+    if (!kg.isZero() || !val.isZero()) await stockIn(tx, rev, r.productId, r.state, kg.neg(), val.neg(), r.inventoryId, true);
   }
   return keys;
 }
@@ -248,19 +265,21 @@ export async function assertStockNonNegative(
 ) {
   const seen = new Set<string>();
   for (const k of keys) {
-    const id = `${k.productId}:${k.state}`;
+    const id = `${k.inventoryId}:${k.productId}:${k.state}`;
     if (seen.has(id)) continue;
     seen.add(id);
-    const pos = await stockPos(tx, k.productId, k.state);
+    const pos = await stockPos(tx, k.productId, k.state, k.inventoryId);
     if (!pos.kg.isNegative()) continue;
     const deficit = pos.kg.neg();
     const consumers = await tx.txn.findMany({
       where: {
         deletedAt: null,
         id: { not: ctx.txnId },
+        inventoryId: k.inventoryId,
         OR: [
           { kind: 'SALE', lines: { some: { productId: k.productId, state: k.state } } },
           ...(k.state === 'RAW' ? [{ kind: 'PROCESSING' as const, productId: k.productId }] : []),
+          { kind: 'STOCK_TRANSFER', productId: k.productId },
         ],
       },
       orderBy: { number: 'asc' },
@@ -285,14 +304,15 @@ export async function assertStockNonNegative(
 export async function clearResidualCost(tx: Tx, src: Src, keys: StockKey[]) {
   const seen = new Set<string>();
   for (const k of keys) {
-    const id = `${k.productId}:${k.state}`;
+    const id = `${k.inventoryId}:${k.productId}:${k.state}`;
     if (seen.has(id)) continue;
     seen.add(id);
-    const pos = await stockPos(tx, k.productId, k.state);
+    const pos = await stockPos(tx, k.productId, k.state, k.inventoryId);
     if (pos.kg.isZero() && !pos.value.isZero()) {
       await tx.stockEntry.create({
         data: {
           productId: k.productId,
+          inventoryId: k.inventoryId,
           state: k.state,
           kg: '0',
           valueUsd: pos.value.neg().toString(),

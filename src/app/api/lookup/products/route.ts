@@ -7,5 +7,6 @@ export const GET = route({ pages: ['pos', 'beneficiaries', 'inventory', 'reports
     inStockOnly: url.searchParams.get('inStock') === '1',
     limit: 30,
     ids: (url.searchParams.get('ids') ?? '').split(',').filter(Boolean).slice(0, 60),
+    inventoryId: url.searchParams.get('inventoryId') || undefined,
   });
 });

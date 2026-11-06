@@ -234,6 +234,8 @@ export async function txnDetail(id: string) {
     paidIqd: t.paidIqd.toString(),
     toVault: t.toVault,
     toAmount: t.toAmount?.toString() ?? null,
+    inventoryId: t.inventoryId,
+    toInventoryId: t.toInventoryId,
     cogsUsd: t.cogsUsd.toString(),
     product: t.product ? { id: t.product.id, name: t.product.name, sku: t.product.sku, typeName: t.product.type.name } : null,
     inputKg: t.inputKg?.toString() ?? null,

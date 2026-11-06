@@ -5,14 +5,16 @@ import { useRouter } from 'next/navigation';
 import { CheckCircle2, FileDown, Plus, Printer, ReceiptText, ShoppingCart, Trash2 } from 'lucide-react';
 import type { TxnDetail } from '@/lib/server/q/history';
 import type { lookupProducts } from '@/lib/server/q/inventory';
+import type { listInventories } from '@/lib/server/inventories';
 import { useApp } from '@/lib/client/app-context';
 import { api, qs } from '@/lib/client/api';
+import { useRemote } from '@/lib/client/use-remote';
 import { downloadFile, printDocument } from '@/lib/client/print';
 import { balanceLabel } from '@/lib/format';
 import { localTodayIso } from '@/lib/dates';
 import { D, Dec, fmtKg, fmtMoney, fmtPct, parseDec, roundMoney, toUsd, type Cur } from '@/lib/money';
 import { cx } from '@/lib/cx';
-import { Badge, Button, Card, Field, Input, PageHeader, Segmented, Textarea } from '@/components/ui';
+import { Badge, Button, Card, Field, Input, PageHeader, Segmented, Select, Textarea } from '@/components/ui';
 import { StepLabel } from '@/components/Summary';
 import { docUrl } from '@/lib/client/paper';
 import { Combobox, type Option } from '@/components/Combobox';
@@ -25,6 +27,7 @@ import { SplitPayment, splitTotals } from '@/components/SplitPayment';
 import { useInvoiceAutoSave } from '@/components/useInvoiceAutoSave';
 
 type Product = Awaited<ReturnType<typeof lookupProducts>>[number];
+type InventoryRow = Awaited<ReturnType<typeof listInventories>>[number];
 type Customer = { id: string; name: string; phone: string; balance: string; isDemo?: boolean };
 type State = 'RAW' | 'FINISHED';
 type Line = { key: number; product: Option<Product> | null; state: State; kg: string; price: string };
@@ -54,8 +57,16 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
   const guard = useMoneyGuard();
   const [addOpen, setAddOpen] = useState<string | null>(null);
   const [done, setDone] = useState<{ id: string; number: string; updated: boolean } | null>(null);
+  const locs = useRemote<InventoryRow[]>('/api/inventories');
+  const [inventoryId, setInventoryId] = useState(edit?.inventoryId ?? '');
 
   const rate = edit ? edit.rate : liveRate;
+
+  useEffect(() => {
+    if (inventoryId || !locs.data?.length) return;
+    const def = locs.data.find((x) => x.isDefault) ?? locs.data[0];
+    setInventoryId(def.id);
+  }, [locs.data, inventoryId]);
 
   // Kg this invoice already holds, per product/state — returned to availability while editing.
   const held = useMemo(() => {
@@ -75,7 +86,7 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
     }
     if (edit) {
       const ids = [...new Set(edit.lines.map((l) => l.productId))].join(',');
-      api<Product[]>(`/api/lookup/products${qs({ ids })}`).then((r) => {
+      api<Product[]>(`/api/lookup/products${qs({ ids, inventoryId: edit.inventoryId || undefined })}`).then((r) => {
         const byId = new Map((r.ok ? r.data : []).map((p) => [p.id, p]));
         setLines(
           edit.lines.map((l) => {
@@ -152,6 +163,7 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
       date,
       customerId: customer!.id,
       currency,
+      inventoryId,
       paidUsd: payUsd || '0',
       paidIqd: payIqd || '0',
       notes,
@@ -267,6 +279,16 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
                 className="w-full xl:w-[140px]"
               />
             </Field>
+            <Field label={t('inv.pickLoc')} htmlFor="pos-inv" className="sm:col-span-2 xl:col-span-3">
+              <Select id="pos-inv" value={inventoryId} onChange={(e) => setInventoryId(e.target.value)} disabled={!!edit}>
+                {(locs.data ?? []).map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.name}
+                    {x.isDefault ? ` · ${t('inv.mainBadge')}` : ''}
+                  </option>
+                ))}
+              </Select>
+            </Field>
           </Card>
           </section>
 
@@ -283,6 +305,7 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
                   n={i + 1}
                   line={l}
                   currency={currency}
+                  inventoryId={inventoryId}
                   available={available(l)}
                   total={lineTotals[i]}
                   errors={{
@@ -405,6 +428,7 @@ function LineEditor({
   n,
   line,
   currency,
+  inventoryId,
   available,
   total,
   errors,
@@ -415,6 +439,7 @@ function LineEditor({
   n: number;
   line: Line;
   currency: Cur;
+  inventoryId: string;
   available: Dec;
   total: Dec | null;
   errors: { product?: string; kg?: string; price?: string };
@@ -452,7 +477,7 @@ function LineEditor({
               const st: State = o ? (stockOf(o.data, 'FINISHED').gt(0) ? 'FINISHED' : 'RAW') : line.state;
               onChange({ product: o, state: st });
             }}
-            source={(q) => `/api/lookup/products${qs({ q, inStock: 1 })}`}
+            source={(q) => `/api/lookup/products${qs({ q, inStock: 1, inventoryId: inventoryId || undefined })}`}
             toOption={productOption}
             placeholder={t('pos.pickProduct')}
             invalid={!!errors.product}

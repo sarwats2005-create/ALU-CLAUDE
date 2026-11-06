@@ -5,18 +5,23 @@ import { D, Dec, round4 } from '@/lib/money';
 import { dbToIso } from '@/lib/dates';
 import { notFound } from '../errors';
 import { getSettings } from '../common';
+import { ensureDefaultInventory } from '../inventories';
 import { sql, join, where, like, n, s, type Sql } from './sql';
 
 export type StockStatus = 'in' | 'low' | 'out';
 
-const STOCK_SUB = sql`
+function stockSub(inventoryId: string) {
+  return sql`
   SELECT "productId",
          SUM(CASE WHEN state = 'RAW' THEN kg ELSE 0 END) AS raw_kg,
          SUM(CASE WHEN state = 'RAW' THEN "valueUsd" ELSE 0 END) AS raw_val,
          SUM(CASE WHEN state = 'FINISHED' THEN kg ELSE 0 END) AS fin_kg,
          SUM(CASE WHEN state = 'FINISHED' THEN "valueUsd" ELSE 0 END) AS fin_val,
          COUNT(*) AS moves
-  FROM "StockEntry" GROUP BY "productId"`;
+  FROM "StockEntry"
+  WHERE "inventoryId" = ${inventoryId}
+  GROUP BY "productId"`;
+}
 
 export async function listInventory(p: {
   q: string;
@@ -28,9 +33,17 @@ export async function listInventory(p: {
   offset: number;
   onlyInStock?: boolean;
   ids?: string[];
+  inventoryId?: string;
 }) {
   const settings = await getSettings();
+  const inv = p.inventoryId
+    ? await prisma.inventory.findUnique({ where: { id: p.inventoryId } })
+    : await ensureDefaultInventory();
+  if (!inv) throw notFound();
+  const inventoryId = inv.id;
+
   const globalLow = D(settings.lowStockKg).toString();
+  const STOCK_SUB = stockSub(inventoryId);
   const total = sql`(COALESCE(st.raw_kg,0) + COALESCE(st.fin_kg,0))`;
   const threshold = sql`COALESCE(p."lowStockKg", ${globalLow}::numeric)`;
   const statusExpr = sql`CASE WHEN ${total} <= 0 THEN 'out' WHEN ${total} <= ${threshold} THEN 'low' ELSE 'in' END`;
@@ -76,6 +89,8 @@ export async function listInventory(p: {
     FROM "Product" p LEFT JOIN (${STOCK_SUB}) st ON st."productId" = p.id`;
   return {
     total: n(count[0]?.c),
+    inventoryId,
+    inventoryName: inv.name,
     globalLowKg: globalLow,
     totals: { rawKg: s(sums[0]?.raw_kg), finishedKg: s(sums[0]?.fin_kg), value: s(sums[0]?.value), low: n(attn[0]?.low), out: n(attn[0]?.out) },
     rows: rows.map((r) => {
@@ -105,7 +120,10 @@ export async function listInventory(p: {
 }
 
 /** Product picker for POS/purchase: name, SKU, type and availability per state. */
-export async function lookupProducts(q: string, opts: { inStockOnly?: boolean; limit?: number; ids?: string[] } = {}) {
+export async function lookupProducts(
+  q: string,
+  opts: { inStockOnly?: boolean; limit?: number; ids?: string[]; inventoryId?: string } = {},
+) {
   const res = await listInventory({
     q,
     sort: 'name',
@@ -114,12 +132,18 @@ export async function lookupProducts(q: string, opts: { inStockOnly?: boolean; l
     offset: 0,
     onlyInStock: opts.inStockOnly && !opts.ids?.length,
     ids: opts.ids,
+    inventoryId: opts.inventoryId,
   });
   return res.rows;
 }
 
-export async function productStock(productId: string) {
-  const g = await prisma.stockEntry.groupBy({ by: ['state'], where: { productId }, _sum: { kg: true, valueUsd: true } });
+export async function productStock(productId: string, inventoryId?: string) {
+  const invId = inventoryId ?? (await ensureDefaultInventory()).id;
+  const g = await prisma.stockEntry.groupBy({
+    by: ['state'],
+    where: { productId, inventoryId: invId },
+    _sum: { kg: true, valueUsd: true },
+  });
   const out: Record<StockState, { kg: string; avg: string }> = { RAW: { kg: '0', avg: '0' }, FINISHED: { kg: '0', avg: '0' } };
   for (const r of g) {
     const kg = D(r._sum.kg);
@@ -139,7 +163,7 @@ export type HistoryRow = {
   kg: string;
   valueUsd: string;
   unitCostUsd: string;
-  movement: 'purchase' | 'sale' | 'processOut' | 'processIn' | 'reversal' | 'adjust';
+  movement: 'purchase' | 'sale' | 'processOut' | 'processIn' | 'reversal' | 'adjust' | 'transferOut' | 'transferIn';
   rawAfter: string;
   finishedAfter: string;
   lossKg: string | null;
@@ -148,14 +172,15 @@ export type HistoryRow = {
   reverted: boolean;
 };
 
-/** Every stock movement for the product, in posting order, with running kg per state. */
-export async function productHistory(productId: string) {
+/** Every stock movement for the product in one inventory, in posting order, with running kg per state. */
+export async function productHistory(productId: string, inventoryId?: string) {
   const product = await prisma.product.findUnique({ where: { id: productId }, include: { type: true } });
   if (!product) throw notFound();
+  const invId = inventoryId ?? (await ensureDefaultInventory()).id;
   const entries = await prisma.stockEntry.findMany({
-    where: { productId },
+    where: { productId, inventoryId: invId },
     orderBy: { id: 'asc' },
-    include: { txn: { select: { number: true, kind: true, lossKg: true, deletedAt: true, label: true } } },
+    include: { txn: { select: { number: true, kind: true, lossKg: true, deletedAt: true, label: true, inventoryId: true, toInventoryId: true } } },
   });
   let raw = new Dec(0);
   let fin = new Dec(0);
@@ -171,9 +196,13 @@ export async function productHistory(productId: string) {
           ? 'purchase'
           : e.sourceType === 'SALE'
             ? 'sale'
-            : kg.isNegative()
-              ? 'processOut'
-              : 'processIn';
+            : e.sourceType === 'STOCK_TRANSFER'
+              ? kg.isNegative()
+                ? 'transferOut'
+                : 'transferIn'
+              : kg.isNegative()
+                ? 'processOut'
+                : 'processIn';
     return {
       id: e.id,
       date: dbToIso(e.date),
@@ -194,7 +223,8 @@ export async function productHistory(productId: string) {
   });
   return {
     product: { id: product.id, name: product.name, sku: product.sku, typeName: product.type.name, isDemo: product.isDemo },
-    stock: await productStock(productId),
+    inventoryId: invId,
+    stock: await productStock(productId, invId),
     rows: rows.reverse(), // newest first for display
   };
 }

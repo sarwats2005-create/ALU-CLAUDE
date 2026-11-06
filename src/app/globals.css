@@ -1,9 +1,8 @@
 @import 'tailwindcss';
 
-/* ───────────────────────── Flat design tokens ─────────────────────────
-   One light palette. Hierarchy comes from size, colour and type, never from depth: no shadows, no blur,
-   no decorative gradients on elements. Every colour in the product comes from these variables; components
-   use token classes (bg-surface, text-ink, bg-brand…), never hex values.
+/* ───────────────────────── Design tokens ─────────────────────────
+   One light palette. Soft depth via brand-tinted shadows + a subtle glow; components still use
+   token classes (bg-surface, text-ink, bg-brand…), never raw hex in JSX.
    Fill colours are the design system's exact values. The *-ink tokens are the readable text shade of the
    same hue (used for coloured text on white). */
 :root {
@@ -38,6 +37,9 @@
   --overlay: rgba(17, 24, 39, 0.6);
   --focus: #3b82f6;
   --bar-glass: #ffffff;
+  /* Soft brand glow (used by elevated surfaces) */
+  --glow-brand: 0 0 0 1px rgba(59, 130, 246, 0.06), 0 0 28px -8px rgba(59, 130, 246, 0.28);
+  --glow-soft: 0 0 40px -12px rgba(59, 130, 246, 0.18);
   /* Chart marks */
   --chart-series: #3b82f6;
   --chart-pos: #10b981;
@@ -80,10 +82,10 @@
 
   /* Radius: consistent and moderate (6px controls, 8px blocks); pills only for tags. */
   --radius-ctl: 6px;
-  --radius-card: 8px;
-  /* Zero artificial depth: the shadow utilities still exist in markup but render nothing. */
-  --shadow-card: none;
-  --shadow-pop: none;
+  --radius-card: 12px;
+  /* Soft indexed depth + brand glow — elegant, not heavy. */
+  --shadow-card: 0 1px 2px rgba(17, 24, 39, 0.04), 0 8px 24px -12px rgba(17, 24, 39, 0.12), var(--glow-brand);
+  --shadow-pop: 0 4px 8px rgba(17, 24, 39, 0.06), 0 16px 40px -16px rgba(59, 130, 246, 0.35), var(--glow-soft);
 
   /* Type scale (after Bringhurst's classic scale, in px) */
   --text-caption: 12px;

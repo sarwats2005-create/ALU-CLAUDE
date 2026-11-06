@@ -27,6 +27,7 @@ import { nextSku } from './catalog';
 import { asState, cleanMultiline, cleanText, currentRate, reqCurrency, reqDate, reqNonNegative, reqPositive } from './common';
 import { audit, jsonSafe } from './audit';
 import { isLocked } from '@/lib/lock';
+import { resolveInventoryId } from './inventories';
 
 export type Actor = { id: string; name: string };
 type Opts = { isDemo?: boolean; allowShortfall?: boolean };
@@ -128,6 +129,8 @@ export type PurchaseInput = {
   notes?: string;
   clientTotal?: string;
   allowShortfall?: boolean;
+  /** Destination stock location. Defaults to the Main Inventory. */
+  inventoryId?: string;
 };
 
 export async function savePurchase(input: PurchaseInput, actor: Actor, editId?: string, opts: Opts = {}): Promise<Saved> {
@@ -172,6 +175,7 @@ export async function savePurchase(input: PurchaseInput, actor: Actor, editId?: 
     await lockParties(tx, [ben.id, old?.beneficiaryId]);
     await lockProducts(tx, [productId, ...(old ? old.lines.map((l) => l.productId) : [])]);
     const before = old ? await snapshotTxn(tx, old.id) : null;
+    const inventoryId = await resolveInventoryId(tx, old?.inventoryId ?? input.inventoryId);
 
     const rate = old ? D(old.rate) : await currentRate(tx);
     const total = roundMoney(kg.times(unitPrice), currency);
@@ -197,6 +201,7 @@ export async function savePurchase(input: PurchaseInput, actor: Actor, editId?: 
       paidIqd: paid.iqd.toString(),
       vault: paid.vault,
       vaultAmount: paid.vaultAmount.toString(),
+      inventoryId,
       notes,
     };
     const line = {
@@ -225,11 +230,11 @@ export async function savePurchase(input: PurchaseInput, actor: Actor, editId?: 
     }
 
     const src: Src = { txnId, kind: 'PURCHASE', date };
-    await stockIn(tx, src, productId, state!, kg, valueUsd);
+    await stockIn(tx, src, productId, state!, kg, valueUsd, inventoryId);
     await payOut(tx, src, 'USD', paid.usd, shortOk(input, opts));
     await payOut(tx, src, 'IQD', paid.iqd, shortOk(input, opts));
     await partyMove(tx, src, { beneficiaryId: ben.id }, totalUsd.minus(cashUsd));
-    touched.push({ productId, state: state! });
+    touched.push({ productId, state: state!, inventoryId });
     if (old) await assertStockNonNegative(tx, touched, { number, action: 'update', txnId, createdAt: old.createdAt });
     await clearResidualCost(tx, src, touched);
 
@@ -252,6 +257,8 @@ export type SaleInput = {
   notes?: string;
   lines?: SaleLineInput[];
   clientTotal?: string;
+  /** Stock location to sell from. Defaults to the Main Inventory. */
+  inventoryId?: string;
 };
 
 export async function saveSale(input: SaleInput, actor: Actor, editId?: string, opts: Opts = {}): Promise<Saved> {
@@ -282,6 +289,7 @@ export async function saveSale(input: SaleInput, actor: Actor, editId?: string, 
     await lockParties(tx, [customer.id, old?.customerId]);
     await lockProducts(tx, [...lines.map((l) => l.productId), ...(old ? old.lines.map((l) => l.productId) : [])]);
     const before = old ? await snapshotTxn(tx, old.id) : null;
+    const inventoryId = await resolveInventoryId(tx, old?.inventoryId ?? input.inventoryId);
 
     const products = await tx.product.findMany({ where: { id: { in: [...new Set(lines.map((l) => l.productId))] } }, select: { id: true, name: true } });
     const nameOf = new Map(products.map((p) => [p.id, p.name]));
@@ -306,7 +314,7 @@ export async function saveSale(input: SaleInput, actor: Actor, editId?: string, 
     const stockErrors: FieldErrors = {};
     let firstParams: Record<string, string> | undefined;
     for (const n of need.values()) {
-      const pos = await stockPos(tx, n.productId, n.state);
+      const pos = await stockPos(tx, n.productId, n.state, inventoryId);
       if (n.kg.gt(pos.kg)) {
         const params = { kg: fmtKg(pos.kg.isNegative() ? 0 : pos.kg), product: nameOf.get(n.productId) ?? '' };
         firstParams ??= params;
@@ -338,6 +346,7 @@ export async function saveSale(input: SaleInput, actor: Actor, editId?: string, 
       paidIqd: paid.iqd.toString(),
       vault: paid.vault,
       vaultAmount: paid.vaultAmount.toString(),
+      inventoryId,
       notes: cleanMultiline(input.notes),
     };
     let txnId: string;
@@ -356,7 +365,7 @@ export async function saveSale(input: SaleInput, actor: Actor, editId?: string, 
     const src: Src = { txnId, kind: 'SALE', date };
     let cogsTotal = new Dec(0);
     for (const [i, l] of computed.entries()) {
-      const out = await stockOut(tx, src, l.productId, l.state, l.kg, nameOf.get(l.productId) ?? '');
+      const out = await stockOut(tx, src, l.productId, l.state, l.kg, nameOf.get(l.productId) ?? '', inventoryId);
       cogsTotal = cogsTotal.plus(out.valueUsd);
       await tx.txnLine.create({
         data: {
@@ -372,7 +381,7 @@ export async function saveSale(input: SaleInput, actor: Actor, editId?: string, 
           cogsUsd: out.valueUsd.toString(),
         },
       });
-      touched.push({ productId: l.productId, state: l.state });
+      touched.push({ productId: l.productId, state: l.state, inventoryId });
     }
     await tx.txn.update({ where: { id: txnId }, data: { cogsUsd: round4(cogsTotal).toString() } });
     await vaultMove(tx, src, 'USD', 'IN', paid.usd);
@@ -563,7 +572,16 @@ export async function saveVaultOp(input: VaultOpInput, actor: Actor, editId?: st
 }
 
 // ─── Processing (loss) ─────────────────────────────────────────────────────────────────────────────
-export type ProcessingInput = { productId?: string; date?: string; inputKg?: string; method?: string; lossPercent?: string; lossKg?: string; notes?: string };
+export type ProcessingInput = {
+  productId?: string;
+  date?: string;
+  inputKg?: string;
+  method?: string;
+  lossPercent?: string;
+  lossKg?: string;
+  notes?: string;
+  inventoryId?: string;
+};
 
 /** Pure loss math shared by the preview and the server: returns loss kg, loss %, output kg. */
 export function computeLoss(inputKg: Dec, method: LossMethod, lossPercent: Dec | null, lossKg: Dec | null) {
@@ -603,11 +621,13 @@ export async function saveProcessing(input: ProcessingInput, actor: Actor, editI
     if (!product) throw fieldError('productId', 'v.productRequired');
     await lockProducts(tx, [productId]);
     const before = old ? await snapshotTxn(tx, old.id) : null;
+    // Edits stay in the original warehouse — never move a processing run between inventories.
+    const inventoryId = await resolveInventoryId(tx, old?.inventoryId ?? input.inventoryId);
 
     const touched: StockKey[] = [];
     if (old) touched.push(...(await reverseEffects(tx, { txnId: old.id, kind: old.kind, date: old.date })));
 
-    const raw = await stockPos(tx, productId, 'RAW');
+    const raw = await stockPos(tx, productId, 'RAW', inventoryId);
     if (inputKg.gt(raw.kg)) throw fieldError('inputKg', 'v.processTooMuch', { kg: fmtKg(raw.kg.isNegative() ? 0 : raw.kg) });
     const res = computeLoss(inputKg, method!, pct, lossKg);
     if (!res.outputKg.gt(0)) throw fieldError(method === 'PERCENT' ? 'lossPercent' : 'lossKg', method === 'PERCENT' ? 'v.lossRangePct' : 'v.lossRangeKg');
@@ -617,6 +637,7 @@ export async function saveProcessing(input: ProcessingInput, actor: Actor, editI
       date,
       productId,
       currency: 'USD' as const,
+      inventoryId,
       inputKg: inputKg.toString(),
       lossKg: res.lossKg.toString(),
       outputKg: res.outputKg.toString(),
@@ -638,14 +659,14 @@ export async function saveProcessing(input: ProcessingInput, actor: Actor, editI
       txnId = t.id;
     }
     const src: Src = { txnId, kind: 'PROCESSING', date };
-    const out = await stockOut(tx, src, productId, 'RAW', inputKg, product.name);
+    const out = await stockOut(tx, src, productId, 'RAW', inputKg, product.name, inventoryId);
     // The loss is carried into cost: finished cost/kg = cost of raw consumed ÷ output kg.
-    await stockIn(tx, src, productId, 'FINISHED', res.outputKg, out.valueUsd);
+    await stockIn(tx, src, productId, 'FINISHED', res.outputKg, out.valueUsd, inventoryId);
     await tx.txn.update({
       where: { id: txnId },
       data: { cogsUsd: round4(out.valueUsd).toString(), total: round2(out.valueUsd).toString(), totalUsd: round2(out.valueUsd).toString() },
     });
-    touched.push({ productId, state: 'RAW' }, { productId, state: 'FINISHED' });
+    touched.push({ productId, state: 'RAW', inventoryId }, { productId, state: 'FINISHED', inventoryId });
     if (old) await assertStockNonNegative(tx, touched, { number, action: 'update', txnId, createdAt: old.createdAt });
     await clearResidualCost(tx, src, touched);
     await audit({ user: actor, action: old ? 'update' : 'create', module: 'inventory', reference: number, before, after: await snapshotTxn(tx, txnId) }, tx);
@@ -666,6 +687,7 @@ const MODULE_OF: Record<TxnKind, string> = {
   VAULT_TRANSFER: 'vault',
   PROCESSING: 'inventory',
   EXPENSE: 'expenses',
+  STOCK_TRANSFER: 'inventory',
 };
 
 /**

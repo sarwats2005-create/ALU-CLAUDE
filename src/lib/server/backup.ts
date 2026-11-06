@@ -19,7 +19,7 @@ import type { SessionUser } from './auth';
 //  • All-or-nothing restore — inside one transaction; any error leaves the current data untouched.
 //  • Nothing is lost — before every restore or fresh start the current data is saved as a restore point.
 
-export const BACKUP_FORMAT = 2;
+export const BACKUP_FORMAT = 3;
 const APP = 'ALU FACTORY';
 const DEFAULT_PIN = '1122';
 
@@ -31,6 +31,7 @@ const TABLES = [
   'exchangeRateLog',
   'counter',
   'aluminumType',
+  'inventory',
   'product',
   'customer',
   'beneficiary',
@@ -84,10 +85,42 @@ export async function buildBackup(): Promise<BackupFile> {
 export function validateBackup(raw: unknown): BackupFile {
   const f = raw as Partial<BackupFile> | null;
   if (!f || typeof f !== 'object' || f.app !== APP) throw new AppError(400, 'bk.notBackup');
-  if (f.format !== BACKUP_FORMAT || !f.data || typeof f.data !== 'object') throw new AppError(400, 'bk.oldFormat');
-  for (const t of TABLES) if (!Array.isArray((f.data as BackupData)[t])) throw new AppError(400, 'bk.damaged');
-  if (sha(JSON.stringify(f.data)) !== f.checksum) throw new AppError(400, 'bk.damaged');
-  if (!(f.data as BackupData).user.some((u) => u.isOwner)) throw new AppError(400, 'bk.damaged');
+  if ((f.format !== BACKUP_FORMAT && f.format !== 2) || !f.data || typeof f.data !== 'object') throw new AppError(400, 'bk.oldFormat');
+  const data = f.data as BackupData;
+  // Format 2 backups predate multi-inventory — synthesize a Main Inventory and attach stock to it.
+  if (f.format === 2 && !Array.isArray(data.inventory)) {
+    (data as BackupData).inventory = [
+      {
+        id: 'inv_main_default',
+        name: 'Main Inventory',
+        nameKey: 'main inventory',
+        address: '',
+        size: '',
+        rentAmount: null,
+        rentVault: null,
+        rentNextDue: null,
+        isDefault: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+    for (const row of data.stockEntry ?? []) {
+      if (row.inventoryId == null) row.inventoryId = 'inv_main_default';
+    }
+    for (const row of data.txn ?? []) {
+      if (row.inventoryId == null && ['PURCHASE', 'SALE', 'PROCESSING'].includes(String(row.kind))) {
+        row.inventoryId = 'inv_main_default';
+      }
+    }
+  }
+  for (const t of TABLES) if (!Array.isArray((data as BackupData)[t])) throw new AppError(400, 'bk.damaged');
+  if (f.format === BACKUP_FORMAT && sha(JSON.stringify(data)) !== f.checksum) throw new AppError(400, 'bk.damaged');
+  if (f.format === 2) {
+    // Recalculate checksum after synthesizing inventory rows so restore can proceed.
+    (f as BackupFile).checksum = sha(JSON.stringify(data));
+    (f as BackupFile).format = BACKUP_FORMAT;
+  }
+  if (!(data as BackupData).user.some((u) => u.isOwner)) throw new AppError(400, 'bk.damaged');
   return f as BackupFile;
 }
 
@@ -229,6 +262,11 @@ export async function startFresh(user: SessionUser) {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('alu:vaults'))`;
       await wipe(tx, user.id);
       await resetSequences(tx);
+      await tx.inventory.create({
+        data: { id: 'inv_main_default', name: 'Main Inventory', nameKey: 'main inventory', isDefault: true },
+      });
+      await tx.appSettings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+      await tx.companyProfile.upsert({ where: { id: 1 }, update: {}, create: { id: 1, name: 'ALU FACTORY' } });
     },
     { timeout: 300_000, maxWait: 20_000 },
   );

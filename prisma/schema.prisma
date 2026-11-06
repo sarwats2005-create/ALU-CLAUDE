@@ -38,6 +38,8 @@ enum TxnKind {
   VAULT_TRANSFER
   PROCESSING
   EXPENSE
+  /// Move product stock from one inventory location to another (no money).
+  STOCK_TRANSFER
 }
 
 enum RecurFrequency {
@@ -159,6 +161,29 @@ model AluminumType {
   products  Product[]
 }
 
+/// A physical stock location (warehouse / store). Products are shared; stock quantities are per inventory.
+model Inventory {
+  id          String    @id @default(cuid())
+  name        String
+  nameKey     String    @unique
+  address     String    @default("")
+  /// Free-text size (e.g. "500 m²"); optional.
+  size        String    @default("")
+  /// Monthly rent in `rentVault` currency. Null = rent not configured.
+  rentAmount  Decimal?  @db.Decimal(18, 2)
+  rentVault   Currency?
+  /// Next calendar day rent is due. Advanced by one month after each successful payment.
+  rentNextDue DateTime? @db.Date
+  isDefault   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  stock       StockEntry[]
+  txnsFrom    Txn[]     @relation("TxnInventory")
+  txnsTo      Txn[]     @relation("TxnToInventory")
+
+  @@index([isDefault])
+}
+
 model Product {
   id         String       @id @default(cuid())
   name       String
@@ -241,6 +266,12 @@ model Txn {
   toVault       Currency?
   toAmount      Decimal?    @db.Decimal(18, 2)
 
+  /// Stock location for purchases / sales / processing / rent. Transfers also set toInventoryId.
+  inventoryId   String?
+  inventory     Inventory?  @relation("TxnInventory", fields: [inventoryId], references: [id])
+  toInventoryId String?
+  toInventory   Inventory?  @relation("TxnToInventory", fields: [toInventoryId], references: [id])
+
   /// Sales: Σ COGS (USD, 4 dp). Processing: cost of raw consumed (USD, 4 dp).
   cogsUsd       Decimal     @default(0) @db.Decimal(18, 4)
 
@@ -293,6 +324,8 @@ model Txn {
   @@index([productId])
   @@index([categoryId])
   @@index([recurringId])
+  @@index([inventoryId])
+  @@index([toInventoryId])
 }
 
 /// Expense categories (Settings → Expenses). unitEnabled: amount = price per unit × quantity.
@@ -421,6 +454,8 @@ model StockEntry {
   id          Int        @id @default(autoincrement())
   productId   String
   product     Product    @relation(fields: [productId], references: [id])
+  inventoryId String
+  inventory   Inventory  @relation(fields: [inventoryId], references: [id])
   state       StockState
   kg          Decimal    @db.Decimal(18, 3) // signed
   unitCostUsd Decimal    @db.Decimal(18, 4)
@@ -433,6 +468,7 @@ model StockEntry {
   createdAt   DateTime   @default(now())
 
   @@index([productId, state])
+  @@index([inventoryId, productId, state])
   @@index([txnId])
   @@index([date])
 }
