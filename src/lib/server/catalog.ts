@@ -2,7 +2,7 @@ import 'server-only';
 import bcrypt from 'bcryptjs';
 import { prisma, withTx } from '@/lib/db';
 import { D, parseDec, rateLine, round3, round4 } from '@/lib/money';
-import { sanitizePermissions } from '@/lib/permissions';
+import { normalizeStaffPermissions, sanitizePermissions } from '@/lib/permissions';
 import { parseLang } from '@/lib/i18n';
 import { AppError, Validator, conflict, fieldError, notFound } from './errors';
 import { cleanMultiline, cleanText, getSettings, nameKey, phone } from './common';
@@ -268,7 +268,15 @@ export async function updateCompany(input: CompanyInput, actor: Actor) {
 }
 
 // ─── Users ─────────────────────────────────────────────────────────────────────────────────────────
-export type UserInput = { name?: string; email?: string; password?: string; active?: boolean; permissions?: string[]; lang?: string };
+export type UserInput = {
+  name?: string;
+  email?: string;
+  password?: string;
+  active?: boolean;
+  permissions?: string[];
+  lang?: string;
+  hasPersonalVault?: boolean;
+};
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function saveUser(input: UserInput, actor: Actor, id?: string) {
@@ -282,7 +290,8 @@ export async function saveUser(input: UserInput, actor: Actor, id?: string) {
   if (!id && password.length < 8) v.add('password', 'auth.passwordMin');
   if (id && password && password.length < 8) v.add('password', 'auth.passwordMin');
   v.throwIfAny();
-  const permissions = sanitizePermissions(input.permissions);
+  const hasPersonalVault = input.hasPersonalVault === true;
+  const permissions = normalizeStaffPermissions(sanitizePermissions(input.permissions), hasPersonalVault);
   return withTx(async (tx) => {
     const clash = await tx.user.findUnique({ where: { email }, select: { id: true } });
     if (clash && clash.id !== id) throw fieldError('email', 'v.emailExists');
@@ -298,21 +307,67 @@ export async function saveUser(input: UserInput, actor: Actor, id?: string) {
         await audit({ user: actor, action: 'update', module: 'users', reference: email, before: pub(before), after: pub(after) }, tx);
         return pub(after);
       }
+      if (before.hasPersonalVault && !hasPersonalVault) {
+        const bal = await tx.vaultEntry.groupBy({
+          by: ['direction'],
+          where: { ownerUserId: id },
+          _sum: { amount: true },
+        });
+        let net = D(0);
+        for (const r of bal) net = r.direction === 'IN' ? net.plus(D(r._sum.amount)) : net.minus(D(r._sum.amount));
+        if (!net.isZero()) throw conflict('users.vaultNotEmpty');
+      }
       const active = input.active !== false;
-      const after = await tx.user.update({ where: { id }, data: { name, email, active, permissions, ...(hash ? { passwordHash: hash } : {}) } });
+      const after = await tx.user.update({
+        where: { id },
+        data: { name, email, active, permissions, hasPersonalVault, ...(hash ? { passwordHash: hash } : {}) },
+      });
       if (!active || hash) await tx.session.deleteMany({ where: { userId: id } });
-      const permsChanged = JSON.stringify([...before.permissions].sort()) !== JSON.stringify([...permissions].sort()) || before.active !== active;
+      const permsChanged =
+        JSON.stringify([...before.permissions].sort()) !== JSON.stringify([...permissions].sort()) ||
+        before.active !== active ||
+        before.hasPersonalVault !== hasPersonalVault;
       await audit({ user: actor, action: permsChanged ? 'permission' : 'update', module: 'users', reference: email, before: pub(before), after: pub(after) }, tx);
       return pub(after);
     }
-    const u = await tx.user.create({ data: { name, email, passwordHash: hash!, active: input.active !== false, permissions, lang: parseLang(input.lang) } });
+    const u = await tx.user.create({
+      data: {
+        name,
+        email,
+        passwordHash: hash!,
+        active: input.active !== false,
+        permissions,
+        hasPersonalVault,
+        lang: parseLang(input.lang),
+      },
+    });
     await audit({ user: actor, action: 'permission', module: 'users', reference: email, after: pub(u) }, tx);
     return pub(u);
   });
 }
 
-function pub(u: { id: string; name: string; email: string; isOwner: boolean; active: boolean; permissions: string[]; lastLoginAt: Date | null; lang: string }) {
-  return { id: u.id, name: u.name, email: u.email, isOwner: u.isOwner, active: u.active, permissions: u.permissions, lastLoginAt: u.lastLoginAt, lang: u.lang };
+function pub(u: {
+  id: string;
+  name: string;
+  email: string;
+  isOwner: boolean;
+  active: boolean;
+  permissions: string[];
+  lastLoginAt: Date | null;
+  lang: string;
+  hasPersonalVault?: boolean;
+}) {
+  return {
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    isOwner: u.isOwner,
+    active: u.active,
+    permissions: u.permissions,
+    lastLoginAt: u.lastLoginAt,
+    lang: u.lang,
+    hasPersonalVault: !!u.hasPersonalVault,
+  };
 }
 
 export async function listUsers() {

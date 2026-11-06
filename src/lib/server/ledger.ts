@@ -18,6 +18,7 @@ export const COUNTER_FOR: Record<TxnKind, string> = {
   PROCESSING: 'PRC',
   EXPENSE: 'EXP',
   STOCK_TRANSFER: 'STR',
+  USER_VAULT_FUND: 'VLT',
 };
 
 /**
@@ -35,10 +36,18 @@ export async function nextNumber(tx: Tx, kind: TxnKind): Promise<string> {
 }
 
 // ─── Locks ─────────────────────────────────────────────────────────────────────────────────────────
-/** Serialize all vault writers (always in the same order, so no deadlocks between vaults). */
-export async function lockVaults(tx: Tx) {
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('alu:vault:USD'))`;
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('alu:vault:IQD'))`;
+/**
+ * Serialize vault writers. Always locks the main USD/IQD pair first, then any personal wallets
+ * (sorted) so concurrent main↔staff funding cannot deadlock.
+ */
+export async function lockVaults(tx: Tx, personalUserIds: (string | null | undefined)[] = []) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('alu:vault:main:USD'))`;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('alu:vault:main:IQD'))`;
+  const ids = [...new Set(personalUserIds.filter((x): x is string => !!x))].sort();
+  for (const id of ids) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'alu:vault:user:' + id + ':USD'}))`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'alu:vault:user:' + id + ':IQD'}))`;
+  }
 }
 
 /** Row-lock products (sorted) so concurrent sales/purchases can't oversell the same stock. */
@@ -53,8 +62,13 @@ export async function lockParty(tx: Tx, id: string) {
 }
 
 // ─── Balances (always derived from the ledger) ─────────────────────────────────────────────────────
-export async function vaultBalance(tx: Tx, vault: Currency): Promise<Dec> {
-  const g = await tx.vaultEntry.groupBy({ by: ['direction'], where: { vault }, _sum: { amount: true } });
+/** `ownerUserId` null = main factory vault; otherwise that staff user's personal wallet. */
+export async function vaultBalance(tx: Tx, vault: Currency, ownerUserId: string | null = null): Promise<Dec> {
+  const g = await tx.vaultEntry.groupBy({
+    by: ['direction'],
+    where: { vault, ownerUserId },
+    _sum: { amount: true },
+  });
   let bal = new Dec(0);
   for (const r of g) bal = r.direction === 'IN' ? bal.plus(D(r._sum.amount)) : bal.minus(D(r._sum.amount));
   return bal;
@@ -78,8 +92,21 @@ export async function beneficiaryBalance(tx: Tx, beneficiaryId: string): Promise
 // ─── Ledger writers ────────────────────────────────────────────────────────────────────────────────
 export type Src = { txnId: string; kind: TxnKind; date: Date };
 
+export type VaultMoveOpts = { isReversal?: boolean; dueId?: string | null; ownerUserId?: string | null };
+
 /** Append a vault movement. Caller must hold lockVaults(). A negative amount flips the direction. */
-export async function vaultMove(tx: Tx, src: Src, vault: Currency, direction: 'IN' | 'OUT', amount: Dec, isReversal = false, dueId?: string) {
+export async function vaultMove(
+  tx: Tx,
+  src: Src,
+  vault: Currency,
+  direction: 'IN' | 'OUT',
+  amount: Dec,
+  opts: VaultMoveOpts | boolean = {},
+  dueIdLegacy?: string,
+) {
+  // Back-compat: older call sites used (…, isReversal, dueId).
+  const optsObj: VaultMoveOpts =
+    typeof opts === 'boolean' ? { isReversal: opts, dueId: dueIdLegacy } : opts;
   if (amount.isZero()) return;
   let dir = direction;
   let amt = amount;
@@ -87,19 +114,21 @@ export async function vaultMove(tx: Tx, src: Src, vault: Currency, direction: 'I
     dir = dir === 'IN' ? 'OUT' : 'IN';
     amt = amt.neg();
   }
-  const bal = await vaultBalance(tx, vault);
+  const ownerUserId = optsObj.ownerUserId ?? null;
+  const bal = await vaultBalance(tx, vault, ownerUserId);
   const after = dir === 'IN' ? bal.plus(amt) : bal.minus(amt);
   await tx.vaultEntry.create({
     data: {
       vault,
+      ownerUserId,
       direction: dir,
       amount: amt.toString(),
       balanceAfter: after.toString(),
       txnId: src.txnId,
       sourceType: src.kind,
       date: src.date,
-      isReversal,
-      dueId: dueId ?? null,
+      isReversal: !!optsObj.isReversal,
+      dueId: optsObj.dueId ?? null,
     },
   });
 }
@@ -109,22 +138,29 @@ export async function vaultMove(tx: Tx, src: Src, vault: Currency, direction: 'I
  * `amount`, the user must first confirm (allowShortfall) — then whatever is in the vault is paid now and
  * the rest is recorded as an unpaid VaultDue, to be paid from the vault later. Caller holds lockVaults().
  */
-export async function payOut(tx: Tx, src: Src, vault: Currency, amount: Dec, allowShortfall: boolean) {
-  if (!amount.gt(0)) return vaultMove(tx, src, vault, 'OUT', amount);
-  const bal = await vaultBalance(tx, vault);
-  if (bal.gte(amount)) return vaultMove(tx, src, vault, 'OUT', amount);
+export async function payOut(
+  tx: Tx,
+  src: Src,
+  vault: Currency,
+  amount: Dec,
+  allowShortfall: boolean,
+  ownerUserId: string | null = null,
+) {
+  if (!amount.gt(0)) return vaultMove(tx, src, vault, 'OUT', amount, { ownerUserId });
+  const bal = await vaultBalance(tx, vault, ownerUserId);
+  if (bal.gte(amount)) return vaultMove(tx, src, vault, 'OUT', amount, { ownerUserId });
   const pay = bal.gt(0) ? bal : new Dec(0);
   const short = amount.minus(pay);
   if (!allowShortfall) {
     throw new AppError(409, 'vault.short', { vault: `@@vault.${vault}`, balance: fmtMoney(bal, vault), amount: fmtMoney(amount, vault), pay: fmtMoney(pay, vault), short: fmtMoney(short, vault) });
   }
-  if (pay.gt(0)) await vaultMove(tx, src, vault, 'OUT', pay);
-  await tx.vaultDue.create({ data: { txnId: src.txnId, vault, amount: short.toString() } });
+  if (pay.gt(0)) await vaultMove(tx, src, vault, 'OUT', pay, { ownerUserId });
+  await tx.vaultDue.create({ data: { txnId: src.txnId, vault, ownerUserId, amount: short.toString() } });
 }
 
 /** For moves that can't be left half-paid (vault transfers): the vault must hold the full amount. */
-export async function assertCash(tx: Tx, vault: Currency, amount: Dec) {
-  const bal = await vaultBalance(tx, vault);
+export async function assertCash(tx: Tx, vault: Currency, amount: Dec, ownerUserId: string | null = null) {
+  const bal = await vaultBalance(tx, vault, ownerUserId);
   if (bal.lt(amount)) throw new AppError(409, 'vault.notEnough', { vault: `@@vault.${vault}`, balance: fmtMoney(bal, vault), amount: fmtMoney(amount, vault) });
 }
 
@@ -223,14 +259,20 @@ export async function reverseEffects(tx: Tx, src: Src): Promise<StockKey[]> {
   // reversal below, and the new version records its own shortfall (if any) when it is posted again.
   await tx.vaultDue.deleteMany({ where: { txnId: src.txnId } });
 
-  const vg = await tx.vaultEntry.groupBy({ by: ['vault', 'direction'], where: { txnId: src.txnId }, _sum: { amount: true } });
-  const netByVault = new Map<Currency, Dec>();
+  const vg = await tx.vaultEntry.groupBy({
+    by: ['vault', 'direction', 'ownerUserId'],
+    where: { txnId: src.txnId },
+    _sum: { amount: true },
+  });
+  const netByKey = new Map<string, { vault: Currency; ownerUserId: string | null; net: Dec }>();
   for (const r of vg) {
-    const cur = netByVault.get(r.vault) ?? new Dec(0);
-    netByVault.set(r.vault, r.direction === 'IN' ? cur.plus(D(r._sum.amount)) : cur.minus(D(r._sum.amount)));
+    const key = `${r.ownerUserId ?? ''}:${r.vault}`;
+    const cur = netByKey.get(key) ?? { vault: r.vault, ownerUserId: r.ownerUserId, net: new Dec(0) };
+    cur.net = r.direction === 'IN' ? cur.net.plus(D(r._sum.amount)) : cur.net.minus(D(r._sum.amount));
+    netByKey.set(key, cur);
   }
-  for (const [vault, net] of netByVault) {
-    if (!net.isZero()) await vaultMove(tx, rev, vault, 'OUT', net, true); // OUT of +net == undo net IN
+  for (const { vault, ownerUserId, net } of netByKey.values()) {
+    if (!net.isZero()) await vaultMove(tx, rev, vault, 'OUT', net, { isReversal: true, ownerUserId });
   }
 
   const pg = await tx.partyEntry.groupBy({ by: ['customerId', 'beneficiaryId'], where: { txnId: src.txnId }, _sum: { amountUsd: true } });

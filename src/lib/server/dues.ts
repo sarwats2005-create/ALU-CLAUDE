@@ -14,9 +14,9 @@ import type { Actor } from './txns';
 
 const open = { settledAt: null, txn: { deletedAt: null } } as const;
 
-export async function listDues(vault?: Currency) {
+export async function listDues(vault?: Currency, ownerUserId: string | null = null) {
   const rows = await prisma.vaultDue.findMany({
-    where: { ...open, ...(vault ? { vault } : {}) },
+    where: { ...open, ownerUserId, ...(vault ? { vault } : {}) },
     orderBy: { createdAt: 'asc' },
     include: {
       txn: {
@@ -74,11 +74,15 @@ async function payOne(tx: Tx, dueId: string, actor: Actor): Promise<Dec> {
   const due = await tx.vaultDue.findUnique({ where: { id: dueId }, include: { txn: { select: { id: true, kind: true, number: true, deletedAt: true } } } });
   if (!due || due.settledAt || due.txn.deletedAt) return new Dec(0);
   const remaining = D(due.amount).minus(D(due.paid));
-  const cash = await vaultBalance(tx, due.vault);
+  const cash = await vaultBalance(tx, due.vault, due.ownerUserId);
   const pay = Dec.min(remaining, cash.gt(0) ? cash : new Dec(0));
   if (!pay.gt(0)) return new Dec(0);
   const today = todayIso();
-  await vaultMove(tx, { txnId: due.txnId, kind: due.txn.kind, date: isoToDb(today) }, due.vault, 'OUT', pay, false, due.id);
+  await vaultMove(tx, { txnId: due.txnId, kind: due.txn.kind, date: isoToDb(today) }, due.vault, 'OUT', pay, {
+    isReversal: false,
+    dueId: due.id,
+    ownerUserId: due.ownerUserId,
+  });
   const paid = D(due.paid).plus(pay);
   await tx.vaultDue.update({ where: { id: due.id }, data: { paid: paid.toString(), settledAt: paid.gte(D(due.amount)) ? new Date() : null } });
   await audit(
@@ -90,9 +94,9 @@ async function payOne(tx: Tx, dueId: string, actor: Actor): Promise<Dec> {
 
 export async function payDue(dueId: string, actor: Actor) {
   return withTx(async (tx) => {
-    await lockVaults(tx);
     const due = await tx.vaultDue.findUnique({ where: { id: dueId } });
     if (!due) throw notFound();
+    await lockVaults(tx, [due.ownerUserId]);
     if (due.settledAt) throw conflict('due.alreadyPaid');
     const paid = await payOne(tx, dueId, actor);
     if (!paid.gt(0)) throw new AppError(409, 'due.noCash', { vault: `@@vault.${due.vault}` });
@@ -102,10 +106,14 @@ export async function payDue(dueId: string, actor: Actor) {
 }
 
 /** Pay the oldest dues of a vault first, until they're all paid or the vault is empty. */
-export async function payAllDues(vault: Currency, actor: Actor) {
+export async function payAllDues(vault: Currency, actor: Actor, ownerUserId: string | null = null) {
   return withTx(async (tx) => {
-    await lockVaults(tx);
-    const dues = await tx.vaultDue.findMany({ where: { vault, ...open }, orderBy: { createdAt: 'asc' }, select: { id: true } });
+    await lockVaults(tx, [ownerUserId]);
+    const dues = await tx.vaultDue.findMany({
+      where: { vault, ownerUserId, ...open },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
     let total = new Dec(0);
     let count = 0;
     for (const d of dues) {

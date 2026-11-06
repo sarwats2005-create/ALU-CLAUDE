@@ -18,6 +18,8 @@ export type SessionUser = {
   lang: Lang;
   permissions: string[];
   prefs: Record<string, unknown>;
+  /** Staff personal USD/IQD wallets (never sees main vault). */
+  hasPersonalVault: boolean;
   /** Owner erase mode: active until this moment, or null. */
   eraseUntil: Date | null;
 };
@@ -72,6 +74,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     lang: u.lang as Lang,
     permissions: u.permissions,
     prefs: (u.prefs ?? {}) as Record<string, unknown>,
+    hasPersonalVault: !!u.hasPersonalVault,
     eraseUntil: u.isOwner && s.eraseUntil && s.eraseUntil > new Date() ? s.eraseUntil : null,
   };
 }
