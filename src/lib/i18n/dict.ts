@@ -26,6 +26,14 @@ export const dict = {
   'nav.language': ['Language', 'زمان'],
   'nav.skip': ['Skip to content', 'بازدان بۆ ناوەڕۆک'],
   'nav.noAccess': ['You don’t have access to any pages yet. Ask the owner to grant access.', 'هێشتا دەستت بە هیچ پەڕەیەک ناگات. داوا لە خاوەن بکە دەسەڵاتت پێ بدات.'],
+  'nav.collapse': ['Collapse sidebar', 'داخستنی لیست'],
+  'nav.expand': ['Expand sidebar', 'کردنەوەی لیست'],
+  'nav.closeMenu': ['Close menu', 'داخستنی لیست'],
+  'nav.sectionMain': ['Workspace', 'شوێنی کار'],
+  'nav.sectionManage': ['Management', 'بەڕێوەبردن'],
+  'nav.sectionHelp': ['Help', 'یارمەتی'],
+  'nav.dues': ['Unpaid dues', 'قەرزە نەدراوەکان'],
+  'nav.overview': ['Overview', 'گشتی'],
 
   // Common
   'common.save': ['Save', 'پاشەکەوتکردن'],
@@ -191,6 +199,7 @@ export const dict = {
   'kind.VAULT_DEPOSIT': ['Vault deposit', 'دانانی پارە لە قاسە'],
   'kind.VAULT_WITHDRAWAL': ['Vault withdrawal', 'ڕاکێشانی پارە لە قاسە'],
   'kind.VAULT_TRANSFER': ['Vault exchange', 'گۆڕینەوەی نێوان قاسەکان'],
+  'kind.USER_VAULT_FUND': ['Staff vault funding', 'پارەدان بۆ قاسەی کارمەند'],
   'kind.PROCESSING': ['Processing', 'پرۆسێسکردن'],
   'kindShort.SALE': ['Sale', 'فرۆشتن'],
   'kindShort.CUSTOMER_PAYMENT': ['Payment', 'پارەدان'],
@@ -623,6 +632,8 @@ export const dict = {
   'vault.oldRate': ['Old rate', 'نرخی کۆن'],
   'vault.newRate': ['New rate', 'نرخی نوێ'],
   'vault.rateLogEmpty': ['The rate hasn’t been changed yet.', 'هێشتا نرخەکە نەگۆڕدراوە.'],
+  'vault.staffNoDeposit': ['Staff can’t deposit into a personal vault. Ask the owner to fund it.', 'کارمەند ناتوانێت پارە بخاتە قاسەی کەسی. داوا لە خاوەنەکە بکە پارەی بۆ دابنێت.'],
+  'vault.fundUserInvalid': ['Choose an active staff user who has a personal vault.', 'بەکارهێنەرێکی چالاکی کارمەند هەڵبژێرە کە قاسەی کەسی هەبێت.'],
 
   // Reports
   'rep.title': ['Reports', 'ڕاپۆرتەکان'],
@@ -800,6 +811,7 @@ export const dict = {
   'set.auditDetails': ['Before and after', 'پێش و دوای'],
   'set.lastLoginNever': ['Never signed in', 'هەرگیز نەچووەتە ژوورەوە'],
   'set.userInactive': ['Inactive users can’t sign in.', 'بەکارهێنەری ناچالاک ناتوانێت بچێتە ژوورەوە.'],
+  'users.vaultNotEmpty': ['This user’s personal vault still has a balance. Move or clear the money before turning the vault off.', 'قاسەی کەسی ئەم بەکارهێنەرە هێشتا باڵانسی هەیە. پێش کوژاندنەوەی قاسەکە پارەکە بگوازەوە یان پاکی بکەرەوە.'],
   'set.allAccess': ['Full access', 'دەسەڵاتی تەواو'],
   'set.pagesCount': ['{n} pages', '{n} پەڕە'],
   'set.backupNote': ['Keep the JSON file somewhere safe — it is a complete backup of every record.', 'فایلی JSON لە شوێنێکی پارێزراو هەڵبگرە — پاشەکەوتێکی تەواوی هەموو تۆمارەکانە.'],
@@ -944,6 +956,7 @@ export const dict = {
   'exp.pinLocked': ['Too many wrong PINs. Try again in 15 minutes.', 'PIN ی هەڵە زۆر جار نووسرا. پاش ١٥ خولەک هەوڵ بدەرەوە.'],
   'exp.pinFormat': ['Use 4 to 8 digits.', '٤ بۆ ٨ ژمارە بەکاربهێنە.'],
   'exp.insufficient': ['Not enough money in the {vault}: it has {balance}, the expense is {amount}.', 'پارەی پێویست لە {vault} نییە: {balance} ی تێدایە، خەرجییەکە {amount} ە.'],
+  'exp.needPersonalVault': ['You need a personal vault to record this expense. Ask the owner to enable one.', 'بۆ تۆمارکردنی ئەم خەرجییە قاسەی کەسی پێویستە. داوا لە خاوەنەکە بکە یەکێکت بۆ چالاک بکات.'],
   'exp.catExists': ['A category with this name already exists.', 'پۆلێک بەم ناوە هەیە.'],
   'exp.catInUse': ['This category is used by {n} expenses or rules, so it can’t be deleted.', 'ئەم پۆلە لە {n} خەرجی یان یاسادا بەکارهاتووە، بۆیە ناسڕدرێتەوە.'],
   'set.expenses': ['Expenses', 'خەرجییەکان'],

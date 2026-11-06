@@ -78,10 +78,10 @@ export function SearchBox({ value, onChange, placeholder, className, label }: { 
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={label ?? placeholder}
-        className="bidi h-14 w-full rounded-ctl border-2 border-transparent bg-surface-2 ps-11 pe-12 focus:bg-surface text-body text-ink placeholder:text-muted transition-colors duration-200 focus:border-brand focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+        className="bidi h-[var(--ctl-h)] w-full rounded-ctl border-2 border-transparent bg-surface-2 ps-11 pe-12 text-body text-ink placeholder:text-muted motion-safe:transition-colors motion-safe:duration-[var(--motion-base)] focus:border-brand focus:bg-surface focus:outline-none [&::-webkit-search-cancel-button]:hidden"
       />
       {value ? (
-        <button type="button" onClick={() => onChange('')} aria-label={t('common.clear')} className="absolute end-1 top-1/2 inline-flex h-14 w-14 -translate-y-1/2 items-center justify-center rounded-ctl text-muted hover:bg-surface-2 hover:text-ink">
+        <button type="button" onClick={() => onChange('')} aria-label={t('common.clear')} className="absolute end-1 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-ctl text-muted hover:bg-surface-2 hover:text-ink">
           <X className="h-4 w-4" aria-hidden="true" />
         </button>
       ) : null}
@@ -228,7 +228,7 @@ export function Pager({ total, page, size, onPage, onSize }: { total: number; pa
       <div className="flex items-center gap-2">
         <label className="flex items-center gap-2">
           <span className="hidden sm:inline">{t('common.perPage')}</span>
-          <select value={size} onChange={(e) => onSize(Number(e.target.value))} className="select-chevron h-14 appearance-none rounded-ctl border-2 border-transparent bg-surface ps-4 pe-9 text-body text-ink focus:border-brand focus:outline-none">
+          <select value={size} onChange={(e) => onSize(Number(e.target.value))} className="select-chevron h-[var(--ctl-h)] appearance-none rounded-ctl border-2 border-transparent bg-surface ps-4 pe-9 text-body text-ink focus:border-brand focus:outline-none">
             {[25, 50, 100].map((n) => (
               <option key={n} value={n}>
                 {n}
@@ -237,10 +237,10 @@ export function Pager({ total, page, size, onPage, onSize }: { total: number; pa
           </select>
         </label>
         <span className="num px-1">{t('common.page', { n: page, total: pages })}</span>
-        <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label={t('common.prev')} className="inline-flex h-14 w-14 items-center justify-center rounded-ctl bg-surface text-ink transition-all duration-200 hover:scale-105 hover:bg-tint-2 disabled:opacity-40 disabled:hover:scale-100">
+        <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label={t('common.prev')} className="inline-flex h-11 w-11 items-center justify-center rounded-ctl bg-surface text-ink motion-safe:transition-[background-color,transform] motion-safe:duration-[var(--motion-base)] hover:scale-[1.02] hover:bg-tint-2 disabled:opacity-40 disabled:hover:scale-100">
           <ChevronLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
         </button>
-        <button type="button" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label={t('common.next')} className="inline-flex h-14 w-14 items-center justify-center rounded-ctl bg-surface text-ink transition-all duration-200 hover:scale-105 hover:bg-tint-2 disabled:opacity-40 disabled:hover:scale-100">
+        <button type="button" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label={t('common.next')} className="inline-flex h-11 w-11 items-center justify-center rounded-ctl bg-surface text-ink motion-safe:transition-[background-color,transform] motion-safe:duration-[var(--motion-base)] hover:scale-[1.02] hover:bg-tint-2 disabled:opacity-40 disabled:hover:scale-100">
           <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
         </button>
       </div>
@@ -262,7 +262,7 @@ export function FilterPills<T extends string>({ value, onChange, options, label 
             aria-checked={on}
             onClick={() => onChange(o.value)}
             className={cx(
-              'h-14 shrink-0 rounded-ctl px-5 text-meta font-bold transition-all duration-200 hover:scale-105 active:scale-100 disabled:hover:scale-100',
+              'h-11 shrink-0 rounded-ctl px-4 text-meta font-bold motion-safe:transition-[background-color,color,transform] motion-safe:duration-[var(--motion-base)] hover:scale-[1.02] active:scale-100 disabled:hover:scale-100',
               on ? 'bg-brand text-on-brand' : 'bg-surface-2 text-muted hover:text-ink',
             )}
           >

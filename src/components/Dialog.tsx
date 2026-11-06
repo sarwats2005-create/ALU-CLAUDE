@@ -123,9 +123,9 @@ export function Dialog({
               type="button"
               onClick={onClose}
               aria-label={t('common.close')}
-              className="-me-2 -mt-2 inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-ctl text-muted transition-all duration-200 hover:scale-105 hover:bg-surface-2 hover:text-ink"
+              className="-me-2 -mt-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-ctl text-muted motion-safe:transition-[background-color,color,transform] motion-safe:duration-[var(--motion-base)] hover:scale-[1.02] hover:bg-surface-2 hover:text-ink"
             >
-              <X className="h-6 w-6" strokeWidth={2.5} aria-hidden="true" />
+              <X className="h-5 w-5" strokeWidth={2.5} aria-hidden="true" />
             </button>
           ) : null}
         </div>

@@ -101,7 +101,7 @@ export function Combobox<T>({
           aria-invalid={invalid || undefined}
           aria-describedby={invalid ? `${id}-error` : undefined}
           className={cx(
-            'flex h-14 w-full min-w-0 items-center gap-2 rounded-ctl border-2 bg-surface-2 ps-4 pe-2 text-start text-body text-ink transition-colors duration-200 hover:bg-tint focus:border-brand focus:bg-surface focus:outline-none disabled:text-muted disabled:opacity-70',
+            'flex h-[var(--ctl-h)] w-full min-w-0 items-center gap-2 rounded-ctl border-2 bg-surface-2 ps-4 pe-2 text-start text-body text-ink motion-safe:transition-colors motion-safe:duration-[var(--motion-base)] hover:bg-tint focus:border-brand focus:bg-surface focus:outline-none disabled:text-muted disabled:opacity-70',
             invalid ? 'border-danger' : 'border-transparent',
           )}
         >
@@ -115,7 +115,7 @@ export function Combobox<T>({
                 e.stopPropagation();
                 onChange(null);
               }}
-              className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-muted hover:bg-tint hover:text-ink"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-tint hover:text-ink"
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </span>
@@ -163,7 +163,7 @@ export function Combobox<T>({
               }
             }}
             className={cx(
-              'bidi h-14 w-full min-w-0 rounded-ctl border-2 bg-surface-2 ps-4 pe-10 text-body text-ink placeholder:text-muted transition-colors duration-200 focus:border-brand focus:bg-surface focus:outline-none',
+              'bidi h-[var(--ctl-h)] w-full min-w-0 rounded-ctl border-2 bg-surface-2 ps-4 pe-10 text-body text-ink placeholder:text-muted motion-safe:transition-colors motion-safe:duration-[var(--motion-base)] focus:border-brand focus:bg-surface focus:outline-none',
               invalid ? 'border-danger' : 'border-transparent',
             )}
           />

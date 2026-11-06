@@ -56,13 +56,13 @@ export function AlertsBell({ className, onBrand, align = 'end' }: { className?: 
         aria-haspopup="dialog"
         aria-label={t('alerts.open', { n: unread })}
         className={cx(
-          'relative inline-flex h-14 w-14 items-center justify-center rounded-full transition-colors',
+          'relative inline-flex h-11 w-11 items-center justify-center rounded-full motion-safe:transition-colors motion-safe:duration-[var(--motion-fast)]',
           onBrand ? 'text-sidebar-muted hover:bg-sidebar-active hover:text-sidebar-ink' : 'text-muted hover:bg-tint hover:text-ink',
         )}
       >
         <Bell className="h-5 w-5" aria-hidden="true" />
         {unread > 0 ? (
-          <span className="num absolute end-1 top-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-[11px] font-bold leading-none text-white">
+          <span className="num absolute end-0.5 top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-[11px] font-bold leading-none text-white">
             {unread > 99 ? '99+' : unread}
           </span>
         ) : null}
