@@ -1,0 +1,16 @@
+{
+  "name": "ALU FACTORY and OS Store",
+  "install": "set -euo pipefail\nscript=\"\"\nfor c in \"$PWD\" \"$PWD/ALU-CLAUDE\" \"$PWD/repos/ALU-CLAUDE\" /workspace/ALU-CLAUDE /workspace/repos/ALU-CLAUDE /agent/ALU-CLAUDE /agent/repos/ALU-CLAUDE; do\n  if [ -f \"$c/.cursor/install.sh\" ]; then\n    script=\"$c/.cursor/install.sh\"\n    break\n  fi\ndone\nif [ -z \"$script\" ]; then\n  script=\"$(find \"$PWD\" /workspace /agent -maxdepth 4 -type f -path '*/.cursor/install.sh' -print -quit 2>/dev/null || true)\"\nfi\nif [ -z \"$script\" ]; then\n  echo \"Could not find .cursor/install.sh\" >&2\n  exit 1\nfi\nbash \"$script\"\n",
+  "start": "set -euo pipefail\nscript=\"\"\nfor c in \"$PWD\" \"$PWD/ALU-CLAUDE\" \"$PWD/repos/ALU-CLAUDE\" /workspace/ALU-CLAUDE /workspace/repos/ALU-CLAUDE /agent/ALU-CLAUDE /agent/repos/ALU-CLAUDE; do\n  if [ -f \"$c/.cursor/start.sh\" ]; then\n    script=\"$c/.cursor/start.sh\"\n    break\n  fi\ndone\nif [ -z \"$script\" ]; then\n  script=\"$(find \"$PWD\" /workspace /agent -maxdepth 4 -type f -path '*/.cursor/start.sh' -print -quit 2>/dev/null || true)\"\nfi\nif [ -z \"$script\" ]; then\n  echo \"Could not find .cursor/start.sh\" >&2\n  exit 1\nfi\nbash \"$script\"\n",
+  "ports": [
+    {
+      "name": "ALU FACTORY",
+      "port": 3000
+    },
+    {
+      "name": "OS Store",
+      "port": 3001
+    }
+  ],
+  "chromeExecutablePath": "/usr/bin/google-chrome"
+}
