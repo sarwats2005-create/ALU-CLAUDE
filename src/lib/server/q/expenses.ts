@@ -4,7 +4,20 @@ import { prisma } from '@/lib/db';
 import { D } from '@/lib/money';
 import { dbToIso, isValidIsoDate, isoToDb, parseDmy } from '@/lib/dates';
 
-export type ExpenseFilters = { q?: string; categoryId?: string; from?: string; to?: string };
+export type ExpenseFilters = {
+  q?: string;
+  categoryId?: string;
+  from?: string;
+  to?: string;
+  /** Restrict to expenses created by this user. */
+  createdById?: string;
+  /**
+   * `null` = factory (main) vault expenses;
+   * `'personal'` = any staff personal-vault expense;
+   * a user id = that user's personal vault.
+   */
+  vaultOwner?: string | null | 'personal';
+};
 
 export type ExpenseRow = {
   id: string;
@@ -22,11 +35,17 @@ export type ExpenseRow = {
   note: string;
   source: 'manual' | 'recurring';
   createdByName: string;
+  createdById: string | null;
+  vaultOwnerUserId: string | null;
 };
 
 function where(f: ExpenseFilters): Prisma.TxnWhereInput {
   const w: Prisma.TxnWhereInput = { kind: 'EXPENSE', deletedAt: null };
   if (f.categoryId) w.categoryId = f.categoryId;
+  if (f.createdById) w.createdById = f.createdById;
+  if (f.vaultOwner === 'personal') w.vaultOwnerUserId = { not: null };
+  else if (f.vaultOwner === null) w.vaultOwnerUserId = null;
+  else if (typeof f.vaultOwner === 'string') w.vaultOwnerUserId = f.vaultOwner;
   const date: Prisma.DateTimeFilter = {};
   if (isValidIsoDate(f.from)) date.gte = isoToDb(f.from);
   if (isValidIsoDate(f.to)) date.lte = isoToDb(f.to);
@@ -37,6 +56,7 @@ function where(f: ExpenseFilters): Prisma.TxnWhereInput {
       { number: { contains: q, mode: 'insensitive' } },
       { label: { contains: q, mode: 'insensitive' } },
       { notes: { contains: q, mode: 'insensitive' } },
+      { createdByName: { contains: q, mode: 'insensitive' } },
     ];
     const n = q.replace(/[,\s$]/g, '').replace(/iqd$/i, '');
     if (/^\d+(\.\d+)?$/.test(n)) or.push({ total: { equals: n } });
@@ -73,14 +93,16 @@ export async function listExpenses(f: ExpenseFilters, p: { size: number; offset:
         note: t.notes,
         source: t.recurringId || t.runKey ? 'recurring' : 'manual',
         createdByName: t.createdByName,
+        createdById: t.createdById,
+        vaultOwnerUserId: t.vaultOwnerUserId,
       }),
     ),
   };
 }
 
-/** Totals over every recorded expense (not just the current filter). USD equivalents use each expense's own rate. */
-export async function expenseStats() {
-  const base = { kind: 'EXPENSE' as const, deletedAt: null };
+/** Totals over matching expenses. USD equivalents use each expense's own rate. */
+export async function expenseStats(f: Pick<ExpenseFilters, 'createdById' | 'vaultOwner'> = {}) {
+  const base = where(f);
   const [byCur, count, largest, byCat] = await Promise.all([
     prisma.txn.groupBy({ by: ['currency'], where: base, _sum: { total: true, totalUsd: true } }),
     prisma.txn.count({ where: base }),

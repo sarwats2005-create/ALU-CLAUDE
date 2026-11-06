@@ -8,8 +8,13 @@ import { currentRate } from '../common';
 import { recentByKind } from './history';
 import { sql, where, like, isKind, n, s } from './sql';
 
-export async function vaultBalances() {
-  const g = await prisma.vaultEntry.groupBy({ by: ['vault', 'direction'], _sum: { amount: true } });
+/** Main factory vault when `ownerUserId` is null; otherwise that staff user's personal wallets. */
+export async function vaultBalances(ownerUserId: string | null = null) {
+  const g = await prisma.vaultEntry.groupBy({
+    by: ['vault', 'direction'],
+    where: { ownerUserId },
+    _sum: { amount: true },
+  });
   const bal: Record<Currency, Dec> = { USD: new Dec(0), IQD: new Dec(0) };
   for (const r of g) bal[r.vault] = r.direction === 'IN' ? bal[r.vault].plus(D(r._sum.amount)) : bal[r.vault].minus(D(r._sum.amount));
   return bal;
@@ -112,7 +117,7 @@ export async function dashboard() {
 }
 
 // ─── Vault page ────────────────────────────────────────────────────────────────────────────────────
-export async function vaultOverview() {
+export async function vaultOverview(ownerUserId: string | null = null) {
   const today = todayIso();
   const start = addDaysIso(today, -29);
   const rate = await currentRate();
@@ -129,21 +134,27 @@ export async function vaultOverview() {
     duesCount: number;
     net: string;
   }>;
-  const dues = await duesSummary();
+  const dues = await duesSummary(ownerUserId);
+  const ownerFilter = ownerUserId === null ? sql`e."ownerUserId" IS NULL` : sql`e."ownerUserId" = ${ownerUserId}`;
   for (const vault of ['USD', 'IQD'] as const) {
     const [nets, before, daily, last] = await Promise.all([
-      // Net effect per document: deleted documents net to zero, edited ones to their current effect.
       prisma.$queryRaw<Record<string, unknown>[]>`
         SELECT COALESCE(SUM(CASE WHEN net > 0 THEN net ELSE 0 END),0) AS tin, COALESCE(SUM(CASE WHEN net < 0 THEN -net ELSE 0 END),0) AS tout,
                COALESCE(SUM(net),0) AS bal
-        FROM (SELECT "txnId", SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END) AS net FROM "VaultEntry" WHERE vault = ${vault}::"Currency" GROUP BY "txnId") x`,
+        FROM (
+          SELECT e."txnId", SUM(CASE WHEN e.direction = 'IN' THEN e.amount ELSE -e.amount END) AS net
+          FROM "VaultEntry" e
+          WHERE e.vault = ${vault}::"Currency" AND ${ownerFilter}
+          GROUP BY e."txnId"
+        ) x`,
       prisma.$queryRaw<Record<string, unknown>[]>`
-        SELECT COALESCE(SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END),0) AS bal FROM "VaultEntry" WHERE vault = ${vault}::"Currency" AND date < ${start}::date`,
+        SELECT COALESCE(SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END),0) AS bal
+        FROM "VaultEntry" e WHERE e.vault = ${vault}::"Currency" AND ${ownerFilter} AND e.date < ${start}::date`,
       prisma.$queryRaw<Record<string, unknown>[]>`
-        SELECT date, SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END) AS net FROM "VaultEntry"
-        WHERE vault = ${vault}::"Currency" AND date >= ${start}::date AND date <= ${today}::date GROUP BY date`,
+        SELECT e.date, SUM(CASE WHEN e.direction = 'IN' THEN e.amount ELSE -e.amount END) AS net FROM "VaultEntry" e
+        WHERE e.vault = ${vault}::"Currency" AND ${ownerFilter} AND e.date >= ${start}::date AND e.date <= ${today}::date GROUP BY e.date`,
       prisma.vaultEntry.findMany({
-        where: { vault },
+        where: { vault, ownerUserId },
         orderBy: { id: 'desc' },
         take: 5,
         include: { txn: { select: { number: true, kind: true, label: true, customer: { select: { name: true } }, beneficiary: { select: { name: true } } } } },
@@ -186,8 +197,21 @@ export async function vaultOverview() {
   return { rate: rate.toString(), vaults: out };
 }
 
-export async function vaultHistory(p: { vault?: string; kind?: string; from?: string; to?: string; q?: string; sort: string; dir: 'asc' | 'desc'; size: number; offset: number }) {
+export async function vaultHistory(p: {
+  vault?: string;
+  kind?: string;
+  from?: string;
+  to?: string;
+  q?: string;
+  sort: string;
+  dir: 'asc' | 'desc';
+  size: number;
+  offset: number;
+  ownerUserId?: string | null;
+}) {
+  const ownerUserId = p.ownerUserId === undefined ? null : p.ownerUserId;
   const conds = [
+    ownerUserId === null ? sql`e."ownerUserId" IS NULL` : sql`e."ownerUserId" = ${ownerUserId}`,
     p.vault === 'USD' || p.vault === 'IQD' ? sql`e.vault = ${p.vault}::"Currency"` : null,
     isKind(p.kind) ? sql`e."sourceType" = ${p.kind}::"TxnKind"` : null,
     isValidIsoDate(p.from) ? sql`e.date >= ${p.from}::date` : null,

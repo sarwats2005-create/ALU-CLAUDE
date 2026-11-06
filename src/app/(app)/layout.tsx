@@ -13,7 +13,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const [settings, company] = await Promise.all([getSettings(), getCompany()]);
   return (
     <AppShell
-      user={{ id: user.id, name: user.name, email: user.email, isOwner: user.isOwner, permissions: user.permissions }}
+      user={{
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        isOwner: user.isOwner,
+        permissions: user.permissions,
+        hasPersonalVault: user.hasPersonalVault,
+      }}
       lang={user.lang}
       rate={D(settings.exchangeRate).toString()}
       company={company.name}

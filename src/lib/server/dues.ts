@@ -59,8 +59,11 @@ export async function listDues(vault?: Currency, ownerUserId: string | null = nu
 export type DueRow = Awaited<ReturnType<typeof listDues>>[number];
 
 /** Unpaid total + count per vault (for vault cards, alerts and the "pay now" reminder). */
-export async function duesSummary() {
-  const rows = await prisma.vaultDue.findMany({ where: open, select: { vault: true, amount: true, paid: true } });
+export async function duesSummary(ownerUserId: string | null = null) {
+  const rows = await prisma.vaultDue.findMany({
+    where: { ...open, ownerUserId },
+    select: { vault: true, amount: true, paid: true },
+  });
   const out: Record<Currency, { total: Dec; count: number }> = { USD: { total: new Dec(0), count: 0 }, IQD: { total: new Dec(0), count: 0 } };
   for (const r of rows) {
     out[r.vault].total = out[r.vault].total.plus(D(r.amount).minus(D(r.paid)));

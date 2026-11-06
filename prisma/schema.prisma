@@ -40,6 +40,8 @@ enum TxnKind {
   EXPENSE
   /// Move product stock from one inventory location to another (no money).
   STOCK_TRANSFER
+  /// Owner funds a staff personal vault from the main factory vault (receipt).
+  USER_VAULT_FUND
 }
 
 enum RecurFrequency {
@@ -72,14 +74,20 @@ model User {
   isOwner      Boolean   @default(false)
   active       Boolean   @default(true)
   lang         Lang      @default(en)
-  /// Extensible permission keys: "page:<name>" and "action:<name>" (e.g. "action:canEditExchangeRate").
+  /// Extensible permission keys: "page:<name>", "action:<name>", "scope:<page>:own".
   permissions  String[]  @default([])
+  /// When true, staff has personal USD+IQD vaults (funded by owner; never sees main vault).
+  hasPersonalVault Boolean @default(false)
   /// Per-user UI preferences (e.g. remembered export columns per table).
   prefs        Json      @default("{}")
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   sessions     Session[]
+  vaultEntries VaultEntry[] @relation("VaultEntryOwner")
+  vaultDues    VaultDue[]   @relation("VaultDueOwner")
+  vaultTxns    Txn[]        @relation("TxnVaultOwner")
+  fundTxns     Txn[]        @relation("TxnFundUser")
 }
 
 model Session {
@@ -266,6 +274,13 @@ model Txn {
   toVault       Currency?
   toAmount      Decimal?    @db.Decimal(18, 2)
 
+  /// Which personal wallet this cash doc belongs to (null = main factory vault).
+  vaultOwnerUserId String?
+  vaultOwner       User?     @relation("TxnVaultOwner", fields: [vaultOwnerUserId], references: [id])
+  /// USER_VAULT_FUND: staff user receiving money from the main vault.
+  fundUserId    String?
+  fundUser      User?       @relation("TxnFundUser", fields: [fundUserId], references: [id])
+
   /// Stock location for purchases / sales / processing / rent. Transfers also set toInventoryId.
   inventoryId   String?
   inventory     Inventory?  @relation("TxnInventory", fields: [inventoryId], references: [id])
@@ -326,6 +341,9 @@ model Txn {
   @@index([recurringId])
   @@index([inventoryId])
   @@index([toInventoryId])
+  @@index([vaultOwnerUserId])
+  @@index([fundUserId])
+  @@index([createdById])
 }
 
 /// Expense categories (Settings → Expenses). unitEnabled: amount = price per unit × quantity.
@@ -376,6 +394,9 @@ model VaultDue {
   txnId     String
   txn       Txn          @relation(fields: [txnId], references: [id])
   vault     Currency
+  /// null = main factory vault due; set = personal vault due for that user.
+  ownerUserId String?
+  owner       User?      @relation("VaultDueOwner", fields: [ownerUserId], references: [id])
   amount    Decimal      @db.Decimal(18, 2)
   paid      Decimal      @default(0) @db.Decimal(18, 2)
   createdAt DateTime     @default(now())
@@ -383,6 +404,7 @@ model VaultDue {
   entries   VaultEntry[]
 
   @@index([vault, settledAt])
+  @@index([ownerUserId, vault, settledAt])
   @@index([txnId])
 }
 
@@ -411,6 +433,9 @@ model TxnLine {
 model VaultEntry {
   id           Int        @id @default(autoincrement())
   vault        Currency
+  /// null = main factory vault; set = personal vault owned by that user.
+  ownerUserId  String?
+  owner        User?      @relation("VaultEntryOwner", fields: [ownerUserId], references: [id])
   direction    Direction
   amount       Decimal    @db.Decimal(18, 2) // positive, vault currency
   balanceAfter Decimal    @db.Decimal(18, 2)
@@ -427,6 +452,7 @@ model VaultEntry {
 
   @@index([vault, id])
   @@index([vault, date])
+  @@index([ownerUserId, vault, id])
   @@index([txnId])
   @@index([sourceType])
 }

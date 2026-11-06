@@ -500,12 +500,26 @@ export async function savePayment(input: PaymentInput, actor: Actor, editId?: st
 // ─── Vault operations ──────────────────────────────────────────────────────────────────────────────
 export const VAULT_KINDS = ['VAULT_DEPOSIT', 'VAULT_WITHDRAWAL', 'VAULT_TRANSFER'] as const;
 export type VaultKind = (typeof VAULT_KINDS)[number];
-export type VaultOpInput = { kind?: string; date?: string; vault?: string; toVault?: string; amount?: string; rate?: string; label?: string; notes?: string; allowShortfall?: boolean };
+export type VaultOpInput = {
+  kind?: string;
+  date?: string;
+  vault?: string;
+  toVault?: string;
+  amount?: string;
+  rate?: string;
+  label?: string;
+  notes?: string;
+  allowShortfall?: boolean;
+  /** Personal wallet owner (staff). Null/omit = main factory vault. Staff ops always use their own id. */
+  ownerUserId?: string | null;
+};
 
-export async function saveVaultOp(input: VaultOpInput, actor: Actor, editId?: string, opts: Opts = {}): Promise<Saved> {
+export async function saveVaultOp(input: VaultOpInput, actor: Actor, editId?: string, opts: Opts & { walletOwnerId?: string | null } = {}): Promise<Saved> {
   const v = new Validator();
   const kind = VAULT_KINDS.find((k) => k === input.kind);
   if (!kind) v.add('kind', 'v.required');
+  // Staff may not deposit into personal wallets (owner funds them); owner deposits only into main.
+  if (kind === 'VAULT_DEPOSIT' && opts.walletOwnerId) v.add('kind', 'vault.staffNoDeposit');
   const date = reqDate(v, 'date', input.date);
   const vault = reqCurrency(v, 'vault', input.vault);
   const amount = reqPositive(v, 'amount', input.amount);
@@ -521,9 +535,10 @@ export async function saveVaultOp(input: VaultOpInput, actor: Actor, editId?: st
     }
   }
   v.throwIfAny();
+  const walletOwnerId = opts.walletOwnerId ?? null;
 
   return withTx(async (tx) => {
-    await lockVaults(tx);
+    await lockVaults(tx, [walletOwnerId]);
     const old = editId ? await loadForEdit(tx, editId, [kind!]) : null;
     const before = old ? await snapshotTxn(tx, old.id) : null;
     const rate = opRate ?? (old ? D(old.rate) : await currentRate(tx));
@@ -543,6 +558,7 @@ export async function saveVaultOp(input: VaultOpInput, actor: Actor, editId?: st
       vaultAmount: amt.toString(),
       toVault,
       toAmount: toAmount?.toString() ?? null,
+      vaultOwnerUserId: walletOwnerId,
       label: cleanText(input.label, 120),
       notes: cleanMultiline(input.notes),
     };
@@ -558,16 +574,61 @@ export async function saveVaultOp(input: VaultOpInput, actor: Actor, editId?: st
       txnId = t.id;
     }
     const src: Src = { txnId, kind: kind!, date };
-    if (kind === 'VAULT_DEPOSIT') await vaultMove(tx, src, vault, 'IN', amt);
-    else if (kind === 'VAULT_WITHDRAWAL') await payOut(tx, src, vault, amt, shortOk(input, opts));
+    const vo = { ownerUserId: walletOwnerId };
+    if (kind === 'VAULT_DEPOSIT') await vaultMove(tx, src, vault, 'IN', amt, vo);
+    else if (kind === 'VAULT_WITHDRAWAL') await payOut(tx, src, vault, amt, shortOk(input, opts), walletOwnerId);
     else {
-      // A transfer can't be half-made: the source vault must hold the full amount.
-      await assertCash(tx, vault, amt);
-      await vaultMove(tx, src, vault, 'OUT', amt);
-      await vaultMove(tx, src, toVault!, 'IN', toAmount!);
+      await assertCash(tx, vault, amt, walletOwnerId);
+      await vaultMove(tx, src, vault, 'OUT', amt, vo);
+      await vaultMove(tx, src, toVault!, 'IN', toAmount!, vo);
     }
     await audit({ user: actor, action: old ? 'update' : 'create', module: 'vault', reference: number, before, after: await snapshotTxn(tx, txnId) }, tx);
     return { id: txnId, number };
+  });
+}
+
+/** Owner moves cash from the main vault into a staff personal vault (same currency). */
+export type FundStaffInput = { userId?: string; date?: string; vault?: string; amount?: string; notes?: string; allowShortfall?: boolean };
+
+export async function fundStaffVault(input: FundStaffInput, actor: Actor): Promise<Saved> {
+  const v = new Validator();
+  const date = reqDate(v, 'date', input.date);
+  const vault = reqCurrency(v, 'vault', input.vault);
+  const amount = reqPositive(v, 'amount', input.amount);
+  if (!input.userId) v.add('userId', 'v.required');
+  v.throwIfAny();
+
+  return withTx(async (tx) => {
+    const staff = await tx.user.findUnique({ where: { id: input.userId! } });
+    if (!staff || staff.isOwner || !staff.active || !staff.hasPersonalVault) throw fieldError('userId', 'vault.fundUserInvalid');
+    await lockVaults(tx, [staff.id]);
+    const amt = roundMoney(amount, vault);
+    if (amt.isZero()) throw fieldError('amount', 'v.positive');
+    const rate = await currentRate(tx);
+    const number = await nextNumber(tx, 'USER_VAULT_FUND');
+    const t = await tx.txn.create({
+      data: {
+        number,
+        kind: 'USER_VAULT_FUND',
+        date,
+        currency: vault,
+        rate: rate.toString(),
+        total: amt.toString(),
+        totalUsd: round2(toUsd(amt, vault, rate)).toString(),
+        vault,
+        vaultAmount: amt.toString(),
+        vaultOwnerUserId: staff.id,
+        fundUserId: staff.id,
+        label: staff.name,
+        notes: cleanMultiline(input.notes),
+        ...stamp(actor, true),
+      },
+    });
+    const src: Src = { txnId: t.id, kind: 'USER_VAULT_FUND', date };
+    await payOut(tx, src, vault, amt, input.allowShortfall === true, null);
+    await vaultMove(tx, src, vault, 'IN', amt, { ownerUserId: staff.id });
+    await audit({ user: actor, action: 'create', module: 'vault', reference: number, after: await snapshotTxn(tx, t.id) }, tx);
+    return { id: t.id, number };
   });
 }
 
@@ -688,6 +749,7 @@ const MODULE_OF: Record<TxnKind, string> = {
   PROCESSING: 'inventory',
   EXPENSE: 'expenses',
   STOCK_TRANSFER: 'inventory',
+  USER_VAULT_FUND: 'vault',
 };
 
 /**

@@ -3,7 +3,14 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { t as translate, type DictKey, type Lang, type Params } from '@/lib/i18n';
 import { canAction, canPage, type Action, type Page } from '@/lib/permissions';
 
-export type ClientUser = { id: string; name: string; email: string; isOwner: boolean; permissions: string[] };
+export type ClientUser = {
+  id: string;
+  name: string;
+  email: string;
+  isOwner: boolean;
+  permissions: string[];
+  hasPersonalVault?: boolean;
+};
 
 type Ctx = {
   user: ClientUser;
