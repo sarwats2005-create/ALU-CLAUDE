@@ -5,6 +5,7 @@ import { audit } from './audit';
 import { buildBackup } from './backup';
 import { conflict } from './errors';
 import type { Actor } from './txns';
+import { purgeDemoTx } from '@/lib/purge-demo';
 
 /** Excel workbook from the same consistent backup as the JSON (one sheet per table, logins without passwords). */
 export async function exportExcel(): Promise<Buffer> {
@@ -77,24 +78,8 @@ export async function removeDemo(actor: Actor) {
     const touchesDemo = [{ customer: { isDemo: true } }, { beneficiary: { isDemo: true } }, { product: { isDemo: true } }, { lines: { some: { product: { isDemo: true } } } }];
     const realOnDemo = await tx.txn.count({ where: { isDemo: false, deletedAt: null, OR: touchesDemo } });
     if (realOnDemo > 0) throw conflict('set.demoInUse', { n: realOnDemo });
-    // Demo documents, plus deleted (tombstoned) real documents that pointed at demo records: their effects
-    // are already reversed, their snapshot is in the audit log, and their numbers are never reused.
-    const ids = (await tx.txn.findMany({ where: { OR: [{ isDemo: true }, { isDemo: false, deletedAt: { not: null }, OR: touchesDemo }] }, select: { id: true } })).map((x) => x.id);
     const counts = await demoCountTx(tx);
-    await tx.vaultEntry.deleteMany({ where: { txnId: { in: ids } } });
-    await tx.partyEntry.deleteMany({ where: { txnId: { in: ids } } });
-    await tx.stockEntry.deleteMany({ where: { txnId: { in: ids } } });
-    await tx.txnLine.deleteMany({ where: { txnId: { in: ids } } });
-    await tx.txn.deleteMany({ where: { id: { in: ids } } });
-    await tx.customer.deleteMany({ where: { isDemo: true } });
-    await tx.beneficiary.deleteMany({ where: { isDemo: true } });
-    await tx.product.deleteMany({ where: { isDemo: true, lines: { none: {} }, stock: { none: {} }, processing: { none: {} } } });
-    await tx.aluminumType.deleteMany({ where: { isDemo: true, products: { none: {} } } });
-    // Recompute each vault's running balance over the remaining (real) entries.
-    await tx.$executeRaw`
-      UPDATE "VaultEntry" v SET "balanceAfter" = x.run
-      FROM (SELECT id, SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END) OVER (PARTITION BY vault ORDER BY id) AS run FROM "VaultEntry") x
-      WHERE v.id = x.id`;
+    await purgeDemoTx(tx);
     await audit({ user: actor, action: 'delete', module: 'settings', reference: 'demo data', before: counts }, tx);
     return counts;
   });

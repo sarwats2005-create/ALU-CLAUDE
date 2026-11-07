@@ -1,7 +1,8 @@
 // Base data every installation needs: the settings row and the company profile. No aluminum types are
 // pre-added: the factory creates its own (Settings, or "Add type" on the purchase form).
-// Idempotent — safe to run on every deploy. Demo data is separate (npm run db:demo) and always flagged.
+// Idempotent — safe to run on every deploy. Any leftover demo rows are purged (demo seeding was removed).
 import { PrismaClient } from '@prisma/client';
+import { purgeDemoTx } from '../src/lib/purge-demo';
 
 const prisma = new PrismaClient();
 
@@ -14,6 +15,9 @@ async function main() {
       data: { id: 'inv_main_default', name: 'Main Inventory', nameKey: 'main inventory', isDefault: true },
     });
   }
+  await prisma.$transaction(async (tx) => {
+    await purgeDemoTx(tx);
+  });
   console.log('SEED_OK');
 }
 

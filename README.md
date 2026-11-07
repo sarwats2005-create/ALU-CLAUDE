@@ -34,8 +34,7 @@ alu-factory/
 ├─ database/           THE DATABASE
 │  ├─ schema.prisma    tables and columns
 │  ├─ migrations/      every change to the tables, applied in order on deploy
-│  ├─ seed.ts          base rows every install needs (settings, company profile)
-│  └─ demo.ts          optional demo data (npm run db:demo)
+│  └─ seed.ts          base rows every install needs (settings, company profile); purges demo rows
 │
 ├─ tests/              end-to-end tests against a running server (api, dues, erase, split, backup)
 ├─ scripts/            deploy (migrate.mjs), local database, rule + folder checks

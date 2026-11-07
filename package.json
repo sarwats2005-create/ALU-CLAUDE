@@ -15,7 +15,6 @@
     "db:push": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "test:acceptance": "tsx tests/acceptance.ts",
-    "db:demo": "tsx --conditions=react-server prisma/demo.ts",
     "db:deploy": "node scripts/migrate.mjs",
     "rules:check": "node scripts/rules.mjs check",
     "rules:sync": "node scripts/rules.mjs sync"
