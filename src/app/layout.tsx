@@ -4,6 +4,8 @@ import '@/app/globals.css';
 import { getSessionUser, LANG_COOKIE } from '@/lib/server/auth';
 import { dirOf, parseLang } from '@/lib/i18n';
 import { GlobalLoader } from '@/components/Loader';
+import { ThemeProvider } from '@/components/ThemeProvider';
+import { THEME_INIT_SCRIPT } from '@/lib/client/theme';
 
 export const metadata: Metadata = {
   title: { default: 'ALU FACTORY', template: '%s · ALU FACTORY' },
@@ -27,16 +29,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const user = await getSessionUser();
   const lang = user?.lang ?? parseLang(jar.get(LANG_COOKIE)?.value);
   return (
-    <html lang={lang === 'ku' ? 'ckb' : 'en'} dir={dirOf(lang)} suppressHydrationWarning>
+    <html lang={lang === 'ku' ? 'ckb' : 'en'} dir={dirOf(lang)} className="theme-light" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <link rel="preload" href="/fonts/outfit-latin.woff2" as="font" type="font/woff2" crossOrigin="" />
         {lang === 'ku' ? <link rel="preload" href="/fonts/vazirmatn-arabic.woff2" as="font" type="font/woff2" crossOrigin="" /> : null}
         <link rel="stylesheet" href="/fonts/fonts.css" />
         <link rel="apple-touch-icon" href="/app-icon.png" />
       </head>
       <body className="min-h-dvh bg-bg text-ink">
-        {children}
-        <GlobalLoader />
+        <ThemeProvider>
+          {children}
+          <GlobalLoader />
+        </ThemeProvider>
       </body>
     </html>
   );

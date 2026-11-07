@@ -82,9 +82,8 @@
   --blur-glass: 18px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
+html.theme-dark {
+  color-scheme: dark;
     --bg: #0c1018;
     --bg-ambient:
       radial-gradient(ellipse 85% 50% at 6% -6%, rgba(42, 111, 196, 0.22), transparent 50%),
@@ -118,7 +117,10 @@
     --glow-brand: 0 0 0 1px rgba(61, 127, 212, 0.12), 0 0 36px -8px rgba(61, 127, 212, 0.35);
     --glow-soft: 0 0 56px -12px rgba(61, 127, 212, 0.25);
     --chart-grid: rgba(255, 255, 255, 0.08);
-  }
+}
+
+html.theme-light {
+  color-scheme: light;
 }
 
 @media (max-width: 1023.98px) {
@@ -221,6 +223,14 @@
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+  html.theme-crossfade body {
+    transition:
+      background-color 480ms var(--ease-out) 220ms,
+      color 480ms var(--ease-out) 220ms;
+  }
+  html.theme-crossfade body::before {
+    transition: opacity 480ms var(--ease-out) 220ms;
   }
   body::before {
     content: '';
@@ -498,10 +508,8 @@
   background: rgba(255, 255, 255, 0.85);
   animation: alu-loader-in 160ms ease-out;
 }
-@media (prefers-color-scheme: dark) {
-  .alu-loading-overlay {
-    background: rgba(10, 14, 20, 0.88);
-  }
+html.theme-dark .alu-loading-overlay {
+  background: rgba(10, 14, 20, 0.88);
 }
 @keyframes alu-loader-in {
   from {
@@ -718,13 +726,11 @@ select[data-empty] option {
     0 4px 20px -10px rgba(17, 24, 39, 0.12),
     var(--glow-brand);
 }
-@media (prefers-color-scheme: dark) {
-  .alu-kpi {
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.06) inset,
-      0 4px 24px -8px rgba(0, 0, 0, 0.45),
-      var(--glow-brand);
-  }
+html.theme-dark .alu-kpi {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 4px 24px -8px rgba(0, 0, 0, 0.45),
+    var(--glow-brand);
 }
 .alu-kpi.is-alert {
   border-color: color-mix(in srgb, var(--danger) 28%, var(--line));
@@ -800,4 +806,19 @@ select[data-empty] option {
 .alu-table thead tr {
   background: color-mix(in srgb, var(--surface-2) 88%, var(--tint));
   border-color: var(--line-soft);
+}
+
+.theme-toggle--busy {
+  animation: theme-toggle-pulse 320ms var(--ease-out);
+}
+@keyframes theme-toggle-pulse {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(0.92);
+  }
+  100% {
+    transform: scale(1);
+  }
 }

@@ -22,6 +22,7 @@ import { PAGE_NAV, TAB_PRIORITY } from './nav-config';
 import { SidebarNav, activeNavGroupIds } from './SidebarNav';
 import { SidebarTooltip } from './SidebarTooltip';
 import { useSidebarState } from './useSidebarState';
+import { ThemeToggle } from '../ThemeToggle';
 
 export function AppShell(props: { user: ClientUser; lang: Lang; rate: string; company: string; children: ReactNode }) {
   return (
@@ -184,15 +185,13 @@ function Shell({ children }: { children: ReactNode }) {
               ALU FACTORY
             </span>
           </span>
-          {showLabels ? <AlertsBell onBrand align="end" /> : null}
-        </div>
-        {!showLabels ? (
-          <div className="hidden px-2 pb-2 lg:block">
-            <div className="flex justify-center">
-              <AlertsBell onBrand align="start" />
-            </div>
+          <div className={cx('flex shrink-0 items-center gap-0.5', showLabels ? '' : 'flex-col lg:gap-1')}>
+            <SidebarTooltip label={t('nav.theme')} enabled={!showLabels}>
+              <ThemeToggle onBrand labelLight={t('nav.themeLight')} labelDark={t('nav.themeDark')} />
+            </SidebarTooltip>
+            <AlertsBell onBrand align={showLabels ? 'end' : 'start'} />
           </div>
-        ) : null}
+        </div>
 
         <SidebarNav
           pathname={pathname}
@@ -271,6 +270,7 @@ function Shell({ children }: { children: ReactNode }) {
         <span className="flex-1 text-[17px] font-extrabold tracking-[0.02em] text-ink" dir="ltr">
           ALU FACTORY
         </span>
+        <ThemeToggle labelLight={t('nav.themeLight')} labelDark={t('nav.themeDark')} />
         <AlertsBell />
       </header>
 
