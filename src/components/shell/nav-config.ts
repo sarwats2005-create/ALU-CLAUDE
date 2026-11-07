@@ -227,27 +227,3 @@ export function entryIsActive(entry: NavEntry, pathname: string): boolean {
   if (entry.type === 'group') return groupHasActive(entry, pathname);
   return entry.match(pathname);
 }
-
-/** Best label for the current route, preferring the most specific matching leaf. */
-export function currentNavLabel(pathname: string): DictKey {
-  let label: DictKey = 'nav.dashboard';
-  let score = -1;
-  for (const section of NAV_SECTIONS) {
-    for (const entry of section.entries) {
-      if (entry.type === 'link') {
-        if (entry.match(pathname) && entry.href.length > score) {
-          label = entry.label;
-          score = entry.href.length;
-        }
-      } else {
-        for (const child of entry.children) {
-          if (child.match(pathname) && child.href.length > score) {
-            label = child.label;
-            score = child.href.length;
-          }
-        }
-      }
-    }
-  }
-  return label;
-}

@@ -48,8 +48,8 @@ export function activeNavGroupIds(pathname: string, can: CanFn): string[] {
 
 const itemBase =
   'flex w-full items-center gap-3 overflow-hidden rounded-ctl text-body font-semibold motion-safe:transition-[background-color,color] motion-safe:duration-150';
-const itemPad = 'h-9 px-2.5';
-const itemActive = 'nav-active';
+const itemPad = 'h-11 px-3';
+const itemActive = 'bg-white text-brand-ink';
 const itemIdle = 'text-sidebar-muted hover:bg-sidebar-active hover:text-sidebar-ink';
 
 export function SidebarNav({
@@ -74,7 +74,7 @@ export function SidebarNav({
         {sections.map((section) => (
           <div key={section.id}>
             {section.label && showLabels ? (
-              <p className="mb-1 truncate px-2.5 text-caption font-medium text-sidebar-muted">{t(section.label)}</p>
+              <p className="mb-1 truncate px-3 text-caption font-bold uppercase tracking-wider text-sidebar-muted/80">{t(section.label)}</p>
             ) : null}
             <ul className="flex flex-col gap-0.5">
               {section.entries.map((entry) =>

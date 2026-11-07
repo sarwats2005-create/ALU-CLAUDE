@@ -52,11 +52,11 @@ export function SummaryCell({ icon, label, value, sub, tone, alert, active, href
     <>
       <span className="flex items-center gap-2 text-meta font-medium text-muted">
         {icon ? (
-          <span className={cx('stat-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-ctl', alert && 'is-alert')}>{icon}</span>
+          <span className={cx('stat-icon flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white transition-transform duration-200 group-hover:scale-110', alert && 'is-alert')}>{icon}</span>
         ) : null}
         <span className="min-w-0 leading-tight">{label}</span>
       </span>
-      <span className={cx('fig mt-3 block break-words text-title font-semibold tracking-[-0.02em] md:text-heading', tone === 'danger' ? 'text-danger-ink' : tone === 'success' ? 'text-success-ink' : 'text-ink')}>{value}</span>
+      <span className={cx('fig mt-4 block break-words text-heading font-extrabold md:text-large', tone === 'danger' ? 'text-danger-ink' : tone === 'success' ? 'text-success-ink' : 'text-ink')}>{value}</span>
       {sub ? (
         <span className={cx('mt-1.5 flex items-center gap-1 text-caption', alert ? 'font-semibold text-danger-ink' : 'text-muted')}>
           <span className="min-w-0">{sub}</span>
@@ -66,10 +66,12 @@ export function SummaryCell({ icon, label, value, sub, tone, alert, active, href
     </>
   );
   const cls = cx(
-    'kpi group relative block min-w-0 overflow-hidden rounded-card p-4 text-start md:p-5',
-    alert && 'kpi-alert',
-    active && 'kpi-active',
-    go && 'cursor-pointer',
+    'group relative block min-w-0 overflow-hidden rounded-card p-5 text-start md:p-6',
+    alert ? 'bg-danger-tint' : active ? 'bg-tint-2' : 'bg-surface',
+    // Selected filter: a solid Primary bar along the bottom edge (flat, no shadow).
+    active && 'after:absolute after:inset-x-0 after:bottom-0 after:h-1.5 after:bg-brand',
+    go && 'cursor-pointer transition-all duration-200 hover:scale-[1.02] motion-reduce:hover:scale-100',
+    go && (alert ? 'hover:bg-danger-tint' : active ? '' : 'hover:bg-tint'),
     className,
   );
   if (href)
@@ -91,7 +93,7 @@ export function SummaryCell({ icon, label, value, sub, tone, alert, active, href
 export function SectionLabel({ id, children, action }: { id?: string; children: ReactNode; action?: ReactNode }) {
   return (
     <div className="mb-2.5 flex items-center justify-between gap-3">
-      <h2 id={id} className="text-meta font-medium text-muted">
+      <h2 id={id} className="text-caption font-bold uppercase tracking-wider text-muted">
         {children}
       </h2>
       {action}
@@ -103,8 +105,8 @@ export function SectionLabel({ id, children, action }: { id?: string; children: 
 export function StepLabel({ n, children, aside }: { n: number; children: ReactNode; aside?: ReactNode }) {
   return (
     <div className="mb-2.5 flex items-center justify-between gap-3">
-      <h2 className="flex items-center gap-2.5 text-meta font-medium text-ink">
-        <span className="num flex h-6 w-6 items-center justify-center rounded-ctl bg-tint text-caption font-semibold text-brand-ink" aria-hidden="true">
+      <h2 className="flex items-center gap-2.5 text-caption font-bold uppercase tracking-wider text-ink">
+        <span className="num flex h-8 w-8 items-center justify-center rounded-full bg-brand text-meta font-bold text-on-brand" aria-hidden="true">
           {n}
         </span>
         {children}

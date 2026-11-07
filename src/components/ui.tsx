@@ -17,16 +17,18 @@ export { cx };
 // Every button is a large touch target (--ctl-h / --ctl-h-lg).
 type BtnVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'quiet';
 const BTN: Record<BtnVariant, string> = {
-  primary: 'btn-glow text-on-brand',
-  secondary: 'glass-subtle text-ink hover:brightness-105',
-  outline: 'border border-brand/40 bg-transparent text-brand-ink hover:bg-tint',
+  primary: 'bg-brand text-on-brand hover:bg-brand-strong',
+  // Muted block. On the grey page canvas it turns white (see PageHeader / [data-on-canvas]).
+  secondary: 'bg-surface-2 text-ink hover:bg-line',
+  // Thick outline that fills with colour on hover.
+  outline: 'border-4 border-brand bg-transparent text-brand-ink hover:bg-brand hover:text-on-brand',
   ghost: 'text-brand-ink hover:bg-tint',
   quiet: 'text-muted hover:text-ink hover:bg-surface-2',
-  danger: 'bg-danger text-white hover:opacity-90',
+  danger: 'bg-danger text-white hover:bg-danger-ink',
 };
-/** Colour shift only — no scale. 160ms, reduced-motion safe. */
+/** Shared micro-interaction: 160ms colour/transform, subtle press — respects reduced motion. */
 export const BTN_MOTION =
-  'motion-safe:transition-[background-color,color,border-color,opacity,box-shadow] motion-safe:duration-[var(--motion-base)]';
+  'motion-safe:transition-[background-color,color,border-color,transform,opacity] motion-safe:duration-[var(--motion-base)] hover:scale-[1.02] active:scale-100 disabled:hover:scale-100 motion-reduce:hover:scale-100';
 
 export const Button = forwardRef<
   HTMLButtonElement,
@@ -40,11 +42,11 @@ export const Button = forwardRef<
       aria-busy={busy || undefined}
       data-variant={variant}
       className={cx(
-        'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-ctl font-medium disabled:opacity-55',
+        'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-ctl font-semibold disabled:opacity-55',
         BTN_MOTION,
-        size === 'sm' && 'h-[var(--ctl-h-sm)] px-3 text-meta',
-        size === 'md' && 'h-[var(--ctl-h)] px-3.5 text-body',
-        size === 'lg' && 'h-[var(--ctl-h-lg)] px-4 text-body',
+        size === 'sm' && 'h-[var(--ctl-h)] px-5 text-body',
+        size === 'md' && 'h-[var(--ctl-h)] px-6 text-body',
+        size === 'lg' && 'h-[var(--ctl-h-lg)] px-8 text-lead',
         block && 'w-full',
         BTN[variant],
         className,
@@ -63,7 +65,7 @@ export function IconButton({ label, children, className, ...rest }: ButtonHTMLAt
       type="button"
       aria-label={label}
       title={label}
-      className={cx('inline-flex h-[var(--ctl-h)] w-[var(--ctl-h)] shrink-0 items-center justify-center rounded-ctl border border-transparent text-muted hover:border-line hover:bg-surface-2 hover:text-ink', BTN_MOTION, className)}
+      className={cx('inline-flex h-[var(--ctl-h)] w-[var(--ctl-h)] shrink-0 items-center justify-center rounded-ctl text-muted hover:bg-surface-2 hover:text-ink', BTN_MOTION, className)}
       {...rest}
     >
       {children}
@@ -105,7 +107,7 @@ export function Field({
   return (
     <div className={cx('flex min-w-0 flex-col gap-2', className)}>
       <div className="flex items-baseline justify-between gap-2">
-        <label htmlFor={htmlFor} className="text-meta font-medium text-ink">
+        <label htmlFor={htmlFor} className="text-caption font-semibold uppercase tracking-wider text-ink">
           {label}
           {required ? <span className="text-danger-ink" aria-hidden="true"> *</span> : null}
           {optionalLabel ? <span className="font-medium normal-case tracking-normal text-muted"> ({optionalLabel})</span> : null}
@@ -128,7 +130,7 @@ export function Field({
 
 // Flat inputs: Gray 100 block, no visible border. Focus: white with a hard 2px Primary border, no glow.
 const INPUT =
-  'h-[var(--ctl-h)] w-full min-w-0 rounded-ctl border border-line bg-bg px-3 text-body text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] placeholder:text-faint motion-safe:transition-[border-color,box-shadow,background-color] motion-safe:duration-[var(--motion-base)] focus:border-brand focus:bg-surface focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:bg-surface-2 disabled:text-muted disabled:opacity-70';
+  'h-[var(--ctl-h)] w-full min-w-0 rounded-ctl border-2 bg-surface-2 px-4 text-body text-ink placeholder:text-muted motion-safe:transition-colors motion-safe:duration-[var(--motion-base)] focus:border-brand focus:bg-surface focus:outline-none disabled:text-muted disabled:opacity-70';
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean; numeric?: boolean }>(function Input(
   { invalid, numeric, className, ...rest },
@@ -212,7 +214,7 @@ export function Segmented<T extends string>({
 }) {
   const gid = useId();
   return (
-    <div role="radiogroup" aria-label={label} className={cx('inline-flex max-w-full gap-0.5 rounded-ctl border border-line bg-surface-2 p-0.5', className)}>
+    <div role="radiogroup" aria-label={label} className={cx('inline-flex max-w-full gap-1 rounded-ctl bg-surface-2 p-1', className)}>
       {options.map((o) => {
         const on = o.value === value;
         return (
@@ -225,9 +227,9 @@ export function Segmented<T extends string>({
             onClick={() => onChange(o.value)}
             className={cx(
               // Long labels wrap to two lines on narrow phones instead of pushing the page sideways.
-              'min-w-0 flex-1 rounded-[6px] px-3 font-medium leading-tight motion-safe:transition-[background-color,color,box-shadow] motion-safe:duration-[var(--motion-base)] sm:whitespace-nowrap',
-              size === 'sm' ? 'min-h-8 text-meta' : 'min-h-9 text-body',
-              on ? 'bg-surface text-ink shadow-[var(--elev-1)]' : 'text-muted hover:text-ink',
+              'min-w-0 flex-1 rounded-[5px] px-3 py-1 font-semibold leading-tight motion-safe:transition-[background-color,color] motion-safe:duration-[var(--motion-base)] sm:whitespace-nowrap sm:px-4',
+              size === 'sm' ? 'min-h-11 text-body' : 'min-h-11 text-body',
+              on ? 'bg-brand text-on-brand' : 'text-muted hover:bg-line hover:text-ink',
             )}
           >
             {o.label}
@@ -256,7 +258,7 @@ export function Toggle({ checked, onChange, label, id, disabled }: { checked: bo
 // ─── Surfaces ──────────────────────────────────────────────────────────────────────────────────────
 export function Card({ children, className, as: As = 'section', elevated, ...rest }: { children: ReactNode; className?: string; as?: 'section' | 'div' | 'article'; elevated?: boolean; 'aria-labelledby'?: string }) {
   return (
-    <As className={cx('rounded-card', elevated ? 'glass-float' : 'glass', className)} {...rest}>
+    <As className={cx('rounded-card bg-surface shadow-[var(--shadow-card)] motion-safe:transition-shadow motion-safe:duration-[var(--motion-panel)]', elevated && 'shadow-[var(--shadow-pop)]', className)} {...rest}>
       {children}
     </As>
   );
@@ -267,7 +269,7 @@ export function PageHeader({ title, subtitle, actions, back }: { title: ReactNod
     <header className="subline-host mb-5 flex flex-col gap-3 md:mb-6 md:flex-row md:items-end md:justify-between">
       <div className="min-w-0">
         {back}
-        <h1 className="bidi text-heading font-semibold tracking-[-0.02em] text-ink">{title}</h1>
+        <h1 className="bidi text-large font-extrabold tracking-[-0.02em] text-ink md:text-[40px] md:leading-[42px]">{title}</h1>
         {subtitle ? <p className="subline mt-1 text-body text-muted">{subtitle}</p> : null}
       </div>
       {actions ? (
@@ -282,7 +284,7 @@ export function PageHeader({ title, subtitle, actions, back }: { title: ReactNod
 export function EmptyState({ icon, title, body, action }: { icon?: ReactNode; title?: ReactNode; body: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center">
-      {icon ? <div className="flex h-10 w-10 items-center justify-center rounded-ctl bg-tint text-brand-ink">{icon}</div> : null}
+      {icon ? <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand text-on-brand">{icon}</div> : null}
       {title ? <h3 className="text-title font-bold text-ink">{title}</h3> : null}
       <p className="max-w-md text-body text-muted">{body}</p>
       {action}

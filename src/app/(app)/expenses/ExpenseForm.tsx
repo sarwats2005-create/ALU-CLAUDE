@@ -204,14 +204,14 @@ export function ExpenseForm({
                 className="w-full"
               />
             ) : (
-              <p id="exp-vault" className="flex h-[var(--ctl-h)] items-center gap-2 rounded-ctl bg-tint px-4 text-body font-semibold text-ink">
+              <p id="exp-vault" className="flex h-14 items-center gap-2 rounded-ctl bg-tint px-4 text-body font-semibold text-ink">
                 <Wallet className="h-4 w-4 text-brand-ink" aria-hidden="true" />
                 {t('exp.vaultFixed', { vault: t(`vault.${vault}`) })}
               </p>
             )}
           </Field>
           <Field label={t('common.notes')} htmlFor="exp-note" optionalLabel={t('common.optional')}>
-            <Textarea id="exp-note" value={note} onChange={(e) => setNote(e.target.value)} rows={1} maxLength={500} className="min-h-[var(--ctl-h)]" />
+            <Textarea id="exp-note" value={note} onChange={(e) => setNote(e.target.value)} rows={1} maxLength={500} className="min-h-14" />
           </Field>
         </div>
 

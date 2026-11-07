@@ -122,7 +122,7 @@ export function ReportsView({ initial }: { initial: ReportType }) {
                           type="button"
                           onClick={() => pick(x)}
                           aria-current={x === type ? 'page' : undefined}
-                          className={cx('flex h-[var(--ctl-h)] w-full items-center gap-3 rounded-ctl px-3 text-start text-body transition-colors', x === type ? 'bg-tint font-medium text-ink' : 'text-ink hover:bg-surface-2')}
+                          className={cx('flex h-14 w-full items-center gap-3 rounded-ctl px-4 text-start text-body transition-colors', x === type ? 'bg-brand font-bold text-on-brand' : 'text-ink hover:bg-surface-2')}
                         >
                           <Icon className={cx('h-4 w-4 shrink-0', x === type ? 'text-brand-ink' : 'text-muted')} aria-hidden="true" />
                           <span className="truncate">{t(REPORT_META[x].title)}</span>
@@ -171,7 +171,7 @@ export function ReportsView({ initial }: { initial: ReportType }) {
                       setFrom(r.from);
                       setTo(r.to);
                     }}
-                    className={cx('h-[var(--ctl-h-sm)] rounded-ctl border px-3 text-meta font-medium motion-safe:transition-colors motion-safe:duration-[var(--motion-base)]', on ? 'border-brand/30 bg-tint text-brand-ink' : 'border-transparent bg-surface-2 text-muted hover:text-ink')}
+                    className={cx('h-14 rounded-ctl px-5 text-meta font-bold transition-all duration-200 hover:scale-105 active:scale-100 disabled:hover:scale-100', on ? 'bg-brand text-on-brand' : 'bg-surface-2 text-muted hover:text-ink')}
                   >
                     {t(pr.key)}
                   </button>
