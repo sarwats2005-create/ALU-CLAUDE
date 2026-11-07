@@ -61,10 +61,6 @@ function PrefControls({ onBrand }: { onBrand?: boolean }) {
   const p = usePrefs();
   return (
     <div className="flex flex-col gap-2">
-      <div className={cx('flex items-center justify-between gap-2', onBrand ? 'text-sidebar-muted' : 'text-muted')}>
-        <span className="text-caption font-semibold">{t('nav.theme')}</span>
-        <ThemeToggle onBrand={onBrand} labelLight={t('nav.themeLight')} labelDark={t('nav.themeDark')} />
-      </div>
       <div dir="ltr" className={cx(onBrand && '[&_[role=radiogroup]]:bg-sidebar-active [&_[aria-checked=false]]:text-sidebar-muted')}>
         <Segmented<Lang>
           label={t('nav.language')}
@@ -189,20 +185,13 @@ function Shell({ children }: { children: ReactNode }) {
               ALU FACTORY
             </span>
           </span>
-          {showLabels ? <AlertsBell onBrand align="end" /> : null}
-        </div>
-        {!showLabels ? (
-          <div className="hidden flex-col gap-2 px-2 pb-2 lg:flex">
-            <div className="flex justify-center">
-              <AlertsBell onBrand align="start" />
-            </div>
-            <div className="flex justify-center">
-              <SidebarTooltip label={t('nav.theme')} enabled>
-                <ThemeToggle onBrand labelLight={t('nav.themeLight')} labelDark={t('nav.themeDark')} />
-              </SidebarTooltip>
-            </div>
+          <div className={cx('flex shrink-0 items-center gap-0.5', showLabels ? '' : 'flex-col lg:gap-1')}>
+            <SidebarTooltip label={t('nav.theme')} enabled={!showLabels}>
+              <ThemeToggle onBrand labelLight={t('nav.themeLight')} labelDark={t('nav.themeDark')} />
+            </SidebarTooltip>
+            <AlertsBell onBrand align={showLabels ? 'end' : 'start'} />
           </div>
-        ) : null}
+        </div>
 
         <SidebarNav
           pathname={pathname}

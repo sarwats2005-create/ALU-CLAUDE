@@ -6,16 +6,18 @@ import { useTheme, useThemeOptional } from './ThemeProvider';
 
 type Props = {
   onBrand?: boolean;
+  /** High-contrast control on the blue login/marketing hero. */
+  onHero?: boolean;
   className?: string;
   /** Sidebar tooltips only work when a label is provided; pass i18n strings from the shell. */
   labelLight?: string;
   labelDark?: string;
 };
 
-export function ThemeToggle({ onBrand, className, labelLight = 'Light mode', labelDark = 'Dark mode' }: Props) {
+export function ThemeToggle({ onBrand, onHero, className, labelLight = 'Light mode', labelDark = 'Dark mode' }: Props) {
   const ctx = useThemeOptional();
   if (!ctx) return null;
-  return <ThemeToggleInner {...ctx} onBrand={onBrand} className={className} labelLight={labelLight} labelDark={labelDark} />;
+  return <ThemeToggleInner {...ctx} onBrand={onBrand} onHero={onHero} className={className} labelLight={labelLight} labelDark={labelDark} />;
 }
 
 /** Use inside ThemeProvider when you want a hard error if the provider is missing. */
@@ -29,6 +31,7 @@ function ThemeToggleInner({
   switching,
   toggle,
   onBrand,
+  onHero,
   className,
   labelLight,
   labelDark,
@@ -45,10 +48,12 @@ function ThemeToggleInner({
       aria-pressed={isDark}
       title={label}
       className={cx(
-        'theme-toggle relative inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-ctl motion-safe:transition-[transform,background-color,color] motion-safe:duration-[var(--motion-base)] motion-safe:ease-[var(--ease-out)]',
-        onBrand
-          ? 'text-sidebar-ink hover:bg-sidebar-active disabled:opacity-70'
-          : 'text-ink hover:bg-surface-2 disabled:opacity-70',
+        'theme-toggle relative inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-ctl border motion-safe:transition-[transform,background-color,color,box-shadow] motion-safe:duration-[var(--motion-base)] motion-safe:ease-[var(--ease-out)]',
+        onHero
+          ? 'border-white/35 bg-white/15 text-white shadow-[0_2px_12px_rgba(0,0,0,0.18)] hover:bg-white/25 disabled:opacity-70'
+          : onBrand
+            ? 'border border-white/25 bg-white/10 text-sidebar-ink shadow-[0_2px_8px_rgba(0,0,0,0.12)] hover:bg-sidebar-active disabled:opacity-70'
+            : 'border-line-soft bg-surface-2 text-ink hover:bg-tint disabled:opacity-70',
         switching && 'theme-toggle--busy',
         className,
       )}

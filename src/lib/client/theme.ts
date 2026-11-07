@@ -21,8 +21,11 @@ export function systemTheme(): Theme {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
+/** Default appearance when the user has not chosen yet — always light. */
+export const DEFAULT_THEME: Theme = 'light';
+
 export function resolveTheme(stored: Theme | null = readStoredTheme()): Theme {
-  return stored ?? systemTheme();
+  return stored ?? DEFAULT_THEME;
 }
 
 export function applyThemeClass(theme: Theme, crossfade = false) {
@@ -36,7 +39,7 @@ export function applyThemeClass(theme: Theme, crossfade = false) {
 }
 
 /** Runs before paint to avoid a flash of the wrong theme. */
-export const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem('alu:theme');var d=document.documentElement;var dark=s==='dark'||(s!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);d.classList.remove('theme-light','theme-dark');d.classList.add(dark?'theme-dark':'theme-light');}catch(e){}})();`;
+export const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem('alu:theme');var d=document.documentElement;var dark=s==='dark';d.classList.remove('theme-light','theme-dark');d.classList.add(dark?'theme-dark':'theme-light');}catch(e){}})();`;
 
 export function persistTheme(theme: Theme) {
   try {

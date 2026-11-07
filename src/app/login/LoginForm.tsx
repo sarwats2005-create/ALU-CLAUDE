@@ -52,12 +52,9 @@ export function LoginForm({ lang, needsSetup, expired }: { lang: Lang; needsSetu
         <span className="absolute -bottom-24 -start-24 h-72 w-72 rotate-45 bg-white/[0.07]" />
         <span className="absolute bottom-16 end-[12%] h-40 w-40 rounded-full border-[28px] border-white/[0.08]" />
       </div>
-      <div className="absolute right-4 top-4 z-10 flex items-center gap-2" dir="ltr">
-        <ThemeToggle
-          labelLight={t('nav.themeLight')}
-          labelDark={t('nav.themeDark')}
-          className="text-white hover:bg-white/15"
-        />
+      <div className="absolute end-4 top-4 z-20 flex items-center gap-2">
+        <ThemeToggle onHero labelLight={t('nav.themeLight')} labelDark={t('nav.themeDark')} />
+        <div className="rounded-ctl border border-white/25 bg-black/15 p-1 backdrop-blur-sm" dir="ltr">
         <Segmented<Lang>
           label={t('nav.language')}
           size="sm"
@@ -68,6 +65,7 @@ export function LoginForm({ lang, needsSetup, expired }: { lang: Lang; needsSetu
             { value: 'ku', label: <span lang="ckb">کوردی</span> },
           ]}
         />
+        </div>
       </div>
 
       <div className="w-full max-w-[400px]" aria-busy={switching || undefined}>

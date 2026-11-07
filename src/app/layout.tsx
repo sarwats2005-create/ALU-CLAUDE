@@ -29,7 +29,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const user = await getSessionUser();
   const lang = user?.lang ?? parseLang(jar.get(LANG_COOKIE)?.value);
   return (
-    <html lang={lang === 'ku' ? 'ckb' : 'en'} dir={dirOf(lang)} suppressHydrationWarning>
+    <html lang={lang === 'ku' ? 'ckb' : 'en'} dir={dirOf(lang)} className="theme-light" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <link rel="preload" href="/fonts/outfit-latin.woff2" as="font" type="font/woff2" crossOrigin="" />
