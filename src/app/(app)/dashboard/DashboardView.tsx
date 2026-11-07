@@ -75,7 +75,7 @@ export function DashboardView({ data }: { data: Data }) {
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0">
           <p className="min-h-[18px] text-meta font-medium text-muted">{today}</p>
-          <h1 className="bidi mt-1 text-heading font-semibold tracking-[-0.02em] text-ink">{t('dash.greeting', { name: user.name.split(' ')[0] })}</h1>
+          <h1 className="bidi mt-1 text-large font-bold tracking-[-0.02em] text-ink md:text-[34px] md:leading-[40px]">{t('dash.greeting', { name: user.name.split(' ')[0] })}</h1>
         </div>
         <div data-on-canvas className="flex flex-col-reverse gap-2 sm:flex-row">
           {can('beneficiaries') ? (
@@ -97,7 +97,7 @@ export function DashboardView({ data }: { data: Data }) {
 
       {!data.hasAnyData ? (
         <Card className="flex flex-col items-start gap-4 p-6 md:flex-row md:items-center">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tint text-brand-ink">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-tint text-brand-ink">
             <Factory className="h-6 w-6" aria-hidden="true" />
           </div>
           <div className="flex-1">
@@ -170,7 +170,7 @@ export function DashboardView({ data }: { data: Data }) {
           <div className="flex flex-col gap-5">
             <div>
               <p className="text-body font-semibold text-muted">{t('dash.monthProfit')}</p>
-              <p className={cx('fig mt-1 text-figure font-semibold leading-none', monthProfit.isNegative() ? 'text-danger-ink' : 'text-ink')}>{fmtMoney(monthProfit)}</p>
+              <p className={cx('fig mt-2 text-[44px] font-bold leading-none md:text-hero', monthProfit.isNegative() ? 'text-danger-ink' : 'text-ink')}>{fmtMoney(monthProfit)}</p>
               {delta ? (
                 <p
                   className={cx(

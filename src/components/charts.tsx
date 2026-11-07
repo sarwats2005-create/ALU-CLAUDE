@@ -82,7 +82,7 @@ function Tooltip({ x, y, value, label, color, width }: { x: number; y: number; v
   const w = 168;
   const left = Math.max(4, Math.min(width - w - 4, x - w / 2));
   return (
-    <div role="presentation" className="glass-float pointer-events-none absolute z-10 rounded-ctl px-3 py-2 text-ink" style={{ left, top: Math.max(0, y - 64), width: w }}>
+    <div role="presentation" className="pointer-events-none absolute z-10 rounded-ctl bg-dark px-3 py-2 text-white [&_*]:!text-white" style={{ left, top: Math.max(0, y - 64), width: w }}>
       <p className="fig text-body font-bold text-ink">{value}</p>
       <p className="mt-0.5 flex items-center gap-1.5 text-caption text-muted">
         <span className="inline-block h-0.5 w-3 rounded" style={{ background: color }} aria-hidden="true" />
@@ -131,22 +131,11 @@ export function SignedBarChart({
   const every = Math.max(1, Math.ceil((data.length * labelSlot(data)) / Math.max(plotW, 1)));
   const last = data.length - 1;
   const extreme = values.reduce((best, v, i) => (Math.abs(v) > Math.abs(values[best] ?? 0) ? i : best), 0);
-  const gid = 'bar-' + data.length + '-' + (data[0]?.key ?? 'x');
 
   return (
     <div ref={ref} className="relative w-full select-none" style={{ height }}>
       {width > 0 ? (
         <svg width={width} height={height} role="img" aria-label={ariaLabel} className="block overflow-visible">
-          <defs>
-            <linearGradient id={`${gid}-pos`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6ee7b7" />
-              <stop offset="100%" stopColor="#059669" />
-            </linearGradient>
-            <linearGradient id={`${gid}-neg`} x1="0" y1="1" x2="0" y2="0">
-              <stop offset="0%" stopColor="#fca5a5" />
-              <stop offset="100%" stopColor="#ef4444" />
-            </linearGradient>
-          </defs>
           {ticks.map((tk) => (
             <g key={tk}>
               <line x1={rtl ? 4 : axisW} x2={rtl ? width - axisW : width - 4} y1={y(tk)} y2={y(tk)} stroke={tk === 0 ? 'var(--line)' : 'var(--chart-grid)'} strokeWidth={1} shapeRendering="crispEdges" />
@@ -163,7 +152,7 @@ export function SignedBarChart({
             const showLabel = (i === last || i === extreme) && d.value !== 0;
             return (
               <g key={d.key} opacity={dim ? 0.55 : 1}>
-                {path ? <path d={path} fill={isPos ? `url(#${gid}-pos)` : `url(#${gid}-neg)`} /> : null}
+                {path ? <path d={path} fill={isPos ? 'var(--chart-pos)' : 'var(--chart-neg)'} /> : null}
                 {showLabel ? (
                   <text x={cx0} y={isPos ? y(d.value) - 6 : y(d.value) + 14} textAnchor="middle" className="num fill-ink text-[11px] font-semibold">
                     {fmtAxis(d.value)}
@@ -292,18 +281,8 @@ export function LineChart({
               </text>
             </g>
           ))}
-          <defs>
-            <linearGradient id="alu-area" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#5b91ff" stopOpacity="0.38" />
-              <stop offset="100%" stopColor="#5b91ff" stopOpacity="0" />
-            </linearGradient>
-            <linearGradient id="alu-line" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#7aa6ff" />
-              <stop offset="100%" stopColor="#8b6cff" />
-            </linearGradient>
-          </defs>
-          <path d={area} fill="url(#alu-area)" />
-          <path d={line} fill="none" stroke="url(#alu-line)" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+          <path d={area} fill="var(--chart-series)" fillOpacity={0.1} />
+          <path d={line} fill="none" stroke="var(--chart-series)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
           {data.map((d, i) =>
             (i % every === 0 && last - i >= every * 0.6) || i === last ? (
               <text key={d.key} x={xAt(i)} y={height - 8} textAnchor="middle" className="fill-muted text-[11px]">
@@ -346,7 +325,7 @@ export function HBarList({ items, fmtValue, href, ariaLabel }: { items: Point[];
               <span className="num shrink-0 text-meta font-semibold text-ink">{fmtValue(it.value)}</span>
             </div>
             <div className="mt-1.5 h-2 w-full overflow-hidden rounded-e-[4px]" aria-hidden="true">
-              <div className="h-full rounded-e-[4px]" style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #7aa6ff, #6d5efc)' }} />
+              <div className="h-full rounded-e-[4px]" style={{ width: `${pct}%`, background: 'var(--chart-series)' }} />
             </div>
             {it.sub ? <p className="mt-1 text-caption text-muted">{it.sub}</p> : null}
           </>

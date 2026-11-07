@@ -382,7 +382,7 @@ function VaultOpDialog({ kind, edit, balances, onClose }: { kind: OpKind; edit?:
             </Field>
             <div className="flex flex-col gap-1.5">
               <span className="text-meta font-medium text-ink">{t('vault.converted')}</span>
-              <span className="num flex h-[var(--ctl-h)] items-center justify-end rounded-ctl bg-success-tint px-4 text-title font-extrabold text-success-ink">{converted ? `+${fmtMoney(converted, toVault)}` : '—'}</span>
+              <span className="num flex h-14 items-center justify-end rounded-ctl bg-success-tint px-4 text-title font-extrabold text-success-ink">{converted ? `+${fmtMoney(converted, toVault)}` : '—'}</span>
             </div>
           </div>
         ) : (

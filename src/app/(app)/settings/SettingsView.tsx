@@ -81,7 +81,7 @@ export function SettingsView({ initial }: { initial: string }) {
                           type="button"
                           onClick={() => go(s.id)}
                           aria-current={sec === s.id ? 'page' : undefined}
-                          className={cx('flex h-[var(--ctl-h)] w-full items-center gap-3 rounded-ctl px-3 text-start text-body font-medium transition-colors', sec === s.id ? 'bg-tint text-brand-ink' : 'text-muted hover:bg-surface hover:text-ink')}
+                          className={cx('flex h-14 w-full items-center gap-3 rounded-ctl px-4 text-start text-body font-semibold transition-colors', sec === s.id ? 'bg-brand text-on-brand' : 'text-muted hover:bg-surface hover:text-ink')}
                         >
                           <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                           <span className="truncate">{t(s.label)}</span>

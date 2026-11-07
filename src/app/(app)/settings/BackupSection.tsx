@@ -227,7 +227,7 @@ export function BackupSection() {
                       onClick={() => void erase.eraseSnapshots(s.id).then((ok) => ok && snaps.reload())}
                       aria-label={t('erase.snap')}
                       title={t('erase.snap')}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-ctl text-danger-ink transition-colors hover:bg-danger-tint"
+                      className="inline-flex h-14 w-14 items-center justify-center rounded-ctl text-danger-ink transition-colors hover:bg-danger-tint"
                     >
                       <Eraser className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -244,7 +244,7 @@ export function BackupSection() {
       <Card className="border-danger/40 p-5 md:p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-danger-tint text-danger-ink">
               <ShieldAlert className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
@@ -269,7 +269,7 @@ function Block({ icon, title, hint, action, children }: { icon: ReactNode; title
     <Card className="p-5 md:p-6">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tint text-brand-ink">{icon}</span>
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-tint text-brand-ink">{icon}</span>
           <div>
             <h2 className="text-title font-semibold text-ink">{title}</h2>
             <p className="mt-1 max-w-2xl text-meta text-muted">{hint}</p>

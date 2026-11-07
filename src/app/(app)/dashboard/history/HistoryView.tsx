@@ -71,7 +71,7 @@ export function HistoryView() {
                 }}
                 aria-label={t('erase.txnN', { number: r.number })}
                 title={t('erase.txn')}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-ctl text-danger-ink transition-colors hover:bg-danger-tint"
+                className="inline-flex h-14 w-14 items-center justify-center rounded-ctl text-danger-ink transition-colors hover:bg-danger-tint"
               >
                 <Eraser className="h-4 w-4" aria-hidden="true" />
               </button>
