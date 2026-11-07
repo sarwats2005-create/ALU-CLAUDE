@@ -22,6 +22,7 @@ import { PAGE_NAV, TAB_PRIORITY } from './nav-config';
 import { SidebarNav, activeNavGroupIds } from './SidebarNav';
 import { SidebarTooltip } from './SidebarTooltip';
 import { useSidebarState } from './useSidebarState';
+import { ThemeToggle } from '../ThemeToggle';
 
 export function AppShell(props: { user: ClientUser; lang: Lang; rate: string; company: string; children: ReactNode }) {
   return (
@@ -60,6 +61,10 @@ function PrefControls({ onBrand }: { onBrand?: boolean }) {
   const p = usePrefs();
   return (
     <div className="flex flex-col gap-2">
+      <div className={cx('flex items-center justify-between gap-2', onBrand ? 'text-sidebar-muted' : 'text-muted')}>
+        <span className="text-caption font-semibold">{t('nav.theme')}</span>
+        <ThemeToggle onBrand={onBrand} labelLight={t('nav.themeLight')} labelDark={t('nav.themeDark')} />
+      </div>
       <div dir="ltr" className={cx(onBrand && '[&_[role=radiogroup]]:bg-sidebar-active [&_[aria-checked=false]]:text-sidebar-muted')}>
         <Segmented<Lang>
           label={t('nav.language')}
@@ -187,9 +192,14 @@ function Shell({ children }: { children: ReactNode }) {
           {showLabels ? <AlertsBell onBrand align="end" /> : null}
         </div>
         {!showLabels ? (
-          <div className="hidden px-2 pb-2 lg:block">
+          <div className="hidden flex-col gap-2 px-2 pb-2 lg:flex">
             <div className="flex justify-center">
               <AlertsBell onBrand align="start" />
+            </div>
+            <div className="flex justify-center">
+              <SidebarTooltip label={t('nav.theme')} enabled>
+                <ThemeToggle onBrand labelLight={t('nav.themeLight')} labelDark={t('nav.themeDark')} />
+              </SidebarTooltip>
             </div>
           </div>
         ) : null}
@@ -271,6 +281,7 @@ function Shell({ children }: { children: ReactNode }) {
         <span className="flex-1 text-[17px] font-extrabold tracking-[0.02em] text-ink" dir="ltr">
           ALU FACTORY
         </span>
+        <ThemeToggle labelLight={t('nav.themeLight')} labelDark={t('nav.themeDark')} />
         <AlertsBell />
       </header>
 

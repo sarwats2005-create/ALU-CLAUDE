@@ -4,6 +4,7 @@ import type { Lang } from '@/lib/i18n';
 import { landingCopy } from './copy';
 import { Extrusion } from './Extrusion';
 import { LangSwitch } from './LangSwitch';
+import { PublicThemeToggle } from '@/components/PublicThemeToggle';
 
 export type LandingData = {
   name: string;
@@ -55,6 +56,7 @@ export function Landing({ lang, data }: { lang: Lang; data: LandingData }) {
             <span dir="auto">{data.name}</span>
           </Link>
           <div className="lp-head-actions">
+            <PublicThemeToggle lang={lang} />
             <LangSwitch lang={lang} />
             <Link href="/login" className="lp-btn lp-btn-white" aria-label={c.signIn}>
               <span className="lp-long">{c.signIn}</span>

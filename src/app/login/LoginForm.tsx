@@ -5,6 +5,7 @@ import { t as tr, type Lang } from '@/lib/i18n';
 import { api } from '@/lib/client/api';
 import { Logo } from '@/components/Logo';
 import { Button, Field, Input, Segmented } from '@/components/ui';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export function LoginForm({ lang, needsSetup, expired }: { lang: Lang; needsSetup: boolean; expired: boolean }) {
   const router = useRouter();
@@ -51,7 +52,12 @@ export function LoginForm({ lang, needsSetup, expired }: { lang: Lang; needsSetu
         <span className="absolute -bottom-24 -start-24 h-72 w-72 rotate-45 bg-white/[0.07]" />
         <span className="absolute bottom-16 end-[12%] h-40 w-40 rounded-full border-[28px] border-white/[0.08]" />
       </div>
-      <div className="absolute right-4 top-4 z-10" dir="ltr">
+      <div className="absolute right-4 top-4 z-10 flex items-center gap-2" dir="ltr">
+        <ThemeToggle
+          labelLight={t('nav.themeLight')}
+          labelDark={t('nav.themeDark')}
+          className="text-white hover:bg-white/15"
+        />
         <Segmented<Lang>
           label={t('nav.language')}
           size="sm"
