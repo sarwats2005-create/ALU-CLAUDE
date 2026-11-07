@@ -44,7 +44,7 @@ export function LoginForm({ lang, needsSetup, expired }: { lang: Lang; needsSetu
   }
 
   return (
-    <main className="relative isolate flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-brand px-4 py-16">
+    <main className="relative isolate flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-[#2a6fc4] via-brand to-[#0c3d75] px-4 py-16">
       {/* Blue poster background with large, low-opacity shapes (decoration only). */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
         <span className="absolute -end-40 -top-48 h-[34rem] w-[34rem] rounded-full bg-white/[0.08]" />
@@ -73,7 +73,7 @@ export function LoginForm({ lang, needsSetup, expired }: { lang: Lang; needsSetu
           <p className="mt-1 text-body font-medium text-white">{t('app.tagline')}</p>
         </div>
 
-        <form onSubmit={submit} noValidate className="rounded-card bg-surface p-6 md:p-7">
+        <form onSubmit={submit} noValidate className="alu-card alu-card--elevated alu-glass rounded-card p-6 md:p-7">
           <h1 className="text-heading font-extrabold text-ink">{needsSetup ? t('auth.setupTitle') : t('auth.title')}</h1>
           {needsSetup ? <p className="mt-1.5 text-meta text-muted">{t('auth.setupBody')}</p> : null}
 

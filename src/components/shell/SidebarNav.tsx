@@ -49,7 +49,7 @@ export function activeNavGroupIds(pathname: string, can: CanFn): string[] {
 const itemBase =
   'flex w-full items-center gap-3 overflow-hidden rounded-ctl text-body font-semibold motion-safe:transition-[background-color,color] motion-safe:duration-150';
 const itemPad = 'h-11 px-3';
-const itemActive = 'bg-white text-brand-ink';
+const itemActive = 'bg-white/95 text-brand-ink shadow-[0_2px_12px_-4px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.9)]';
 const itemIdle = 'text-sidebar-muted hover:bg-sidebar-active hover:text-sidebar-ink';
 
 export function SidebarNav({

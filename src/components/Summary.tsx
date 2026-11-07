@@ -66,17 +66,17 @@ export function SummaryCell({ icon, label, value, sub, tone, alert, active, href
     </>
   );
   const cls = cx(
-    'group relative block min-w-0 overflow-hidden rounded-card p-5 text-start md:p-6',
-    alert ? 'bg-danger-tint' : active ? 'bg-tint-2' : 'bg-surface',
-    // Selected filter: a solid Primary bar along the bottom edge (flat, no shadow).
-    active && 'after:absolute after:inset-x-0 after:bottom-0 after:h-1.5 after:bg-brand',
-    go && 'cursor-pointer transition-all duration-200 hover:scale-[1.02] motion-reduce:hover:scale-100',
-    go && (alert ? 'hover:bg-danger-tint' : active ? '' : 'hover:bg-tint'),
+    'alu-kpi alu-glass group relative block min-w-0 overflow-hidden rounded-card p-5 text-start md:p-6',
+    alert && 'is-alert bg-danger-tint',
+    !alert && active && 'bg-tint-2',
+    active && 'after:absolute after:inset-x-0 after:bottom-0 after:h-1.5 after:bg-gradient-to-r after:from-brand after:to-brand-strong',
+    go && 'alu-card--interactive cursor-pointer motion-safe:transition-[transform,box-shadow,border-color] motion-safe:duration-200 hover:scale-[1.01] motion-reduce:hover:scale-100',
+    go && !alert && !active && 'hover:bg-tint/60',
     className,
   );
   if (href)
     return (
-      <Link href={href} className={cls}>
+      <Link href={href} className={cls} aria-current={active ? 'page' : undefined}>
         {body}
       </Link>
     );

@@ -139,7 +139,7 @@ function Shell({ children }: { children: ReactNode }) {
         id="app-sidebar"
         aria-label={t('nav.menu')}
         className={cx(
-          'fixed inset-y-0 start-0 z-40 flex flex-col bg-sidebar text-sidebar-ink',
+          'alu-sidebar alu-glass fixed inset-y-0 start-0 z-40 flex flex-col text-sidebar-ink',
           'motion-safe:transition-[width,transform] motion-safe:duration-[var(--motion-panel)] motion-safe:ease-[var(--ease-out)]',
           // Mobile drawer always uses expanded width when present; desktop follows preference.
           showLabels ? 'w-[var(--sidebar-w-expanded)]' : 'w-[var(--sidebar-w-collapsed)]',
@@ -256,7 +256,7 @@ function Shell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Mobile / tablet top bar */}
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 bg-surface px-2 lg:hidden">
+      <header className="alu-chrome alu-glass sticky top-0 z-30 flex h-14 items-center gap-2 px-2 lg:hidden">
         <button
           type="button"
           onClick={sidebar.openMobile}
@@ -281,7 +281,7 @@ function Shell({ children }: { children: ReactNode }) {
       </div>
 
       {/* Mobile / tablet bottom tabs */}
-      <nav aria-label={t('nav.menu')} className="safe-bottom fixed inset-x-0 bottom-0 z-30 bg-surface lg:hidden">
+      <nav aria-label={t('nav.menu')} className="alu-chrome alu-glass safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-line-soft lg:hidden">
         <ul className="mx-auto flex max-w-xl">
           {tabs.map((p) => {
             const Icon = PAGE_NAV[p].icon;

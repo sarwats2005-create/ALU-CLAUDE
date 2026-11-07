@@ -78,7 +78,7 @@ export function SearchBox({ value, onChange, placeholder, className, label }: { 
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={label ?? placeholder}
-        className="bidi h-[var(--ctl-h)] w-full rounded-ctl border-2 border-transparent bg-surface-2 ps-11 pe-12 text-body text-ink placeholder:text-muted motion-safe:transition-colors motion-safe:duration-[var(--motion-base)] focus:border-brand focus:bg-surface focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+        className="alu-field bidi h-[var(--ctl-h)] w-full rounded-ctl ps-11 pe-12 text-body text-ink placeholder:text-muted motion-safe:transition-[background-color,border-color,box-shadow] motion-safe:duration-[var(--motion-base)] focus:outline-none [&::-webkit-search-cancel-button]:hidden"
       />
       {value ? (
         <button type="button" onClick={() => onChange('')} aria-label={t('common.clear')} className="absolute end-1 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-ctl text-muted hover:bg-surface-2 hover:text-ink">
@@ -127,10 +127,10 @@ export function DataTable<R extends { id: string | number }>({
   return (
     <div className={cx('transition-opacity', loading && 'opacity-60')} aria-busy={loading || undefined}>
       <div className="scroll-thin hidden overflow-x-auto md:block">
-        <table className="w-full text-meta" style={{ minWidth }}>
+        <table className="alu-table w-full text-meta" style={{ minWidth }}>
           {caption ? <caption className="sr-only">{caption}</caption> : null}
           <thead>
-            <tr className="border-y border-line-soft bg-surface-2 text-caption text-muted">
+            <tr className="border-y border-line-soft text-caption text-muted">
               {columns.map((c, i) => {
                 const active = sort === c.key;
                 const pad = i === 0 ? 'ps-5 pe-3' : i === columns.length - 1 ? 'ps-3 pe-5' : 'px-3';

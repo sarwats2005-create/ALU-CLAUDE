@@ -367,7 +367,7 @@ export function ChartCard({
   const { t } = useT();
   const [view, setView] = useState<'chart' | 'table'>('chart');
   return (
-    <section className={cx('subline-host flex min-w-0 flex-col rounded-card bg-surface p-5', className)}>
+    <section className={cx('alu-card alu-glass subline-host flex min-w-0 flex-col p-5', className)}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-body font-semibold text-ink">{title}</h2>

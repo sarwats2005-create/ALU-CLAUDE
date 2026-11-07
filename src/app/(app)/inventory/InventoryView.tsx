@@ -394,8 +394,8 @@ function ProductCard({
   return (
     <article
       className={cx(
-        'group flex flex-col rounded-card border-2 border-transparent bg-surface p-5 shadow-[var(--shadow-card)] transition-all duration-200',
-        'hover:scale-[1.01] hover:border-brand/30 hover:shadow-[var(--shadow-pop)] focus-within:ring-2 focus-within:ring-brand/40',
+        'alu-card alu-glass alu-card--interactive group flex flex-col p-5',
+        'hover:scale-[1.01] focus-within:ring-2 focus-within:ring-brand/40',
       )}
     >
       <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-start">

@@ -16,8 +16,10 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  // One flat light palette (no dark mode).
-  themeColor: '#3b82f6',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#1b5db1' },
+    { media: '(prefers-color-scheme: dark)', color: '#0c1018' },
+  ],
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

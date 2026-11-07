@@ -106,7 +106,7 @@ export function Dialog({
         aria-modal="true"
         aria-labelledby={titleId}
         className={cx(
-          'anim-sheet relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-card bg-surface md:rounded-card',
+          'alu-card alu-card--elevated alu-glass anim-sheet relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-card md:rounded-card',
           width,
         )}
       >

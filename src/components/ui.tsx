@@ -17,14 +17,15 @@ export { cx };
 // Every button is a large touch target (--ctl-h / --ctl-h-lg).
 type BtnVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'quiet';
 const BTN: Record<BtnVariant, string> = {
-  primary: 'bg-brand text-on-brand hover:bg-brand-strong',
+  primary: 'alu-btn-primary text-on-brand border border-white/10 hover:border-white/15',
   // Muted block. On the grey page canvas it turns white (see PageHeader / [data-on-canvas]).
-  secondary: 'bg-surface-2 text-ink hover:bg-line',
-  // Thick outline that fills with colour on hover.
-  outline: 'border-4 border-brand bg-transparent text-brand-ink hover:bg-brand hover:text-on-brand',
-  ghost: 'text-brand-ink hover:bg-tint',
-  quiet: 'text-muted hover:text-ink hover:bg-surface-2',
-  danger: 'bg-danger text-white hover:bg-danger-ink',
+  secondary:
+    'border border-line-soft bg-surface text-ink shadow-[0_1px_0_rgba(255,255,255,0.5)_inset] hover:border-brand/20 hover:bg-tint',
+  outline:
+    'border-2 border-brand/35 bg-surface-glass text-brand-ink backdrop-blur-sm hover:border-brand hover:bg-brand hover:text-on-brand',
+  ghost: 'text-brand-ink hover:bg-tint/80',
+  quiet: 'text-muted hover:bg-surface-2 hover:text-ink',
+  danger: 'border border-danger/20 bg-danger text-white shadow-[0_4px_14px_-4px_rgba(217,48,37,0.45)] hover:bg-danger-ink',
 };
 /** Shared micro-interaction: 160ms colour/transform, subtle press — respects reduced motion. */
 export const BTN_MOTION =
@@ -128,9 +129,8 @@ export function Field({
   );
 }
 
-// Flat inputs: Gray 100 block, no visible border. Focus: white with a hard 2px Primary border, no glow.
 const INPUT =
-  'h-[var(--ctl-h)] w-full min-w-0 rounded-ctl border-2 bg-surface-2 px-4 text-body text-ink placeholder:text-muted motion-safe:transition-colors motion-safe:duration-[var(--motion-base)] focus:border-brand focus:bg-surface focus:outline-none disabled:text-muted disabled:opacity-70';
+  'alu-field h-[var(--ctl-h)] w-full min-w-0 rounded-ctl px-4 text-body text-ink placeholder:text-muted motion-safe:transition-[background-color,border-color,box-shadow] motion-safe:duration-[var(--motion-base)] focus:outline-none disabled:text-muted disabled:opacity-70';
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean; numeric?: boolean }>(function Input(
   { invalid, numeric, className, ...rest },
@@ -144,7 +144,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
       dir={numeric ? 'ltr' : rest.dir}
       inputMode={numeric ? 'decimal' : rest.inputMode}
       autoComplete={numeric ? 'off' : rest.autoComplete}
-      className={cx(INPUT, invalid ? 'border-danger' : 'border-transparent', numeric && 'num text-left', !numeric && 'bidi', className)}
+      className={cx(INPUT, numeric && 'num text-left', !numeric && 'bidi', className)}
       {...rest}
       // Always set (a blank one when none is given) so CSS can tell an empty field from a filled one —
       // used to hide the unit/currency label inside a field once something is typed.
@@ -161,7 +161,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
     <textarea
       ref={ref}
       aria-invalid={invalid || undefined}
-      className={cx(INPUT, 'bidi h-auto min-h-[96px] py-3', invalid ? 'border-danger' : 'border-transparent', className)}
+      className={cx(INPUT, 'bidi h-auto min-h-[96px] py-3', className)}
       {...rest}
     />
   );
@@ -181,7 +181,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
       ref={ref}
       aria-invalid={invalid || undefined}
       data-empty={empty || undefined}
-      className={cx(INPUT, 'select-chevron appearance-none pe-9', invalid ? 'border-danger' : 'border-transparent', className)}
+      className={cx(INPUT, 'select-chevron appearance-none pe-9', className)}
       {...rest}
     >
       {placeholder !== undefined ? (
@@ -214,7 +214,7 @@ export function Segmented<T extends string>({
 }) {
   const gid = useId();
   return (
-    <div role="radiogroup" aria-label={label} className={cx('inline-flex max-w-full gap-1 rounded-ctl bg-surface-2 p-1', className)}>
+    <div role="radiogroup" aria-label={label} className={cx('alu-segmented alu-glass inline-flex max-w-full gap-1 rounded-ctl p-1', className)}>
       {options.map((o) => {
         const on = o.value === value;
         return (
@@ -229,7 +229,7 @@ export function Segmented<T extends string>({
               // Long labels wrap to two lines on narrow phones instead of pushing the page sideways.
               'min-w-0 flex-1 rounded-[5px] px-3 py-1 font-semibold leading-tight motion-safe:transition-[background-color,color] motion-safe:duration-[var(--motion-base)] sm:whitespace-nowrap sm:px-4',
               size === 'sm' ? 'min-h-11 text-body' : 'min-h-11 text-body',
-              on ? 'bg-brand text-on-brand' : 'text-muted hover:bg-line hover:text-ink',
+              on ? 'text-on-brand' : 'text-muted hover:bg-line/80 hover:text-ink',
             )}
           >
             {o.label}
@@ -258,7 +258,14 @@ export function Toggle({ checked, onChange, label, id, disabled }: { checked: bo
 // ─── Surfaces ──────────────────────────────────────────────────────────────────────────────────────
 export function Card({ children, className, as: As = 'section', elevated, ...rest }: { children: ReactNode; className?: string; as?: 'section' | 'div' | 'article'; elevated?: boolean; 'aria-labelledby'?: string }) {
   return (
-    <As className={cx('rounded-card bg-surface shadow-[var(--shadow-card)] motion-safe:transition-shadow motion-safe:duration-[var(--motion-panel)]', elevated && 'shadow-[var(--shadow-pop)]', className)} {...rest}>
+    <As
+      className={cx(
+        'alu-card alu-glass motion-safe:transition-[box-shadow,border-color,transform] motion-safe:duration-[var(--motion-panel)]',
+        elevated && 'alu-card--elevated',
+        className,
+      )}
+      {...rest}
+    >
       {children}
     </As>
   );
@@ -304,7 +311,7 @@ export function Badge({ tone = 'neutral', children, className }: { tone?: 'neutr
     danger: 'bg-danger-tint text-danger-ink',
     warning: 'bg-warning-tint text-warning-ink',
   };
-  return <span className={cx('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-caption font-semibold', tones[tone], className)}>{children}</span>;
+  return <span className={cx('alu-badge inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-caption font-semibold', tones[tone], className)}>{children}</span>;
 }
 
 /** Amount span: tabular, LTR, optional tone. */
