@@ -5,7 +5,7 @@
 - `src/backend/` business logic + database access + PDFs (server only).
 - `src/shared/` pure code used by both (money, dates, i18n, rules, permissions).
 - `src/app/` routing only: `page.tsx` / `route.ts` stay thin and call frontend views / backend functions.
-- `database/` Prisma schema, migrations, seed, demo.
+- `database/` Prisma schema, migrations, seed.
 - Frontend may import backend *types* only. `npm run structure:check` enforces the boundaries (also run by `npm run build`).
 
 ## The About page must follow every rule change

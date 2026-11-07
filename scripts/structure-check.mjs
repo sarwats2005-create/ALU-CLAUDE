@@ -3,7 +3,7 @@
 //   src/frontend → may import shared; may import backend TYPES only (import type …), never backend code.
 //   src/shared   → imports nothing from frontend or backend (it runs on both sides).
 //   src/backend  → never imports frontend.
-//   database     → may use backend + shared (seed / demo data), never frontend.
+//   database     → may use backend + shared (seed), never frontend.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
