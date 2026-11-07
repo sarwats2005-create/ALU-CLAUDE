@@ -44,14 +44,8 @@ export function LoginForm({ lang, needsSetup, expired }: { lang: Lang; needsSetu
   }
 
   return (
-    <main className="relative isolate flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-brand px-4 py-16">
-      {/* Blue poster background with large, low-opacity shapes (decoration only). */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
-        <span className="absolute -end-40 -top-48 h-[34rem] w-[34rem] rounded-full bg-white/[0.08]" />
-        <span className="absolute -bottom-24 -start-24 h-72 w-72 rotate-45 bg-white/[0.07]" />
-        <span className="absolute bottom-16 end-[12%] h-40 w-40 rounded-full border-[28px] border-white/[0.08]" />
-      </div>
-      <div className="absolute right-4 top-4 z-10" dir="ltr">
+    <main className="relative flex min-h-dvh flex-col items-center justify-center bg-bg px-4 py-16">
+      <div className="absolute end-4 top-4 z-10" dir="ltr">
         <Segmented<Lang>
           label={t('nav.language')}
           size="sm"
@@ -67,14 +61,14 @@ export function LoginForm({ lang, needsSetup, expired }: { lang: Lang; needsSetu
       <div className="w-full max-w-[400px]" aria-busy={switching || undefined}>
         <div className="mb-8 flex flex-col items-center text-center">
           <Logo size={76} />
-          <p className="mt-4 text-large font-extrabold tracking-[0.04em] text-white" dir="ltr">
+          <p className="mt-4 text-title font-semibold tracking-[-0.02em] text-ink" dir="ltr">
             ALU FACTORY
           </p>
-          <p className="mt-1 text-body font-medium text-white">{t('app.tagline')}</p>
+          <p className="mt-1 text-meta text-muted">{t('app.tagline')}</p>
         </div>
 
-        <form onSubmit={submit} noValidate className="rounded-card bg-surface p-6 md:p-7">
-          <h1 className="text-heading font-extrabold text-ink">{needsSetup ? t('auth.setupTitle') : t('auth.title')}</h1>
+        <form onSubmit={submit} noValidate className="glass-float rounded-card p-6 md:p-7">
+          <h1 className="text-title font-semibold text-ink">{needsSetup ? t('auth.setupTitle') : t('auth.title')}</h1>
           {needsSetup ? <p className="mt-1.5 text-meta text-muted">{t('auth.setupBody')}</p> : null}
 
           {error ? (

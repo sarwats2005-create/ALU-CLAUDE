@@ -147,14 +147,14 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
                   aria-selected={on}
                   onClick={() => L.setFilter('inventoryId', loc.id)}
                   className={cx(
-                    'inline-flex h-14 shrink-0 items-center gap-2 rounded-ctl px-4 text-meta font-bold transition-all duration-200 hover:scale-[1.02]',
-                    on ? 'bg-brand text-on-brand shadow-[var(--shadow-pop)]' : 'bg-surface-2 text-muted hover:text-ink',
+                    'inline-flex h-[var(--ctl-h-sm)] shrink-0 items-center gap-2 rounded-ctl px-3 text-meta font-medium motion-safe:transition-colors motion-safe:duration-[var(--motion-base)]',
+                    on ? 'border border-brand/30 bg-tint text-brand-ink' : 'border border-transparent bg-surface-2 text-muted hover:text-ink',
                   )}
                 >
                   <Building2 className="h-4 w-4 shrink-0 opacity-80" aria-hidden="true" />
                   <span className="bidi max-w-[12rem] truncate">{loc.name}</span>
                   {loc.isDefault ? (
-                    <Badge tone={on ? 'neutral' : 'brand'} className={on ? 'bg-white/20 text-current' : undefined}>
+                    <Badge tone="brand">
                       {t('inv.mainBadge')}
                     </Badge>
                   ) : null}
@@ -290,7 +290,7 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
             </Select>
           </div>
           {L.filters.status ? (
-            <button type="button" onClick={() => L.setFilter('status', '')} className="inline-flex h-14 items-center gap-1.5 self-start rounded-full bg-danger-tint px-3 text-meta font-semibold text-danger-ink hover:bg-danger-tint/70">
+            <button type="button" onClick={() => L.setFilter('status', '')} className="inline-flex h-[var(--ctl-h)] items-center gap-1.5 self-start rounded-full bg-danger-tint px-3 text-meta font-semibold text-danger-ink hover:bg-danger-tint/70">
               {t('inv.needsRestock')}
               <X className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
@@ -395,7 +395,7 @@ function ProductCard({
     <article
       className={cx(
         'group flex flex-col rounded-card border-2 border-transparent bg-surface p-5 shadow-[var(--shadow-card)] transition-all duration-200',
-        'hover:scale-[1.01] hover:border-brand/30 hover:shadow-[var(--shadow-pop)] focus-within:ring-2 focus-within:ring-brand/40',
+        'hover:border-brand/30 hover:shadow-[var(--shadow-pop)] focus-within:ring-2 focus-within:ring-brand/40',
       )}
     >
       <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-start">
@@ -738,7 +738,7 @@ function TransferDialog({
                 type="button"
                 disabled={!maxKg.gt(0)}
                 onClick={() => setKg(maxKg.toDecimalPlaces(3).toString())}
-                className="h-14 shrink-0 rounded-ctl border-4 border-brand px-4 text-meta font-extrabold tracking-[0.04em] text-brand-ink transition-all duration-200 hover:scale-105 active:scale-100 disabled:border-line disabled:text-muted disabled:hover:scale-100 hover:bg-brand hover:text-on-brand"
+                className="h-[var(--ctl-h)] shrink-0 rounded-ctl border border-brand px-4 text-meta font-extrabold tracking-[0.04em] text-brand-ink transition-all duration-200 disabled:border-line disabled:text-muted hover:bg-brand hover:text-on-brand"
               >
                 {t('common.max')}
               </button>
@@ -862,7 +862,7 @@ function ProcessDialog({
                 <button
                   type="button"
                   onClick={() => setInputKg(available.toDecimalPlaces(3).toString())}
-                  className="h-14 shrink-0 rounded-ctl border-4 border-brand px-4 text-meta font-extrabold tracking-[0.04em] text-brand-ink transition-all duration-200 hover:scale-105 active:scale-100 disabled:hover:scale-100 hover:bg-brand hover:text-on-brand"
+                  className="h-[var(--ctl-h)] shrink-0 rounded-ctl border border-brand px-4 text-meta font-extrabold tracking-[0.04em] text-brand-ink transition-all duration-200 hover:bg-brand hover:text-on-brand"
                 >
                   {t('common.max')}
                 </button>
@@ -1062,7 +1062,7 @@ function HistoryDialog({
                               onClick={() => void erase.eraseTxn(h.txnId, h.number)}
                               aria-label={t('erase.txnN', { number: h.number })}
                               title={t('erase.txn')}
-                              className="inline-flex h-14 w-14 items-center justify-center rounded-ctl text-danger-ink transition-colors hover:bg-danger-tint"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-ctl text-danger-ink transition-colors hover:bg-danger-tint"
                             >
                               <Eraser className="h-4 w-4" aria-hidden="true" />
                             </button>

@@ -9,7 +9,7 @@ export default async function NoAccessPage() {
   const user = await requireUser();
   return (
     <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-4 text-center">
-      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-tint text-brand-ink">
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-tint text-brand-ink">
         <Lock className="h-7 w-7" aria-hidden="true" />
       </span>
       <p className="max-w-md text-body text-muted">{t('nav.noAccess', user.lang)}</p>

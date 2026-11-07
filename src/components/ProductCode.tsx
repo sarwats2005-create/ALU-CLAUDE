@@ -16,7 +16,7 @@ export function ProductCode({ sku, name, typeName, className }: { sku?: string |
   const code = sku ?? next.data?.sku ?? '…';
   return (
     <div className={cx('flex items-start gap-3 rounded-card bg-surface-2 p-3.5', className)}>
-      <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand text-on-brand" aria-hidden="true">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-ctl bg-tint text-brand-ink" aria-hidden="true">
         <Lock className="h-4 w-4" />
       </span>
       <div className="min-w-0 flex-1">

@@ -47,7 +47,7 @@ export function BeneficiariesView({ initialTab }: { initialTab: Tab }) {
           </>
         }
       />
-      <div role="tablist" aria-label={t('ben.title')} className="mb-5 inline-flex max-w-full gap-1 overflow-x-auto rounded-ctl bg-surface p-1">
+      <div role="tablist" aria-label={t('ben.title')} className="mb-5 inline-flex max-w-full gap-0.5 overflow-x-auto rounded-ctl border border-line bg-surface-2 p-0.5">
         {tabs.map((x) => (
           <button
             key={x.id}
@@ -61,8 +61,8 @@ export function BeneficiariesView({ initialTab }: { initialTab: Tab }) {
               router.replace(x.id === 'list' ? '/beneficiaries' : '/beneficiaries?tab=purchases', { scroll: false });
             }}
             className={cx(
-              'h-12 rounded-ctl px-5 text-body font-bold transition-colors',
-              tab === x.id ? 'bg-brand text-on-brand' : 'text-muted hover:text-ink',
+              'h-9 rounded-[6px] px-4 text-body font-medium transition-colors',
+              tab === x.id ? 'bg-surface text-ink shadow-[var(--elev-1)]' : 'text-muted hover:text-ink',
             )}
           >
             {x.label}

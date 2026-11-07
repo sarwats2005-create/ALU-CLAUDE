@@ -18,7 +18,8 @@ import { TxnPanelProvider } from '../TxnPanel';
 import { MoneyGuardProvider } from '../MoneyGuard';
 import { EraseProvider } from '../EraseMode';
 import { runWeeklyBackupIfDue } from '@/lib/client/backup-folder';
-import { PAGE_NAV, TAB_PRIORITY } from './nav-config';
+import { PAGE_NAV, TAB_PRIORITY, currentNavLabel } from './nav-config';
+import { ThemeToggle } from './ThemeToggle';
 import { SidebarNav, activeNavGroupIds } from './SidebarNav';
 import { SidebarTooltip } from './SidebarTooltip';
 import { useSidebarState } from './useSidebarState';
@@ -55,16 +56,15 @@ function usePrefs() {
   };
 }
 
-function PrefControls({ onBrand }: { onBrand?: boolean }) {
+function PrefControls() {
   const { t, lang } = useApp();
   const p = usePrefs();
   return (
     <div className="flex flex-col gap-2">
-      <div dir="ltr" className={cx(onBrand && '[&_[role=radiogroup]]:bg-sidebar-active [&_[aria-checked=false]]:text-sidebar-muted')}>
+      <div dir="ltr">
         <Segmented<Lang>
           label={t('nav.language')}
           size="sm"
-          className="w-full"
           value={lang}
           onChange={p.setLang}
           options={[
@@ -139,7 +139,7 @@ function Shell({ children }: { children: ReactNode }) {
         id="app-sidebar"
         aria-label={t('nav.menu')}
         className={cx(
-          'fixed inset-y-0 start-0 z-40 flex flex-col bg-sidebar text-sidebar-ink',
+          'shell-sidebar fixed inset-y-0 start-0 z-40 flex flex-col text-sidebar-ink',
           'motion-safe:transition-[width,transform] motion-safe:duration-[var(--motion-panel)] motion-safe:ease-[var(--ease-out)]',
           // Mobile drawer always uses expanded width when present; desktop follows preference.
           showLabels ? 'w-[var(--sidebar-w-expanded)]' : 'w-[var(--sidebar-w-collapsed)]',
@@ -149,13 +149,8 @@ function Shell({ children }: { children: ReactNode }) {
           sidebar.mobileOpen ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full lg:translate-x-0 lg:rtl:translate-x-0',
         )}
       >
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-          <span className="absolute -bottom-28 -start-28 h-80 w-80 rounded-full bg-white/[0.07]" />
-          <span className="absolute -end-16 top-1/3 h-40 w-40 rotate-45 rounded-card bg-white/[0.05]" />
-        </div>
-
         {/* Header: brand + collapse / close controls */}
-        <div className={cx('flex h-16 shrink-0 items-center gap-2', showLabels ? 'px-3' : 'justify-center px-2')}>
+        <div className={cx('flex h-14 shrink-0 items-center gap-2 border-b border-white/10', showLabels ? 'px-3' : 'justify-center px-2')}>
           <button
             type="button"
             onClick={sidebar.closeMobile}
@@ -180,19 +175,11 @@ function Shell({ children }: { children: ReactNode }) {
           </span>
           <span className={cx('flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden whitespace-nowrap motion-safe:transition-opacity motion-safe:duration-[var(--motion-fast)]', showLabels ? 'opacity-100' : 'pointer-events-none w-0 flex-none opacity-0')}>
             <Logo size={28} framed />
-            <span className="truncate text-[17px] font-extrabold tracking-[0.02em]" dir="ltr">
+            <span className="truncate text-body font-semibold tracking-[-0.01em] text-sidebar-ink" dir="ltr">
               ALU FACTORY
             </span>
           </span>
-          {showLabels ? <AlertsBell onBrand align="end" /> : null}
         </div>
-        {!showLabels ? (
-          <div className="hidden px-2 pb-2 lg:block">
-            <div className="flex justify-center">
-              <AlertsBell onBrand align="start" />
-            </div>
-          </div>
-        ) : null}
 
         <SidebarNav
           pathname={pathname}
@@ -203,11 +190,11 @@ function Shell({ children }: { children: ReactNode }) {
         />
 
         {/* User / prefs footer */}
-        <div className={cx('flex flex-col gap-3 bg-black/10 pb-4 pt-3', showLabels ? 'px-3' : 'items-center px-2')}>
+        <div className={cx('flex flex-col gap-3 border-t border-white/10 pb-4 pt-3', showLabels ? 'px-3' : 'items-center px-2')}>
           {showLabels ? (
             <>
               <div className="flex items-center gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-meta font-bold text-brand-ink" aria-hidden="true">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tint text-meta font-semibold text-brand-ink" aria-hidden="true">
                   {initials(user.name)}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -226,7 +213,7 @@ function Shell({ children }: { children: ReactNode }) {
                   <LogOut className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
                 </button>
               </div>
-              <PrefControls onBrand />
+              <PrefControls />
             </>
           ) : (
             <>
@@ -235,7 +222,7 @@ function Shell({ children }: { children: ReactNode }) {
                   type="button"
                   onClick={sidebar.toggleExpanded}
                   aria-label={user.name}
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-meta font-bold text-brand-ink motion-safe:transition-transform motion-safe:duration-150 hover:scale-105"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-tint text-meta font-semibold text-brand-ink"
                 >
                   {initials(user.name)}
                 </button>
@@ -256,7 +243,7 @@ function Shell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Mobile / tablet top bar */}
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 bg-surface px-2 lg:hidden">
+      <header className="glass-bar sticky top-0 z-30 flex h-12 items-center gap-2 px-2 lg:hidden">
         <button
           type="button"
           onClick={sidebar.openMobile}
@@ -268,20 +255,29 @@ function Shell({ children }: { children: ReactNode }) {
           <Menu className="h-5 w-5" aria-hidden="true" />
         </button>
         <Logo size={28} />
-        <span className="flex-1 text-[17px] font-extrabold tracking-[0.02em] text-ink" dir="ltr">
+        <span className="min-w-0 flex-1 truncate text-body font-semibold text-ink" dir="ltr">
           ALU FACTORY
         </span>
+        <ThemeToggle />
         <AlertsBell />
       </header>
 
       <div className="motion-safe:transition-[padding] motion-safe:duration-[var(--motion-panel)] motion-safe:ease-[var(--ease-out)] lg:ps-[var(--sidebar-offset)]">
-        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[1400px] px-4 pb-32 pt-5 outline-none md:px-6 lg:px-8 lg:pb-20 lg:pt-8">
+        <header className="glass-bar sticky top-0 z-20 hidden h-12 items-center gap-2 px-6 lg:flex">
+          <p className="min-w-0 flex-1 truncate text-body font-semibold text-ink">{t(currentNavLabel(pathname))}</p>
+          <div dir="ltr" className="shrink-0">
+            <PrefControls />
+          </div>
+          <ThemeToggle />
+          <AlertsBell />
+        </header>
+        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[1280px] px-4 pb-28 pt-5 outline-none md:px-6 lg:px-8 lg:pb-16 lg:pt-6">
           {children}
         </main>
       </div>
 
       {/* Mobile / tablet bottom tabs */}
-      <nav aria-label={t('nav.menu')} className="safe-bottom fixed inset-x-0 bottom-0 z-30 bg-surface lg:hidden">
+      <nav aria-label={t('nav.menu')} className="glass-bar safe-bottom fixed inset-x-0 bottom-0 z-30 lg:hidden">
         <ul className="mx-auto flex max-w-xl">
           {tabs.map((p) => {
             const Icon = PAGE_NAV[p].icon;
@@ -292,8 +288,8 @@ function Shell({ children }: { children: ReactNode }) {
                   href={PAGE_HREF[p]}
                   aria-current={active ? 'page' : undefined}
                   className={cx(
-                    'flex h-16 flex-col items-center justify-center gap-0.5 text-[12px] font-semibold motion-safe:transition-colors motion-safe:duration-150',
-                    active ? 'bg-brand text-on-brand' : 'text-muted hover:text-ink',
+                    'flex h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium motion-safe:transition-colors motion-safe:duration-150',
+                    active ? 'text-brand-ink' : 'text-muted hover:text-ink',
                   )}
                 >
                   <Icon className="h-5 w-5" strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />
@@ -308,8 +304,8 @@ function Shell({ children }: { children: ReactNode }) {
               onClick={() => setMoreOpen(true)}
               aria-haspopup="dialog"
               className={cx(
-                'flex h-16 w-full flex-col items-center justify-center gap-0.5 text-[12px] font-semibold motion-safe:transition-colors motion-safe:duration-150',
-                overflow.some(isActive) || pathname === '/about' ? 'bg-brand text-on-brand' : 'text-muted hover:text-ink',
+                'flex h-14 w-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium motion-safe:transition-colors motion-safe:duration-150',
+                overflow.some(isActive) || pathname === '/about' ? 'text-brand-ink' : 'text-muted hover:text-ink',
               )}
             >
               <Ellipsis className="h-5 w-5" aria-hidden="true" />
@@ -355,7 +351,7 @@ function Shell({ children }: { children: ReactNode }) {
           <button
             type="button"
             onClick={prefs.logout}
-            className="flex h-11 items-center justify-center gap-2 rounded-ctl bg-danger-tint text-body font-semibold text-danger-ink motion-safe:transition-colors motion-safe:duration-150 hover:bg-[#fee2e2]"
+            className="flex h-10 items-center justify-center gap-2 rounded-ctl bg-danger-tint text-body font-medium text-danger-ink motion-safe:transition-colors motion-safe:duration-150 hover:opacity-80"
           >
             <LogOut className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
             {t('nav.logout')}

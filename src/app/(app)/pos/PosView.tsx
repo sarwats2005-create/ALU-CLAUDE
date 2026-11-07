@@ -463,7 +463,7 @@ function LineEditor({
           {n}
         </span>
         {canRemove ? (
-          <button type="button" onClick={onRemove} aria-label={t('pos.removeLine', { n })} className="inline-flex h-14 w-14 items-center justify-center rounded-ctl text-muted hover:bg-danger-tint hover:text-danger-ink">
+          <button type="button" onClick={onRemove} aria-label={t('pos.removeLine', { n })} className="inline-flex h-9 w-9 items-center justify-center rounded-ctl text-muted hover:bg-danger-tint hover:text-danger-ink">
             <Trash2 className="h-4 w-4" aria-hidden="true" />
           </button>
         ) : null}
@@ -520,7 +520,7 @@ function LineEditor({
               type="button"
               onClick={() => onChange({ kg: available.toDecimalPlaces(3).toString() })}
               disabled={!line.product || !available.gt(0)}
-              className="h-14 shrink-0 rounded-ctl border-4 border-brand px-4 text-meta font-extrabold tracking-[0.04em] text-brand-ink transition-all duration-200 hover:scale-105 active:scale-100 disabled:hover:scale-100 hover:bg-brand hover:text-on-brand disabled:border-line disabled:text-muted disabled:hover:bg-transparent"
+              className="h-[var(--ctl-h)] shrink-0 rounded-ctl border border-brand px-4 text-meta font-extrabold tracking-[0.04em] text-brand-ink transition-all duration-200 hover:bg-brand hover:text-on-brand disabled:border-line disabled:text-muted disabled:hover:bg-transparent"
             >
               {t('common.max')}
             </button>
@@ -539,7 +539,7 @@ function LineEditor({
         </Field>
         <div className="flex flex-col gap-1.5">
           <span className="text-meta font-medium text-ink">{t('pos.lineTotal')}</span>
-          <span className="num flex h-14 items-center justify-end rounded-ctl bg-surface-2 px-4 text-title font-extrabold text-ink">{total ? fmtMoney(total, currency) : '—'}</span>
+          <span className="num flex h-[var(--ctl-h)] items-center justify-end rounded-ctl bg-surface-2 px-4 text-title font-extrabold text-ink">{total ? fmtMoney(total, currency) : '—'}</span>
         </div>
       </div>
     </li>
@@ -564,7 +564,7 @@ function InvoiceReady({ done, onNext }: { done: { id: string; number: string; up
       }
     >
       <div className="flex flex-col items-center gap-4 py-2 text-center">
-        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-success-tint text-success">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-success-tint text-success">
           <CheckCircle2 className="h-8 w-8" aria-hidden="true" />
         </span>
         <p className="text-body text-muted">{done.updated ? t('toast.updated') : t('toast.saleRecorded', { number: done.number })}</p>

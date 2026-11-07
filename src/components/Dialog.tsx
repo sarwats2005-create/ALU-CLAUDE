@@ -99,21 +99,21 @@ export function Dialog({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6">
-      <div className="anim-fade absolute inset-0 bg-overlay" onClick={dismissible ? onClose : undefined} aria-hidden="true" />
+      <div className="anim-fade absolute inset-0 bg-overlay backdrop-blur-[2px]" onClick={dismissible ? onClose : undefined} aria-hidden="true" />
       <div
         ref={panel}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         className={cx(
-          'anim-sheet relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-card bg-surface md:rounded-card',
+          'glass-float anim-sheet relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-card md:rounded-card',
           width,
         )}
       >
         {/* Flat sheet: no divider lines. The footer is a Gray 100 colour block instead. */}
         <div className="flex items-start justify-between gap-3 px-5 pb-2 pt-5 md:px-7 md:pt-6">
           <div className="min-w-0">
-            <h2 id={titleId} className="bidi text-heading font-extrabold text-ink">
+            <h2 id={titleId} className="bidi text-title font-semibold text-ink">
               {title}
             </h2>
             {description ? <p className="mt-1 text-meta text-muted">{description}</p> : null}
@@ -123,7 +123,7 @@ export function Dialog({
               type="button"
               onClick={onClose}
               aria-label={t('common.close')}
-              className="-me-2 -mt-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-ctl text-muted motion-safe:transition-[background-color,color,transform] motion-safe:duration-[var(--motion-base)] hover:scale-[1.02] hover:bg-surface-2 hover:text-ink"
+              className="-me-1 -mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-ctl text-muted motion-safe:transition-colors motion-safe:duration-[var(--motion-base)] hover:bg-surface-2 hover:text-ink"
             >
               <X className="h-5 w-5" strokeWidth={2.5} aria-hidden="true" />
             </button>

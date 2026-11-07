@@ -16,8 +16,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  // One flat light palette (no dark mode).
-  themeColor: '#3b82f6',
+  themeColor: '#f4f6f8',
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -27,6 +26,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={lang === 'ku' ? 'ckb' : 'en'} dir={dirOf(lang)} suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('alu-theme');var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`,
+          }}
+        />
         <link rel="preload" href="/fonts/outfit-latin.woff2" as="font" type="font/woff2" crossOrigin="" />
         {lang === 'ku' ? <link rel="preload" href="/fonts/vazirmatn-arabic.woff2" as="font" type="font/woff2" crossOrigin="" /> : null}
         <link rel="stylesheet" href="/fonts/fonts.css" />

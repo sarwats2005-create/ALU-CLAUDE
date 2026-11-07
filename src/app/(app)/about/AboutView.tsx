@@ -212,14 +212,14 @@ export function AboutView({ live }: { live: AboutLive }) {
             onChange={(e) => setQ(e.target.value)}
             placeholder={t("about.search")}
             aria-label={t("about.search")}
-            className="h-14 w-full rounded-ctl border-2 border-transparent bg-surface ps-12 pe-14 text-body text-ink outline-none placeholder:text-muted transition-colors duration-200 focus:border-brand [&::-webkit-search-cancel-button]:hidden"
+            className="h-[var(--ctl-h)] w-full rounded-ctl border-2 border-transparent bg-surface ps-12 pe-14 text-body text-ink outline-none placeholder:text-muted transition-colors duration-200 focus:border-brand [&::-webkit-search-cancel-button]:hidden"
           />
           {q ? (
             <button
               type="button"
               onClick={() => setQ("")}
               aria-label={t("common.clear")}
-              className="absolute end-1.5 top-1/2 inline-flex h-14 w-14 -translate-y-1/2 items-center justify-center rounded-ctl text-muted hover:bg-tint hover:text-ink"
+              className="absolute end-1.5 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-ctl text-muted hover:bg-tint hover:text-ink"
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -241,7 +241,7 @@ export function AboutView({ live }: { live: AboutLive }) {
           className="mb-8 overflow-hidden rounded-card bg-surface"
         >
           <div className="flex items-start gap-3 bg-tint px-4 py-4 md:px-6">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand text-on-brand">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-on-brand">
               <Sparkles className="h-5 w-5" aria-hidden="true" />
             </span>
             <div className="min-w-0">
@@ -284,7 +284,7 @@ export function AboutView({ live }: { live: AboutLive }) {
                   <li key={s.id} className="shrink-0">
                     <a
                       href={`#rule-${s.id}`}
-                      className="flex h-14 items-center gap-2.5 whitespace-nowrap rounded-ctl bg-surface px-4 text-meta font-semibold text-ink transition-all duration-200 hover:scale-[1.02] hover:bg-tint-2 lg:bg-transparent lg:px-3 lg:hover:bg-surface"
+                      className="flex h-[var(--ctl-h)] items-center gap-2.5 whitespace-nowrap rounded-ctl bg-surface px-4 text-meta font-semibold text-ink transition-all duration-200 hover:bg-tint-2 lg:bg-transparent lg:px-3 lg:hover:bg-surface"
                     >
                       <Icon
                         className="h-4 w-4 shrink-0 text-brand-ink"
@@ -298,7 +298,7 @@ export function AboutView({ live }: { live: AboutLive }) {
               <li className="shrink-0">
                 <a
                   href="#about-changes"
-                  className="flex h-14 items-center gap-2.5 whitespace-nowrap rounded-ctl bg-surface px-4 text-meta font-semibold text-ink transition-all duration-200 hover:scale-[1.02] hover:bg-tint-2 lg:bg-transparent lg:px-3 lg:hover:bg-surface"
+                  className="flex h-[var(--ctl-h)] items-center gap-2.5 whitespace-nowrap rounded-ctl bg-surface px-4 text-meta font-semibold text-ink transition-all duration-200 hover:bg-tint-2 lg:bg-transparent lg:px-3 lg:hover:bg-surface"
                 >
                   <History
                     className="h-4 w-4 shrink-0 text-brand-ink"
@@ -326,7 +326,7 @@ export function AboutView({ live }: { live: AboutLive }) {
                   >
                     <span
                       className={cx(
-                        "flex h-14 w-14 shrink-0 items-center justify-center rounded-full",
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
                         s.icon === "erase"
                           ? "bg-danger-tint text-danger-ink"
                           : "bg-tint text-brand-ink",
@@ -396,7 +396,7 @@ export function AboutView({ live }: { live: AboutLive }) {
                 id="about-changes"
                 className="flex scroll-mt-20 items-center gap-3 border-b border-line-soft px-4 py-4 md:px-6"
               >
-                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-tint text-brand-ink">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tint text-brand-ink">
                   <History className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <h2

@@ -71,17 +71,17 @@ export function SearchBox({ value, onChange, placeholder, className, label }: { 
   const { t } = useApp();
   return (
     <div className={cx('relative min-w-0', className)}>
-      <Search className="pointer-events-none absolute start-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" aria-hidden="true" />
+      <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
       <input
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={label ?? placeholder}
-        className="bidi h-[var(--ctl-h)] w-full rounded-ctl border-2 border-transparent bg-surface-2 ps-11 pe-12 text-body text-ink placeholder:text-muted motion-safe:transition-colors motion-safe:duration-[var(--motion-base)] focus:border-brand focus:bg-surface focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+        className="bidi h-[var(--ctl-h)] w-full rounded-ctl border border-line bg-bg ps-10 pe-10 text-body text-ink placeholder:text-faint motion-safe:transition-[border-color,box-shadow] motion-safe:duration-[var(--motion-base)] focus:border-brand focus:bg-surface focus:outline-none focus:ring-2 focus:ring-brand/30 [&::-webkit-search-cancel-button]:hidden"
       />
       {value ? (
-        <button type="button" onClick={() => onChange('')} aria-label={t('common.clear')} className="absolute end-1 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-ctl text-muted hover:bg-surface-2 hover:text-ink">
+        <button type="button" onClick={() => onChange('')} aria-label={t('common.clear')} className="absolute end-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-ctl text-muted hover:bg-surface-2 hover:text-ink">
           <X className="h-4 w-4" aria-hidden="true" />
         </button>
       ) : null}
@@ -130,7 +130,7 @@ export function DataTable<R extends { id: string | number }>({
         <table className="w-full text-meta" style={{ minWidth }}>
           {caption ? <caption className="sr-only">{caption}</caption> : null}
           <thead>
-            <tr className="border-y border-line-soft bg-surface-2 text-caption text-muted">
+            <tr className="table-head border-y border-white/40 text-caption text-muted">
               {columns.map((c, i) => {
                 const active = sort === c.key;
                 const pad = i === 0 ? 'ps-5 pe-3' : i === columns.length - 1 ? 'ps-3 pe-5' : 'px-3';
@@ -223,12 +223,12 @@ export function Pager({ total, page, size, onPage, onSize }: { total: number; pa
   const from = total ? (page - 1) * size + 1 : 0;
   const to = Math.min(total, page * size);
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-2 px-5 py-3 text-meta text-muted">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-soft px-5 py-3 text-meta text-muted">
       <p className="num">{t('common.showing', { from, to, total })}</p>
       <div className="flex items-center gap-2">
         <label className="flex items-center gap-2">
           <span className="hidden sm:inline">{t('common.perPage')}</span>
-          <select value={size} onChange={(e) => onSize(Number(e.target.value))} className="select-chevron h-[var(--ctl-h)] appearance-none rounded-ctl border-2 border-transparent bg-surface ps-4 pe-9 text-body text-ink focus:border-brand focus:outline-none">
+          <select value={size} onChange={(e) => onSize(Number(e.target.value))} className="select-chevron h-[var(--ctl-h-sm)] appearance-none rounded-ctl border border-line bg-surface ps-3 pe-8 text-meta text-ink focus:border-brand focus:outline-none">
             {[25, 50, 100].map((n) => (
               <option key={n} value={n}>
                 {n}
@@ -237,10 +237,10 @@ export function Pager({ total, page, size, onPage, onSize }: { total: number; pa
           </select>
         </label>
         <span className="num px-1">{t('common.page', { n: page, total: pages })}</span>
-        <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label={t('common.prev')} className="inline-flex h-11 w-11 items-center justify-center rounded-ctl bg-surface text-ink motion-safe:transition-[background-color,transform] motion-safe:duration-[var(--motion-base)] hover:scale-[1.02] hover:bg-tint-2 disabled:opacity-40 disabled:hover:scale-100">
+        <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label={t('common.prev')} className="inline-flex h-8 w-8 items-center justify-center rounded-ctl border border-line bg-surface text-ink motion-safe:transition-colors motion-safe:duration-[var(--motion-base)] hover:bg-surface-2 disabled:opacity-40">
           <ChevronLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
         </button>
-        <button type="button" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label={t('common.next')} className="inline-flex h-11 w-11 items-center justify-center rounded-ctl bg-surface text-ink motion-safe:transition-[background-color,transform] motion-safe:duration-[var(--motion-base)] hover:scale-[1.02] hover:bg-tint-2 disabled:opacity-40 disabled:hover:scale-100">
+        <button type="button" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label={t('common.next')} className="inline-flex h-8 w-8 items-center justify-center rounded-ctl border border-line bg-surface text-ink motion-safe:transition-colors motion-safe:duration-[var(--motion-base)] hover:bg-surface-2 disabled:opacity-40">
           <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
         </button>
       </div>
@@ -262,8 +262,8 @@ export function FilterPills<T extends string>({ value, onChange, options, label 
             aria-checked={on}
             onClick={() => onChange(o.value)}
             className={cx(
-              'h-11 shrink-0 rounded-ctl px-4 text-meta font-bold motion-safe:transition-[background-color,color,transform] motion-safe:duration-[var(--motion-base)] hover:scale-[1.02] active:scale-100 disabled:hover:scale-100',
-              on ? 'bg-brand text-on-brand' : 'bg-surface-2 text-muted hover:text-ink',
+              'h-[var(--ctl-h-sm)] shrink-0 rounded-ctl border px-3 text-meta font-medium motion-safe:transition-colors motion-safe:duration-[var(--motion-base)]',
+              on ? 'border-brand/30 bg-tint text-brand-ink' : 'border-transparent bg-surface-2 text-muted hover:text-ink',
             )}
           >
             {o.label}
