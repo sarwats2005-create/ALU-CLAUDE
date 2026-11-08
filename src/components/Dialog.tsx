@@ -61,6 +61,7 @@ export function Dialog({
     const id = window.setTimeout(focusFirst, 20);
     const me = {};
     openStack.push(me);
+    document.documentElement.classList.add("dialog-open");
     const onKey = (e: KeyboardEvent) => {
       // Only the top-most dialog reacts (a confirm can open above another dialog).
       if (openStack[openStack.length - 1] !== me) return;
@@ -89,6 +90,7 @@ export function Dialog({
       window.clearTimeout(id);
       document.removeEventListener('keydown', onKey);
       openStack.splice(openStack.indexOf(me), 1);
+      if (!openStack.length) document.documentElement.classList.remove("dialog-open");
       document.body.style.overflow = prevOverflow;
       (opener.current as HTMLElement | null)?.focus?.();
     };
@@ -98,7 +100,7 @@ export function Dialog({
   const width = { sm: 'md:max-w-[420px]', md: 'md:max-w-[560px]', lg: 'md:max-w-[760px]', xl: 'md:max-w-[1040px]' }[size];
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6">
+    <div data-dialog-layer className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6">
       {/* Liquid glass: the whole page behind is blurred out, and the sheet itself is frosted translucent glass. */}
       <div className="anim-fade liquid-backdrop absolute inset-0" onClick={dismissible ? onClose : undefined} aria-hidden="true" />
       <div

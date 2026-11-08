@@ -960,3 +960,18 @@ html.theme-dark .liquid-glass-panel .alu-field:focus {
     background: var(--surface-solid);
   }
 }
+
+/* While any pop-up is open, the whole app behind it is blurred out (does not depend on backdrop-filter). */
+body > * {
+  transition: filter var(--motion-panel) var(--ease-out);
+}
+html.dialog-open body > :not([data-dialog-layer]) {
+  filter: blur(18px) saturate(1.2);
+  pointer-events: none;
+  user-select: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  body > * {
+    transition: none;
+  }
+}
