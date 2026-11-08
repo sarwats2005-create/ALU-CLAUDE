@@ -36,7 +36,16 @@ export const RULES = {
   /** Product codes (SKU) are given automatically: prefix + a running number, e.g. ALU-00012. */
   skuPrefix: 'ALU',
   skuDigits: 5,
+  /** Daily workers: days worked are entered in steps of this size (half days allowed). */
+  salaryDayStep: 0.5,
 } as const;
+
+/** Number of days in a "YYYY-MM" month (the most days a daily worker can be paid for in it). */
+export const daysInMonth = (period: string) => {
+  const [y, m] = period.split('-').map(Number);
+  return y && m ? new Date(Date.UTC(y, m, 0)).getUTCDate() : 31;
+};
+export const PERIOD_RE = /^(20\d{2})-(0[1-9]|1[0-2])$/;
 
 /** Product code for running number n, e.g. 12 -> "ALU-00012". */
 export const skuFor = (n: number) => `${RULES.skuPrefix}-${String(n).padStart(RULES.skuDigits, '0')}`;

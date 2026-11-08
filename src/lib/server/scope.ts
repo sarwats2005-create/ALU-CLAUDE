@@ -14,6 +14,7 @@ const ACTIVITY_OF: Partial<Record<TxnKind, ActivityPage[]>> = {
   BENEFICIARY_PAYMENT: ['beneficiaries', 'dashboard'],
   BENEFICIARY_REFUND: ['beneficiaries', 'dashboard'],
   EXPENSE: ['expenses', 'dashboard'],
+  SALARY: ['dashboard'],
   // Vault movements are never shown to staff unless they are in the staff user's own vault.
   VAULT_DEPOSIT: [],
   VAULT_WITHDRAWAL: [],

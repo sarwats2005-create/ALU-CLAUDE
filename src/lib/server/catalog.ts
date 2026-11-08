@@ -17,7 +17,7 @@ import { skuFor } from '@/lib/rules';
 const IMG = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
 const MAX_IMG = 900_000; // chars of base64 (~650 KB) — the client crops to 256px, so this is generous
 
-function cleanImage(v: unknown, field: string): string | null | undefined {
+export function cleanImage(v: unknown, field: string): string | null | undefined {
   if (v === undefined) return undefined;
   if (v === null || v === '') return null;
   if (typeof v !== 'string' || !IMG.test(v)) throw fieldError(field, 'v.required');

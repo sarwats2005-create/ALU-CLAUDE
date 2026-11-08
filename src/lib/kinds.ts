@@ -15,7 +15,8 @@ export type Kind =
   | 'EXPENSE'
   | 'STOCK_TRANSFER'
   | 'USER_VAULT_FUND'
-  | 'USER_VAULT_COLLECT';
+  | 'USER_VAULT_COLLECT'
+  | 'SALARY';
 
 export const KINDS: Kind[] = [
   'SALE',
@@ -32,6 +33,7 @@ export const KINDS: Kind[] = [
   'STOCK_TRANSFER',
   'USER_VAULT_FUND',
   'USER_VAULT_COLLECT',
+  'SALARY',
 ];
 
 export const KIND_PAGE: Record<Kind, Page> = {
@@ -49,6 +51,7 @@ export const KIND_PAGE: Record<Kind, Page> = {
   STOCK_TRANSFER: 'inventory',
   USER_VAULT_FUND: 'vault',
   USER_VAULT_COLLECT: 'vault',
+  SALARY: 'employees',
 };
 
 /** Pages from which a transaction of this kind may be viewed (its own page, the dashboard, and party pages). */
@@ -84,6 +87,8 @@ export function editHref(kind: Kind, id: string, partyId?: string | null): strin
       return `/inventory`;
     case 'EXPENSE':
       return `/expenses?edit=${id}`;
+    case 'SALARY':
+      return `/employees`;
     default:
       return `/vault?edit=${id}`;
   }

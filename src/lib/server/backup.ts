@@ -37,6 +37,7 @@ const TABLES = [
   'beneficiary',
   'expenseCategory',
   'recurringExpense',
+  'employee',
   'txn',
   'txnLine',
   'vaultDue',
@@ -46,6 +47,8 @@ const TABLES = [
   'auditLog',
 ] as const;
 type Table = (typeof TABLES)[number];
+/** Tables that older backup files don't have; a restore treats them as empty. */
+const ADDED_LATER: Table[] = ['employee'];
 type Rows = Record<string, unknown>[];
 export type BackupData = Record<Table, Rows>;
 export type BackupFile = { app: string; format: number; exportedAt: string; counts: Record<Table, number>; checksum: string; data: BackupData };
@@ -113,8 +116,10 @@ export function validateBackup(raw: unknown): BackupFile {
       }
     }
   }
-  for (const t of TABLES) if (!Array.isArray((data as BackupData)[t])) throw new AppError(400, 'bk.damaged');
   if (f.format === BACKUP_FORMAT && sha(JSON.stringify(data)) !== f.checksum) throw new AppError(400, 'bk.damaged');
+  // Tables added after a backup was made (checked against the checksum above first, then filled in empty).
+  for (const t of ADDED_LATER) if ((data as BackupData)[t] === undefined) (data as BackupData)[t] = [];
+  for (const t of TABLES) if (!Array.isArray((data as BackupData)[t])) throw new AppError(400, 'bk.damaged');
   if (f.format === 2) {
     // Recalculate checksum after synthesizing inventory rows so restore can proceed.
     (f as BackupFile).checksum = sha(JSON.stringify(data));

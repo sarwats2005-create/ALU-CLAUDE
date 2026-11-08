@@ -7,7 +7,7 @@ import { useApp } from '@/lib/client/app-context';
 import { api } from '@/lib/client/api';
 import { downloadFile, printDocument } from '@/lib/client/print';
 import { conversionText } from '@/lib/conversion';
-import { fmtDate, fmtDateTime } from '@/lib/dates';
+import { fmtDate, fmtDateTime, fmtMonth } from '@/lib/dates';
 import { convert, D, fmtCost, fmtKg, fmtMoney, fmtNum, fmtPct, fmtPrice, rateLine, roundMoney } from '@/lib/money';
 import { KIND_PAGE, editHref, type Kind } from '@/lib/kinds';
 import { cx } from '@/lib/cx';
@@ -150,7 +150,8 @@ export function TxnPanelProvider({ children }: { children: ReactNode }) {
               <Button variant="secondary" onClick={doPrint} busy={busy === 'print'} icon={<Printer className="h-4 w-4" aria-hidden="true" />}>
                 {t('common.print')}
               </Button>
-              {mayEdit ? (
+              {/* A salary is not edited: delete it (the money goes back) and pay it again. */}
+              {mayEdit && kind !== 'SALARY' ? (
                 <Button
                   onClick={() => {
                     close();
@@ -420,13 +421,20 @@ export function TxnBody({ d }: { d: TxnDetail }) {
               </Row>
             </>
           ) : null}
-          {d.label ? <Row label={kind === 'VAULT_WITHDRAWAL' ? t('common.reason') : kind === 'EXPENSE' ? t('exp.category') : t('common.source')}>{d.label}</Row> : null}
+          {d.label ? <Row label={kind === 'VAULT_WITHDRAWAL' ? t('common.reason') : kind === 'EXPENSE' ? t('exp.category') : kind === 'SALARY' ? t('emp.employee') : t('common.source')}>{d.label}</Row> : null}
           {kind === 'EXPENSE' && d.unitPrice && d.quantity ? (
             <Row label={t('exp.details')}>
               <span className="num">{t('exp.unitLine', { qty: fmtNum(d.quantity, D(d.quantity).isInteger() ? 0 : 2), unit: d.unitName, price: fmtPrice(d.unitPrice, cur) })}</span>
             </Row>
           ) : null}
           {kind === 'EXPENSE' && d.recurringId ? <Row label={t('exp.source')}>{t('exp.src.recurring')}</Row> : null}
+          {kind === 'SALARY' && d.period ? <Row label={t('emp.period')}>{fmtMonth(d.period)}</Row> : null}
+          {kind === 'SALARY' && d.quantity && d.unitPrice ? (
+            <Row label={t('emp.daysWorked')}>
+              <span className="num">{t('emp.daysLine', { days: fmtNum(d.quantity, D(d.quantity).isInteger() ? 0 : 1), rate: fmtMoney(d.unitPrice) })}</span>
+            </Row>
+          ) : null}
+          {kind === 'SALARY' ? <Row label={t('emp.salaryUsd')}><span className="num">{fmtMoney(d.totalUsd)}</span></Row> : null}
         </dl>
       ) : null}
 

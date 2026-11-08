@@ -20,20 +20,39 @@ export async function vaultBalances(ownerUserId: string | null = null) {
   return bal;
 }
 
-/** Monthly revenue / COGS / profit for the given month keys (YYYY-MM). */
+/**
+ * Monthly sales / cost / profit for the given month keys (YYYY-MM).
+ * profit = sales − cost of the aluminium sold − expenses − salaries (the real, net profit of the month).
+ */
 export async function monthlyProfit(months: string[]) {
   if (!months.length) return [];
   const from = `${months[0]}-01`;
   const rows = await prisma.$queryRaw<Record<string, unknown>[]>`
-    SELECT to_char(date, 'YYYY-MM') AS m, COALESCE(SUM("totalUsd"),0) AS revenue, COALESCE(SUM("cogsUsd"),0) AS cogs, COUNT(*) AS cnt
-    FROM "Txn" WHERE kind = 'SALE' AND "deletedAt" IS NULL AND date >= ${from}::date
+    SELECT to_char(date, 'YYYY-MM') AS m,
+      COALESCE(SUM(CASE WHEN kind = 'SALE' THEN "totalUsd" ELSE 0 END),0) AS revenue,
+      COALESCE(SUM(CASE WHEN kind = 'SALE' THEN "cogsUsd" ELSE 0 END),0) AS cogs,
+      COALESCE(SUM(CASE WHEN kind = 'EXPENSE' THEN "totalUsd" ELSE 0 END),0) AS expenses,
+      COALESCE(SUM(CASE WHEN kind = 'SALARY' THEN "totalUsd" ELSE 0 END),0) AS salaries,
+      COUNT(*) FILTER (WHERE kind = 'SALE') AS cnt
+    FROM "Txn" WHERE kind IN ('SALE','EXPENSE','SALARY') AND "deletedAt" IS NULL AND date >= ${from}::date
     GROUP BY 1`;
   const by = new Map(rows.map((r) => [String(r.m), r]));
   return months.map((m) => {
     const r = by.get(m);
     const revenue = D(s(r?.revenue));
     const cogs = D(s(r?.cogs));
-    return { month: m, revenue: revenue.toString(), cogs: round2(cogs).toString(), profit: round2(revenue.minus(cogs)).toString(), count: n(r?.cnt) };
+    const expenses = D(s(r?.expenses));
+    const salaries = D(s(r?.salaries));
+    return {
+      month: m,
+      revenue: revenue.toString(),
+      cogs: round2(cogs).toString(),
+      expenses: round2(expenses).toString(),
+      salaries: round2(salaries).toString(),
+      grossProfit: round2(revenue.minus(cogs)).toString(),
+      profit: round2(revenue.minus(cogs).minus(expenses).minus(salaries)).toString(),
+      count: n(r?.cnt),
+    };
   });
 }
 
@@ -41,7 +60,7 @@ export async function dashboard() {
   const today = todayIso();
   const monthStart = `${today.slice(0, 7)}-01`;
   const months = lastMonths(today, 12);
-  const [rate, vaults, salesAgg, monthAgg, topCustomers, topBens, monthly, recent, recv, pay, expAgg, dues, staffCash, staffDues] = await Promise.all([
+  const [rate, vaults, salesAgg, monthAgg, topCustomers, topBens, monthly, recent, recv, pay, expAgg, dues, staffCash, staffDues, costAgg, salMonthAgg, stockAgg] = await Promise.all([
     currentRate(),
     vaultBalances(),
     prisma.$queryRaw<Record<string, unknown>[]>`
@@ -80,6 +99,16 @@ export async function dashboard() {
     // Cash the owner handed to staff: every personal vault together.
     prisma.vaultEntry.groupBy({ by: ['vault', 'direction'], where: { ownerUserId: { not: null } }, _sum: { amount: true } }),
     prisma.vaultDue.findMany({ where: { settledAt: null, ownerUserId: { not: null }, txn: { deletedAt: null } }, select: { vault: true, amount: true, paid: true } }),
+    // Every expense and salary ever recorded (USD at each document's rate): part of the total cost.
+    prisma.$queryRaw<Record<string, unknown>[]>`
+      SELECT COALESCE(SUM(CASE WHEN kind = 'EXPENSE' THEN "totalUsd" ELSE 0 END),0) AS expenses,
+             COALESCE(SUM(CASE WHEN kind = 'SALARY' THEN "totalUsd" ELSE 0 END),0) AS salaries
+      FROM "Txn" WHERE kind IN ('EXPENSE','SALARY') AND "deletedAt" IS NULL`,
+    prisma.$queryRaw<Record<string, unknown>[]>`
+      SELECT COALESCE(SUM("totalUsd"),0) AS total, COUNT(*) AS cnt
+      FROM "Txn" WHERE kind = 'SALARY' AND "deletedAt" IS NULL AND date >= ${monthStart}::date AND date <= ${today}::date`,
+    // Aluminium in stock (raw + finished, every inventory) at what it cost to buy — never at its sale price.
+    prisma.stockEntry.aggregate({ _sum: { valueUsd: true } }),
   ]);
   const revenue = D(s(salesAgg[0]?.revenue));
   const staff: Record<Currency, Dec> = { USD: new Dec(0), IQD: new Dec(0) };
@@ -96,7 +125,17 @@ export async function dashboard() {
   const receivable = D(s(recv[0]?.total));
   const payable = D(s(pay[0]?.total));
   const duesUsd = dues.USD.total.plus(dues.IQD.total.div(rate)).plus(staffDuesUsd);
-  const paperProfit = round2(revenue.minus(cogs));
+  const grossProfit = round2(revenue.minus(cogs));
+  const expensesAll = D(s(costAgg[0]?.expenses));
+  const salariesAll = D(s(costAgg[0]?.salaries));
+  // Total cost = cost of the aluminium sold (scrap loss included) + expenses + salaries.
+  const totalCost = round2(cogs.plus(expensesAll).plus(salariesAll));
+  const netProfit = round2(revenue.minus(totalCost));
+  const stockValue = round2(D(stockAgg._sum.valueUsd));
+  // Everything the factory still has to pay: suppliers + unpaid vault dues (unpaid salaries are dues too).
+  const youOwe = payable.plus(duesUsd);
+  // What the factory is worth: cash (main + staff) + customers owe + stock at cost − everything it owes.
+  const factoryWorth = round2(mainCashUsd.plus(staffCashUsd).plus(receivable).plus(stockValue).minus(youOwe));
   return {
     rate: rate.toString(),
     cards: {
@@ -104,9 +143,19 @@ export async function dashboard() {
       salesMonthCount: n(monthAgg[0]?.cnt),
       totalSales: revenue.toString(),
       totalSalesCount: n(salesAgg[0]?.cnt),
-      profit: round2(revenue.minus(cogs)).toString(),
+      grossProfit: grossProfit.toString(),
       revenue: revenue.toString(),
       cogs: round2(cogs).toString(),
+      expensesAll: round2(expensesAll).toString(),
+      salariesAll: round2(salariesAll).toString(),
+      totalCost: totalCost.toString(),
+      /** Sales − cost of the aluminium sold − expenses − salaries, all time. */
+      netProfit: netProfit.toString(),
+      salariesMonth: D(s(salMonthAgg[0]?.total)).toString(),
+      salariesMonthCount: n(salMonthAgg[0]?.cnt),
+      stockValue: stockValue.toString(),
+      youOwe: round2(youOwe).toString(),
+      factoryWorth: factoryWorth.toString(),
       vaultUsd: vaults.USD.toString(),
       vaultIqd: vaults.IQD.toString(),
       vaultIqdInUsd: iqdInUsd.toString(),
@@ -124,10 +173,6 @@ export async function dashboard() {
       staffUsd: staff.USD.toString(),
       staffIqd: staff.IQD.toString(),
       staffTotalUsd: round2(staffCashUsd).toString(),
-      /** Profit counting only money actually collected: sales − what customers still owe − cost of goods. */
-      cashProfit: round2(paperProfit.minus(receivable)).toString(),
-      /** Cash (main + staff vaults) + customers owe − factory owes suppliers − unpaid vault dues, in USD. */
-      netPosition: round2(mainCashUsd.plus(staffCashUsd).plus(receivable).minus(payable).minus(duesUsd)).toString(),
       allDuesUsd: round2(duesUsd).toString(),
       allDuesCount: dues.USD.count + dues.IQD.count + staffDues.length,
       mainVaultNegative: vaults.USD.isNegative() || vaults.IQD.isNegative(),

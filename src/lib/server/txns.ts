@@ -854,6 +854,7 @@ const MODULE_OF: Record<TxnKind, string> = {
   STOCK_TRANSFER: 'inventory',
   USER_VAULT_FUND: 'vault',
   USER_VAULT_COLLECT: 'vault',
+  SALARY: 'employees',
 };
 
 /**

@@ -11,7 +11,7 @@ export type PartyKind = 'customer' | 'beneficiary';
 export type PartyFormValue = { id?: string; name: string; phone: string; address: string; avatarUrl?: string | null };
 
 /** Crop an image file to a centred 256×256 square (JPEG data URL). */
-async function cropSquare(file: File): Promise<string> {
+export async function cropSquare(file: File): Promise<string> {
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise<HTMLImageElement>((res, rej) => {

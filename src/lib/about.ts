@@ -17,7 +17,7 @@
 import type { Page } from './permissions';
 
 export type L = readonly [en: string, ku: string];
-export type AboutIcon = 'core' | 'money' | 'pos' | 'purchase' | 'processing' | 'customers' | 'beneficiaries' | 'vault' | 'expenses' | 'invoices' | 'reports' | 'alerts' | 'access' | 'backup' | 'erase';
+export type AboutIcon = 'core' | 'money' | 'pos' | 'purchase' | 'processing' | 'customers' | 'beneficiaries' | 'vault' | 'expenses' | 'employees' | 'invoices' | 'reports' | 'alerts' | 'access' | 'backup' | 'erase';
 
 export type AboutSection = {
   id: string;
@@ -77,7 +77,7 @@ export const ABOUT_SECTIONS: AboutSection[] = [
       ['Only the owner, or a user with the "edit exchange rate" permission, can change the rate.', 'تەنها خاوەن، یان بەکارهێنەرێک کە مۆڵەتی «گۆڕینی نرخی دراو»ی هەیە، دەتوانێت نرخەکە بگۆڕێت.'],
       ['IQD amounts are rounded to a whole dinar; USD to the cent; weight to 3 decimals (kg).', 'بڕی دینار بۆ دینارێکی تەواو خڕ دەکرێتەوە؛ دۆلار بۆ سەنت؛ کێش بۆ ٣ ژمارەی دوای فاریزە (کیلۆ).'],
       ['The server always calculates totals itself. If the screen shows a different total, the server total wins.', 'سێرڤەر هەمیشە خۆی کۆی گشتی حیساب دەکات. ئەگەر شاشەکە کۆیەکی جیاواز پیشان بدات، کۆی سێرڤەر ڕاستە.'],
-      ['Every document type has its own number series (INV, PUR, RCV, PAY, VLT, PRC, EXP, STR). Numbers are never reused, even after a delete.', 'هەر جۆرە بەڵگەیەک زنجیرە ژمارەی خۆی هەیە (INV، PUR، RCV، PAY، VLT، PRC، EXP، STR). ژمارەکان هەرگیز دووبارە بەکارنایەنەوە، تەنانەت دوای سڕینەوەش.'],
+      ['Every document type has its own number series (INV, PUR, RCV, PAY, VLT, PRC, EXP, SAL, STR). Numbers are never reused, even after a delete.', 'هەر جۆرە بەڵگەیەک زنجیرە ژمارەی خۆی هەیە (INV، PUR، RCV، PAY، VLT، PRC، EXP، SAL، STR). ژمارەکان هەرگیز دووبارە بەکارنایەنەوە، تەنانەت دوای سڕینەوەش.'],
       ['Every save, edit and delete is written to the audit log (who, when, before and after).', 'هەر تۆمارکردن، دەستکاری و سڕینەوەیەک لە تۆماری چاودێری دەنووسرێت (کێ، کەی، پێش و دوای).'],
     ],
   },
@@ -195,6 +195,23 @@ export const ABOUT_SECTIONS: AboutSection[] = [
     ],
   },
   {
+    id: 'employees',
+    icon: 'employees',
+    pages: ['employees'],
+    title: ['Employees & salaries — SAL', 'کارمەندان و مووچە — SAL'],
+    summary: ['Who is on the payroll, how salaries are paid, and what happens when the vault is short.', 'کێ لە لیستی مووچەدایە، مووچە چۆن دەدرێت، و کاتێک قاسە کەمە چی ڕوودەدات.'],
+    rules: [
+      ['Salaries are always recorded in **USD**. Paying from the IQD vault takes the dinar equivalent at the current rate. No PIN is needed.', 'مووچە هەمیشە بە **دۆلار** تۆمار دەکرێت. دان لە قاسەی دینار بەرامبەرەکەی بە دینار بە نرخی ئێستا دەردەهێنێت. PIN پێویست نییە.'],
+      ['A **monthly** employee is paid **automatically** once a month from the **USD vault** (when the Employees page opens, a new monthly employee is added, or the daily job runs). A month is never paid twice; an automatic salary you delete is not created again.', 'کارمەندی **مانگانە** مانگی جارێک **خۆکار** لە **قاسەی دۆلار** مووچەی دەدرێت (کاتێک پەڕەی کارمەندان دەکرێتەوە، کارمەندێکی مانگانەی نوێ زیاد دەکرێت، یان کاری ڕۆژانە کار دەکات). هیچ مانگێک دووجار نادرێت؛ مووچەیەکی خۆکار کە بیسڕیتەوە دووبارە دروست ناکرێتەوە.'],
+      ['When the vault does not have the full salary, what is there is paid and the rest is kept as an **unpaid salary** (an unpaid vault due). It is never skipped. Pay it from the Employees page or Vault → Unpaid dues.', 'کاتێک قاسە هەموو مووچەکەی تێدا نییە، ئەوەی هەیە دەدرێت و ماوەکەی وەک **مووچەی نەدراو** (قەرزی نەدراوی قاسە) دەمێنێتەوە. هەرگیز تێناپەڕێنرێت. لە پەڕەی کارمەندان یان قاسە ← قەرزە نەدراوەکان بیدە.'],
+      ['A **daily** worker is paid by hand: days worked × daily rate. Half days are allowed; never more days than the month has.', 'کرێکاری **ڕۆژانە** بە دەست مووچەی دەدرێت: ڕۆژانی کار × نرخی ڕۆژانە. نیوە ڕۆژ ڕێگەپێدراوە؛ هەرگیز زیاتر لە ڕۆژەکانی مانگ نا.'],
+      ['A monthly employee can also be paid by hand for a chosen month, unless that month is already paid.', 'کارمەندی مانگانەش دەتوانرێت بە دەست بۆ مانگێکی دیاریکراو مووچەی بدرێت، مەگەر ئەو مانگە پێشتر درابێت.'],
+      ['Deleting a salary payment puts the money back into the vault. A salary is not edited: delete it and pay again.', 'سڕینەوەی پارەدانی مووچە پارەکە دەگەڕێنێتەوە بۆ قاسە. مووچە دەستکاری ناکرێت: بیسڕەوە و دووبارە بیدە.'],
+      ['Deleting an employee keeps their salary history. To stop paying someone but keep them on the list, mark them **inactive**.', 'سڕینەوەی کارمەند مێژووی مووچەکانی دەهێڵێتەوە. بۆ ڕاگرتنی مووچەی کەسێک بەڵام هێشتنەوەی لە لیستەکە، **ناچالاک**ی بکە.'],
+      ['A staff user with access to this page pays salaries from their own vault.', 'کارمەندێک کە دەستی بەم پەڕەیە دەگات مووچە لە قاسەی خۆیەوە دەدات.'],
+    ],
+  },
+  {
     id: 'invoices',
     icon: 'invoices',
     pages: ['invoices', 'pos', 'beneficiaries'],
@@ -216,10 +233,13 @@ export const ABOUT_SECTIONS: AboutSection[] = [
     summary: ['Where the figures come from.', 'ژمارەکان لە کوێوە دێن.'],
     rules: [
       ['No figure is stored separately: everything is read live from the ledgers.', 'هیچ ژمارەیەک جیا هەڵناگیرێت: هەمووی ڕاستەوخۆ لە دەفتەرەکانەوە دەخوێندرێتەوە.'],
-      ['**Gross profit** = sales revenue − cost of goods sold.', '**قازانجی گشتی** = داهاتی فرۆشتن − تێچووی کاڵای فرۆشراو.'],
-      ['The owner\'s dashboard shows profit two ways: **profit on paper** (all sales − cost of goods, paid or not) and **cash profit** (the same minus what customers still owe). **Net position** = cash in all vaults + what customers owe − what the factory owes suppliers − unpaid dues.', 'داشبۆردی خاوەن قازانج بە دوو شێوە پیشان دەدات: **قازانج لەسەر کاغەز** (هەموو فرۆشتنەکان − تێچووی کاڵا، دراو بێت یان نا) و **قازانجی کاش** (هەمان شت کەمکردنەوەی ئەوەی کڕیاران هێشتا قەرزدارن). **دۆخی پوخت** = کاشی هەموو قاسەکان + قەرزی کڕیاران − قەرزی کارگە بۆ دابینکەران − قەرزی نەدراو.'],
-      ['Profit, cost of goods and the P&L report are **owner only**. A staff user\'s dashboard shows only their vault, their sales and their recent documents.', 'قازانج، تێچووی کاڵا و ڕاپۆرتی قازانج و زیان **تەنها بۆ خاوەنن**. داشبۆردی کارمەند تەنها قاسەکەی، فرۆشتنەکانی و دوایین بەڵگەکانی پیشان دەدات.'],
-      ['Expenses are shown on their own; they are not yet subtracted in the profit report.', 'خەرجییەکان بە جیا پیشان دەدرێن؛ هێشتا لە ڕاپۆرتی قازانجدا کەم ناکرێنەوە.'],
+      ['**Total sales** = every sale, paid or not (what customers still owe is already inside it).', '**کۆی فرۆشتن** = هەموو فرۆشتنەکان، دراو بێت یان نا (ئەوەی کڕیاران هێشتا قەرزدارن پێشتر لەناویدایە).'],
+      ['**Total cost** = cost of the aluminium sold + expenses + salaries. **Profit** = total sales − total cost. Example: sales $10,000 − aluminium $7,000 − salaries $1,500 − electricity $500 = **$1,000**.', '**کۆی تێچوو** = تێچووی ئەلەمنیۆمی فرۆشراو + خەرجی + مووچە. **قازانج** = کۆی فرۆشتن − کۆی تێچوو. نموونە: فرۆشتن ١٠،٠٠٠ دۆلار − ئەلەمنیۆم ٧،٠٠٠ − مووچە ١،٥٠٠ − کارەبا ٥٠٠ = **١،٠٠٠ دۆلار**.'],
+      ['Scrap lost in processing is already inside the cost of the aluminium sold (processing moves the whole raw cost onto the finished kg). It is shown for information only and never subtracted twice.', 'ئەو پاشماوەیەی لە پرۆسێسدا لەدەست دەچێت پێشتر لەناو تێچووی ئەلەمنیۆمی فرۆشراودایە (پرۆسێس هەموو تێچووی خاو دەخاتە سەر کیلۆی ئامادە). تەنها بۆ زانیاری پیشان دەدرێت و هەرگیز دووجار کەم ناکرێتەوە.'],
+      ['**You owe** = what the factory owes beneficiaries + unpaid vault dues (unpaid salaries included). **Stock value** = aluminium in stock at what it cost to buy, never at its sale price.', '**قەرزی تۆ** = ئەوەی کارگە قەرزاری دابینکەرانە + قەرزی نەدراوی قاسە (مووچەی نەدراویش). **بەهای کۆگا** = ئەلەمنیۆمی ناو کۆگا بە نرخی کڕین، هەرگیز بە نرخی فرۆشتن نا.'],
+      ['**Factory worth** = cash in all vaults (yours + staff) + what customers owe + stock value − what you owe. Buying aluminium does not change it (cash becomes stock); paying expenses or salaries lowers it.', '**بەهای کارگە** = کاشی هەموو قاسەکان (هی خۆت + کارمەندان) + قەرزی کڕیاران + بەهای کۆگا − قەرزی تۆ. کڕینی ئەلەمنیۆم نایگۆڕێت (کاش دەبێتە کۆگا)؛ دانی خەرجی یان مووچە کەمی دەکاتەوە.'],
+      ['Profit, cost of goods, factory worth and the P&L report are **owner only**. A staff user\'s dashboard shows only their vault, their sales and their recent documents.', 'قازانج، تێچووی کاڵا، بەهای کارگە و ڕاپۆرتی قازانج و زیان **تەنها بۆ خاوەنن**. داشبۆردی کارمەند تەنها قاسەکەی، فرۆشتنەکانی و دوایین بەڵگەکانی پیشان دەدات.'],
+      ['The profit & loss report shows, per month: sales, cost of the aluminium sold, gross profit, expenses, salaries and **net profit**. Its cash flow counts the money that really left the vaults for expenses and salaries.', 'ڕاپۆرتی قازانج و زیان بۆ هەر مانگێک پیشان دەدات: فرۆشتن، تێچووی ئەلەمنیۆمی فرۆشراو، قازانجی گشتی، خەرجی، مووچە و **قازانجی پوخت**. ڕەوتی پارەکەی ئەو پارەیە دەژمێرێت کە بەڕاستی بۆ خەرجی و مووچە لە قاسەکان دەرچووە.'],
     ],
   },
   {
@@ -287,6 +307,17 @@ export const ABOUT_SECTIONS: AboutSection[] = [
 
 /** Newest first. Add an entry here whenever a rule is added, changed or removed. */
 export const ABOUT_CHANGELOG: AboutChange[] = [
+  {
+    version: '2.2',
+    date: '2026-11-09',
+    items: [
+      { type: 'added', text: ['Employees page: monthly employees are paid automatically from the USD vault, daily workers by days worked. Salaries are in USD (SAL documents); a short vault leaves an unpaid salary.', 'پەڕەی کارمەندان: کارمەندی مانگانە خۆکار لە قاسەی دۆلار مووچەی دەدرێت، کرێکاری ڕۆژانە بەپێی ڕۆژانی کار. مووچە بە دۆلارە (بەڵگەی SAL)؛ قاسەی کەم مووچەی نەدراو دەهێڵێتەوە.'] },
+      { type: 'changed', text: ['Profit now subtracts expenses and salaries: profit = total sales − (aluminium sold + expenses + salaries). The P&L report shows them per month.', 'قازانج ئێستا خەرجی و مووچە کەم دەکاتەوە: قازانج = کۆی فرۆشتن − (ئەلەمنیۆمی فرۆشراو + خەرجی + مووچە). ڕاپۆرتی قازانج و زیان بۆ هەر مانگێک پیشانیان دەدات.'] },
+      { type: 'added', text: ['Dashboard: total sales, total cost, profit, factory worth (stock counted at cost), what you owe and stock value.', 'داشبۆرد: کۆی فرۆشتن، کۆی تێچوو، قازانج، بەهای کارگە (کۆگا بە نرخی کڕین)، قەرزی تۆ و بەهای کۆگا.'] },
+      { type: 'removed', text: ['Net position, profit on paper and cash profit on the dashboard (replaced by factory worth and profit).', 'دۆخی پوخت، قازانج لەسەر کاغەز و قازانجی کاش لە داشبۆرد (لە جیاتیان بەهای کارگە و قازانج).'] },
+      { type: 'changed', text: ['P&L cash flow now counts cash paid for expenses and salaries.', 'ڕەوتی پارەی ڕاپۆرتی قازانج و زیان ئێستا پارەی دراو بۆ خەرجی و مووچە دەژمێرێت.'] },
+    ],
+  },
   {
     version: '2.1',
     date: '2026-11-08',

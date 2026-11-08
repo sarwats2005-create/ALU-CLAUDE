@@ -59,6 +59,12 @@ export function fmtDateTime(d: Date | string | null | undefined): string {
   return `${g('day')}/${g('month')}/${g('year')} ${g('hour')}:${g('minute')}`;
 }
 
+/** "YYYY-MM" → "MM/YYYY" (same order as dates). */
+export function fmtMonth(period: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})$/.exec(period ?? '');
+  return m ? `${m[2]}/${m[1]}` : '';
+}
+
 export function monthKey(iso: string): string {
   return iso.slice(0, 7);
 }

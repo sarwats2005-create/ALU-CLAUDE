@@ -13,6 +13,7 @@ import {
   History,
   PackagePlus,
   CircleDollarSign,
+  IdCard,
   type LucideIcon,
 } from 'lucide-react';
 import { PAGE_HREF, type Page } from '@/lib/permissions';
@@ -150,6 +151,15 @@ export const NAV_SECTIONS: NavSection[] = [
         match: prefix(PAGE_HREF.expenses),
       },
       {
+        type: 'link',
+        id: 'employees',
+        href: PAGE_HREF.employees,
+        label: 'nav.employees',
+        icon: IdCard,
+        page: 'employees',
+        match: prefix(PAGE_HREF.employees),
+      },
+      {
         type: 'group',
         id: 'vault',
         label: 'nav.vault',
@@ -204,7 +214,7 @@ export const NAV_SECTIONS: NavSection[] = [
 ];
 
 /** Flat permission pages still used by the mobile tab bar priority list. */
-export const TAB_PRIORITY: Page[] = ['dashboard', 'customers', 'pos', 'invoices', 'inventory', 'beneficiaries', 'expenses', 'vault', 'reports', 'settings'];
+export const TAB_PRIORITY: Page[] = ['dashboard', 'customers', 'pos', 'invoices', 'inventory', 'beneficiaries', 'expenses', 'employees', 'vault', 'reports', 'settings'];
 
 export const PAGE_NAV: Record<Page, { icon: LucideIcon; label: DictKey; short?: DictKey }> = {
   dashboard: { icon: LayoutDashboard, label: 'nav.dashboard' },
@@ -214,6 +224,7 @@ export const PAGE_NAV: Record<Page, { icon: LucideIcon; label: DictKey; short?: 
   pos: { icon: ShoppingCart, label: 'nav.pos', short: 'nav.posShort' },
   invoices: { icon: ReceiptText, label: 'nav.invoices' },
   expenses: { icon: Wallet, label: 'nav.expenses' },
+  employees: { icon: IdCard, label: 'nav.employees' },
   vault: { icon: Vault, label: 'nav.vault' },
   reports: { icon: BarChart3, label: 'nav.reports' },
   settings: { icon: Settings, label: 'nav.settings' },

@@ -47,12 +47,20 @@ function monthsBetween(from: string, to: string): string[] {
 const dateCond = (col: Sql, from: string, to: string) => sql`${col} >= ${from}::date AND ${col} <= ${to}::date`;
 
 // ─── Profit & loss ─────────────────────────────────────────────────────────────────────────────────
+// Net profit = sales − cost of the aluminium sold − expenses − salaries. Processing loss is already inside the
+// cost of the aluminium sold (processing moves the whole raw cost onto the finished kg), so it is shown for
+// information only and never subtracted a second time.
 async function pl(p: ReportParams): Promise<ReportData> {
   const { from, to } = range(p);
-  const [sales, proc, cash] = await Promise.all([
+  const [sales, costs, proc, cash, spent] = await Promise.all([
     prisma.$queryRaw<Record<string, unknown>[]>`
       SELECT to_char(date,'YYYY-MM') AS m, COALESCE(SUM("totalUsd"),0) AS revenue, COALESCE(SUM("cogsUsd"),0) AS cogs
       FROM "Txn" WHERE kind = 'SALE' AND "deletedAt" IS NULL AND ${dateCond(sql`date`, from, to)} GROUP BY 1`,
+    prisma.$queryRaw<Record<string, unknown>[]>`
+      SELECT to_char(date,'YYYY-MM') AS m,
+        COALESCE(SUM(CASE WHEN kind = 'EXPENSE' THEN "totalUsd" ELSE 0 END),0) AS expenses,
+        COALESCE(SUM(CASE WHEN kind = 'SALARY' THEN "totalUsd" ELSE 0 END),0) AS salaries
+      FROM "Txn" WHERE kind IN ('EXPENSE','SALARY') AND "deletedAt" IS NULL AND ${dateCond(sql`date`, from, to)} GROUP BY 1`,
     prisma.$queryRaw<Record<string, unknown>[]>`
       SELECT to_char(date,'YYYY-MM') AS m, COALESCE(SUM("lossKg"),0) AS loss_kg,
              COALESCE(SUM(CASE WHEN "inputKg" > 0 THEN "cogsUsd" * "lossKg" / "inputKg" ELSE 0 END),0) AS loss_usd
@@ -64,20 +72,32 @@ async function pl(p: ReportParams): Promise<ReportData> {
         COALESCE(SUM(CASE WHEN kind = 'PURCHASE' THEN "cashPaidUsd"
                           WHEN kind IN ('BENEFICIARY_PAYMENT','CUSTOMER_REFUND','VAULT_WITHDRAWAL') THEN "totalUsd" ELSE 0 END),0) AS cash_out
       FROM "Txn" WHERE "deletedAt" IS NULL AND ${dateCond(sql`date`, from, to)} GROUP BY 1`,
+    // Cash that really left a vault for expenses and salaries (an unpaid due counts when it is paid), in USD.
+    prisma.$queryRaw<Record<string, unknown>[]>`
+      SELECT to_char(e.date,'YYYY-MM') AS m,
+        COALESCE(SUM((CASE WHEN e.direction = 'OUT' THEN e.amount ELSE -e.amount END) / CASE WHEN e.vault = 'IQD' THEN t.rate ELSE 1 END),0) AS out_usd
+      FROM "VaultEntry" e JOIN "Txn" t ON t.id = e."txnId"
+      WHERE e."sourceType" IN ('EXPENSE','SALARY') AND ${dateCond(sql`e.date`, from, to)} GROUP BY 1`,
   ]);
   const S = new Map(sales.map((r) => [String(r.m), r]));
+  const K = new Map(costs.map((r) => [String(r.m), r]));
   const P = new Map(proc.map((r) => [String(r.m), r]));
   const C = new Map(cash.map((r) => [String(r.m), r]));
-  const tot = { revenue: new Dec(0), cogs: new Dec(0), lossKg: new Dec(0), lossUsd: new Dec(0), cashIn: new Dec(0), cashOut: new Dec(0) };
+  const X = new Map(spent.map((r) => [String(r.m), r]));
+  const tot = { revenue: new Dec(0), cogs: new Dec(0), expenses: new Dec(0), salaries: new Dec(0), lossKg: new Dec(0), lossUsd: new Dec(0), cashIn: new Dec(0), cashOut: new Dec(0) };
   const rows = monthsBetween(from, to).map((m) => {
     const revenue = D(s(S.get(m)?.revenue));
     const cogs = D(s(S.get(m)?.cogs));
+    const expenses = D(s(K.get(m)?.expenses));
+    const salaries = D(s(K.get(m)?.salaries));
     const lossKg = D(s(P.get(m)?.loss_kg));
     const lossUsd = D(s(P.get(m)?.loss_usd));
     const cashIn = D(s(C.get(m)?.cash_in));
-    const cashOut = D(s(C.get(m)?.cash_out));
+    const cashOut = D(s(C.get(m)?.cash_out)).plus(D(s(X.get(m)?.out_usd)));
     tot.revenue = tot.revenue.plus(revenue);
     tot.cogs = tot.cogs.plus(cogs);
+    tot.expenses = tot.expenses.plus(expenses);
+    tot.salaries = tot.salaries.plus(salaries);
     tot.lossKg = tot.lossKg.plus(lossKg);
     tot.lossUsd = tot.lossUsd.plus(lossUsd);
     tot.cashIn = tot.cashIn.plus(cashIn);
@@ -87,6 +107,9 @@ async function pl(p: ReportParams): Promise<ReportData> {
       revenue: round2(revenue).toString(),
       cogs: round2(cogs).toString(),
       profit: round2(revenue.minus(cogs)).toString(),
+      expenses: round2(expenses).toString(),
+      salaries: round2(salaries).toString(),
+      netProfit: round2(revenue.minus(cogs).minus(expenses).minus(salaries)).toString(),
       lossKg: round3(lossKg).toString(),
       lossUsd: round2(lossUsd).toString(),
       cashIn: round2(cashIn).toString(),
@@ -95,6 +118,7 @@ async function pl(p: ReportParams): Promise<ReportData> {
     };
   });
   const profit = round2(tot.revenue.minus(tot.cogs));
+  const netProfit = round2(tot.revenue.minus(tot.cogs).minus(tot.expenses).minus(tot.salaries));
   return {
     type: 'pl',
     from,
@@ -103,11 +127,14 @@ async function pl(p: ReportParams): Promise<ReportData> {
       { label: 'rep.revenue', value: round2(tot.revenue).toString(), fmt: 'money' },
       { label: 'rep.cogs', value: round2(tot.cogs).toString(), fmt: 'money' },
       { label: 'rep.grossProfit', value: profit.toString(), fmt: 'money', tone: 'auto' },
+      { label: 'rep.expenses', value: round2(tot.expenses).toString(), fmt: 'money' },
+      { label: 'rep.salaries', value: round2(tot.salaries).toString(), fmt: 'money' },
+      { label: 'rep.netProfit', value: netProfit.toString(), fmt: 'money', tone: 'auto' },
       { label: 'rep.processingLossKg', value: round3(tot.lossKg).toString(), fmt: 'kg' },
       { label: 'rep.processingLossUsd', value: round2(tot.lossUsd).toString(), fmt: 'money' },
       { label: 'rep.netCashFlow', value: round2(tot.cashIn.minus(tot.cashOut)).toString(), fmt: 'money', tone: 'auto' },
     ],
-    chart: { kind: 'signedBars', title: 'dash.monthlyPl', fmt: 'money', series: [{ name: 'profit', points: rows.map((r) => ({ label: r.month, value: r.profit })) }] },
+    chart: { kind: 'signedBars', title: 'dash.monthlyPl', fmt: 'money', series: [{ name: 'profit', points: rows.map((r) => ({ label: r.month, value: r.netProfit })) }] },
     tables: [
       {
         columns: [
@@ -115,6 +142,9 @@ async function pl(p: ReportParams): Promise<ReportData> {
           { key: 'revenue', label: 'rep.revenue', fmt: 'money' },
           { key: 'cogs', label: 'rep.cogs', fmt: 'money' },
           { key: 'profit', label: 'rep.grossProfit', fmt: 'money' },
+          { key: 'expenses', label: 'rep.expenses', fmt: 'money' },
+          { key: 'salaries', label: 'rep.salaries', fmt: 'money' },
+          { key: 'netProfit', label: 'rep.netProfit', fmt: 'money' },
           { key: 'lossKg', label: 'rep.processingLossKg', fmt: 'kg' },
           { key: 'lossUsd', label: 'rep.processingLossUsd', fmt: 'money' },
           { key: 'cashIn', label: 'rep.cashIn', fmt: 'money' },
@@ -127,6 +157,9 @@ async function pl(p: ReportParams): Promise<ReportData> {
           revenue: round2(tot.revenue).toString(),
           cogs: round2(tot.cogs).toString(),
           profit: profit.toString(),
+          expenses: round2(tot.expenses).toString(),
+          salaries: round2(tot.salaries).toString(),
+          netProfit: netProfit.toString(),
           lossKg: round3(tot.lossKg).toString(),
           lossUsd: round2(tot.lossUsd).toString(),
           cashIn: round2(tot.cashIn).toString(),

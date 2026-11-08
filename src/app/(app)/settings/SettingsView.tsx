@@ -808,6 +808,7 @@ const NAV_LABEL: Record<(typeof PAGES)[number], DictKey> = {
   pos: 'nav.pos',
   invoices: 'nav.invoices',
   expenses: 'nav.expenses',
+  employees: 'nav.employees',
   vault: 'nav.vault',
   reports: 'nav.reports',
   settings: 'nav.settings',

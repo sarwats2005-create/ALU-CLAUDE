@@ -22,6 +22,7 @@ export async function exportExcel(): Promise<Buffer> {
     stockLedger: d.stockEntry,
     expenseCategories: d.expenseCategory,
     recurringExpenses: d.recurringExpense,
+    employees: d.employee.map((e) => ({ ...e, avatar: e.avatar ? '[picture]' : null })),
     rateLog: d.exchangeRateLog,
     users: d.user.map(({ passwordHash: _p, ...u }) => u),
   };
@@ -42,6 +43,7 @@ export async function exportExcel(): Promise<Buffer> {
     ['Stock ledger', 'stockLedger'],
     ['Expense categories', 'expenseCategories'],
     ['Recurring expenses', 'recurringExpenses'],
+    ['Employees', 'employees'],
     ['Rate log', 'rateLog'],
     ['Users', 'users'],
   ];

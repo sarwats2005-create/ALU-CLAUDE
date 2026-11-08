@@ -44,6 +44,13 @@ enum TxnKind {
   USER_VAULT_FUND
   /// Owner takes money back from a staff personal vault into the main factory vault.
   USER_VAULT_COLLECT
+  /// Salary paid to an employee (recorded in USD, paid out of one vault).
+  SALARY
+}
+
+enum SalaryType {
+  MONTHLY
+  DAILY
 }
 
 enum RecurFrequency {
@@ -312,7 +319,13 @@ model Txn {
   unitName      String      @default("")
   unitPrice     Decimal?    @db.Decimal(18, 4)
   quantity      Decimal?    @db.Decimal(18, 3)
+  /// Salary: the employee paid (label keeps their name at the time), and the month it pays ("YYYY-MM").
+  /// Daily pay: quantity = days worked, unitPrice = daily rate (USD).
+  employeeId    String?
+  employee      Employee?   @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  period        String?
   /// Set when posted by a recurring rule; runKey ("<ruleId>:<YYYY-MM-DD>") stops a run being posted twice.
+  /// Monthly salaries use "salary:<employeeId>:<YYYY-MM>", so a month is never paid twice automatically.
   recurringId   String?
   recurring     RecurringExpense? @relation(fields: [recurringId], references: [id], onDelete: SetNull)
   runKey        String?     @unique
@@ -348,6 +361,28 @@ model Txn {
   @@index([vaultOwnerUserId])
   @@index([fundUserId])
   @@index([createdById])
+  @@index([employeeId])
+}
+
+/// Factory workers on the payroll. Salaries are always in USD; each payment is a SALARY transaction.
+model Employee {
+  id         String     @id @default(cuid())
+  name       String
+  /// Monthly salary, or the rate per day for daily workers (USD).
+  salaryUsd  Decimal    @db.Decimal(18, 2)
+  salaryType SalaryType @default(MONTHLY)
+  phone      String     @default("")
+  /// "" | "male" | "female"
+  gender     String     @default("")
+  address    String     @default("")
+  active     Boolean    @default(true)
+  /// data URL (square crop, rendered as a circle)
+  avatar     String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  txns       Txn[]
+
+  @@index([name])
 }
 
 /// Expense categories (Settings → Expenses). unitEnabled: amount = price per unit × quantity.

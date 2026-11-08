@@ -257,6 +257,8 @@ export async function txnDetail(id: string) {
     unitPrice: t.unitPrice?.toString() ?? null,
     quantity: t.quantity?.toString() ?? null,
     recurringId: t.recurringId,
+    /** Salary: the month it pays ("YYYY-MM"). */
+    period: t.period,
     /** Part of this document the vault couldn't pay yet (unpaid vault due), in the vault's currency. */
     dueRemaining: openDues.length ? openDues.reduce((s, d) => s.plus(D(d.amount).minus(D(d.paid))), D(0)).toString() : null,
     dueVault: openDues[0]?.vault ?? null,

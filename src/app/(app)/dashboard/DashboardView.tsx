@@ -4,7 +4,7 @@ import { HeroFactory } from '@/components/hero-art';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, CheckCircle2, ChevronRight, Factory, HandCoins, PackagePlus, ShoppingCart, Truck, Wallet } from 'lucide-react';
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Boxes, ChevronRight, Factory, HandCoins, Landmark, PackagePlus, Receipt, ShoppingCart, TrendingUp, Truck, Wallet } from 'lucide-react';
 import type { dashboard } from '@/lib/server/q/dashboard';
 import { useApp } from '@/lib/client/app-context';
 import { D, fmtKg, fmtMoney } from '@/lib/money';
@@ -71,7 +71,8 @@ export function DashboardView({ data }: { data: Data }) {
   const cash = D(c.vaultTotalUsd);
   const dues = D(c.allDuesUsd);
   const staffCash = D(c.staffTotalUsd);
-  const net = D(c.netPosition);
+  const worth = D(c.factoryWorth);
+  const netProfit = D(c.netProfit);
   // Loud when the factory is short: unpaid dues, a vault below zero, or more owed to suppliers than cash held.
   const shortOfCash = D(c.payable).gt(cash.plus(staffCash));
   const inDebt = dues.gt(0) || c.mainVaultNegative || shortOfCash;
@@ -122,7 +123,55 @@ export function DashboardView({ data }: { data: Data }) {
         </Card>
       ) : null}
 
-      {/* ── 1. Money position: one card, four equal cells ── */}
+      {/* ── 1. The big picture: what came in, what it cost, what is left, what the factory is worth ── */}
+      <section aria-labelledby="dash-picture">
+        <SectionLabel id="dash-picture">{t('dash.picture')}</SectionLabel>
+        <SummaryStrip>
+          <SummaryCell
+            icon={<ShoppingCart className="h-[18px] w-[18px]" aria-hidden="true" />}
+            label={t('dash.totalSales')}
+            value={fmtMoney(c.revenue)}
+            sub={t('dash.totalSalesSub', { n: c.totalSalesCount })}
+            href={can('invoices') ? '/invoices' : undefined}
+          />
+          <SummaryCell
+            icon={<Receipt className="h-[18px] w-[18px]" aria-hidden="true" />}
+            label={t('dash.totalCost')}
+            value={fmtMoney(c.totalCost)}
+            sub={
+              <span className="num block">
+                <span className="block">{t('dash.costAlu', { x: fmtMoney(c.cogs) })}</span>
+                <span className="block">{t('dash.costExp', { x: fmtMoney(c.expensesAll) })}</span>
+                <span className="block">{t('dash.costSal', { x: fmtMoney(c.salariesAll) })}</span>
+              </span>
+            }
+          />
+          <SummaryCell
+            icon={<TrendingUp className="h-[18px] w-[18px]" aria-hidden="true" />}
+            label={t('dash.netProfit')}
+            value={fmtMoney(netProfit)}
+            tone={netProfit.isNegative() ? 'danger' : 'success'}
+            sub={t('dash.netProfitSub')}
+            href={can('reports') ? '/reports' : undefined}
+          />
+          <SummaryCell
+            icon={<Landmark className="h-[18px] w-[18px]" aria-hidden="true" />}
+            label={t('dash.worth')}
+            value={fmtMoney(worth)}
+            tone={worth.isNegative() ? 'danger' : undefined}
+            sub={t('dash.worthSub')}
+          />
+        </SummaryStrip>
+        <p className={cx('mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-ctl px-4 py-2.5 text-meta', worth.isNegative() ? 'bg-danger-tint text-danger-ink' : 'bg-tint text-ink')}>
+          <span className="font-semibold">{t('dash.worth')}</span>
+          <span className="num text-body font-bold">{fmtMoney(worth)}</span>
+          <span className="num text-caption opacity-80">
+            {t('dash.worthLine', { cash: fmtMoney(cash.plus(staffCash)), owed: fmtMoney(c.receivable), stock: fmtMoney(c.stockValue), owe: fmtMoney(c.youOwe) })}
+          </span>
+        </p>
+      </section>
+
+      {/* ── 2. Money position: one card, four equal cells ── */}
       <section aria-labelledby="dash-position">
         <SectionLabel id="dash-position">{t('dash.position')}</SectionLabel>
         {inDebt ? (
@@ -165,36 +214,27 @@ export function DashboardView({ data }: { data: Data }) {
             href={can('customers') ? '/customers' : undefined}
           />
           <SummaryCell
-            icon={<Truck className="h-[18px] w-[18px]" aria-hidden="true" />}
-            label={t('dash.payable')}
-            value={fmtMoney(c.payable)}
-            sub={t('dash.suppliersN', { n: c.payableCount })}
-            href={can('beneficiaries') ? '/beneficiaries' : undefined}
+            icon={dues.gt(0) ? <AlertTriangle className="h-[18px] w-[18px]" aria-hidden="true" /> : <Truck className="h-[18px] w-[18px]" aria-hidden="true" />}
+            label={t('dash.youOwe')}
+            value={fmtMoney(c.youOwe)}
+            tone={dues.gt(0) ? 'danger' : undefined}
+            alert={dues.gt(0)}
+            sub={
+              <span className="num block">
+                <span className="block">{t('dash.oweSuppliers', { x: fmtMoney(c.payable), n: c.payableCount })}</span>
+                <span className="block">{dues.gt(0) ? t('dash.oweDues', { x: fmtMoney(dues), n: c.allDuesCount }) : t('dash.duesNone')}</span>
+              </span>
+            }
+            href={dues.gt(0) ? (can('vault') ? '/vault/dues' : undefined) : can('beneficiaries') ? '/beneficiaries' : undefined}
           />
-          {dues.gt(0) ? (
-            <SummaryCell
-              icon={<AlertTriangle className="h-[18px] w-[18px]" aria-hidden="true" />}
-              label={t('dash.dues')}
-              value={fmtMoney(dues)}
-              tone="danger"
-              alert
-              sub={t('dash.duesN', { n: c.allDuesCount })}
-              href={can('vault') ? '/vault/dues' : undefined}
-            />
-          ) : (
-            <SummaryCell
-              icon={<CheckCircle2 className="h-[18px] w-[18px]" aria-hidden="true" />}
-              label={t('dash.dues')}
-              value={<span className="text-success-ink">{t('dash.duesNone')}</span>}
-              sub={t('dash.duesNoneSub')}
-            />
-          )}
+          <SummaryCell
+            icon={<Boxes className="h-[18px] w-[18px]" aria-hidden="true" />}
+            label={t('dash.stockValue')}
+            value={fmtMoney(c.stockValue)}
+            sub={t('dash.stockValueSub')}
+            href={can('inventory') ? '/inventory' : undefined}
+          />
         </SummaryStrip>
-        <p className={cx('mt-3 flex flex-wrap items-baseline gap-x-2 rounded-ctl px-4 py-2.5 text-meta', net.isNegative() ? 'bg-danger-tint text-danger-ink' : 'bg-tint text-ink')}>
-          <span className="font-semibold">{t('money.net')}</span>
-          <span className="num text-body font-bold">{fmtMoney(net)}</span>
-          <span className="text-caption opacity-80">{t('money.netHint')}</span>
-        </p>
       </section>
 
       {/* ── 2. Performance: one headline figure, one switchable chart ── */}
@@ -220,8 +260,8 @@ export function DashboardView({ data }: { data: Data }) {
             <div className="grid grid-cols-1 gap-3 border-t border-line-soft pt-4 sm:grid-cols-2 lg:grid-cols-1">
               <Mini label={t('dash.salesMonth')} value={fmtMoney(c.salesMonth)} sub={t('dash.invoicesCount', { n: c.salesMonthCount })} />
               <Mini label={t('dash.expensesMonth')} value={fmtMoney(c.expensesMonth)} sub={t('dash.expensesN', { n: c.expensesMonthCount })} href={can('expenses') ? '/expenses' : undefined} />
-              <Mini label={t('money.paperProfit')} value={fmtMoney(c.profit)} sub={t('money.paperProfitHint')} tone={D(c.profit).isNegative() ? 'danger' : 'success'} />
-              <Mini label={t('money.cashProfit')} value={fmtMoney(c.cashProfit)} sub={t('money.cashProfitHint', { x: fmtMoney(c.receivable) })} tone={D(c.cashProfit).isNegative() ? 'danger' : 'success'} />
+              <Mini label={t('dash.salariesMonth')} value={fmtMoney(c.salariesMonth)} sub={t('dash.salariesN', { n: c.salariesMonthCount })} href={can('employees') ? '/employees' : undefined} />
+              <Mini label={t('dash.grossMonth')} value={fmtMoney(cur?.grossProfit ?? 0)} sub={t('dash.grossMonthSub')} tone={D(cur?.grossProfit ?? 0).isNegative() ? 'danger' : undefined} />
             </div>
           </div>
           <div className="min-w-0">
