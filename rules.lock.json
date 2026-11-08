@@ -1,6 +1,6 @@
 {
-  "version": "2.0",
-  "about": "e1274c90c5eb78c0",
+  "version": "2.1",
+  "about": "025ddff7b5aa07c8",
   "files": {
     "src/lib/rules.ts": "4b4f02b085dba6c7",
     "src/lib/lock.ts": "efcbe54f3c625fbb",

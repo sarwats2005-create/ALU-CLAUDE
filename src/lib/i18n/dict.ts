@@ -1020,6 +1020,10 @@ export const dict = {
   'due.laterHint': ['You can pay them later too:', 'دەتوانیت دواتریش بیاندەیت:'],
   'due.openPage': ['Vault → Unpaid dues', 'قاسە ← قەرزە نەدراوەکان'],
   'due.alreadyPaid': ['This due is already paid.', 'ئەم قەرزە پێشتر دراوە.'],
+  'due.benTitle': ['Beneficiary dues', 'قەرزی دابینکەران'],
+  'due.benHint': ['What the factory still owes each beneficiary. Pay records a normal beneficiary payment from your vault.', 'ئەوەی کارگە هێشتا قەرزاری هەر دابینکەرێکە. «بدە» پارەدانێکی ئاسایی بۆ دابینکەر لە قاسەکەتەوە تۆمار دەکات.'],
+  'due.benTotal': ['Total owed', 'کۆی قەرز'],
+  'due.benNone': ['The factory owes no beneficiary anything.', 'کارگە قەرزاری هیچ دابینکەرێک نییە.'],
   'due.noCash': ['The {vault} is empty. Deposit money first.', '{vault} بەتاڵە. سەرەتا پارە دابنێ.'],
   'due.unpaidFromVault': ['Unpaid from vault', 'لە قاسە نەدراوە'],
   // Erase mode (owner only, Ctrl+Alt+R + PIN)
