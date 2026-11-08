@@ -6,6 +6,7 @@ import { t } from '@/lib/i18n';
 import { fileName } from '@/lib/server/docs/pdf';
 import { audit } from '@/lib/server/audit';
 import { todayIso } from '@/lib/dates';
+import { seesAll } from '@/lib/permissions';
 
 /** Every transaction (filters + search + sort + paging). ?format=csv exports all matching rows. */
 export const GET = route({ pages: ['dashboard'] }, async ({ url, lang, user }) => {
@@ -22,6 +23,9 @@ export const GET = route({ pages: ['dashboard'] }, async ({ url, lang, user }) =
       typeId: sp.get('typeId') ?? undefined,
       from: sp.get('from') ?? undefined,
       to: sp.get('to') ?? undefined,
+      // Staff see only their own documents, unless the owner lets them see everyone's activity.
+      createdById: seesAll(user, 'dashboard') ? undefined : user.id,
+      hideVaultOf: user.isOwner ? undefined : user.id,
     },
     p,
   );

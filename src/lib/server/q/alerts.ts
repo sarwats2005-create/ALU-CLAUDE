@@ -59,19 +59,21 @@ export async function computeAlerts(user: PermUser & { id: string }, lang: Lang)
       });
     }
   }
+  // Staff: alerts about their own vault only — the main factory vault is the owner's.
+  const wallet = user.isOwner ? null : user.id;
   if (st.alertVault && canPage(user, 'vault')) {
-    const bal = await vaultBalances();
+    const bal = await vaultBalances(wallet);
     for (const v of ['USD', 'IQD'] as const) {
       const b = bal[v];
       const min = D(v === 'USD' ? st.vaultMinUsd : st.vaultMinIqd);
       const vaultName = t(v === 'USD' ? 'vault.USD' : 'vault.IQD', lang);
       if (b.isNegative()) out.push({ key: `vault:${v}:${b}`, type: 'vault', severity: 'danger', text: t('alerts.vaultNegative', lang, { vault: vaultName, x: fmtMoney(b, v) }), href: '/vault' });
-      else if (b.lt(min)) out.push({ key: `vaultmin:${v}:${b}`, type: 'vault', severity: 'warning', text: t('alerts.vaultLow', lang, { vault: vaultName, x: fmtMoney(b, v) }), href: '/vault' });
+      else if (user.isOwner && b.lt(min)) out.push({ key: `vaultmin:${v}:${b}`, type: 'vault', severity: 'warning', text: t('alerts.vaultLow', lang, { vault: vaultName, x: fmtMoney(b, v) }), href: '/vault' });
     }
   }
   // Unpaid vault dues are always shown (they are money the factory still has to pay out).
   if (canPage(user, 'vault')) {
-    const dues = await duesSummary();
+    const dues = await duesSummary(wallet);
     for (const v of ['USD', 'IQD'] as const) {
       const d = dues[v];
       if (d.count > 0)

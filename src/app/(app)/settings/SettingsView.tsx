@@ -1,13 +1,13 @@
 'use client';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Database, History, Languages, Pencil, Plus, ScrollText, Shapes, Siren, Trash2, Upload, Users, Package, ArrowLeftRight, Wallet, KeyRound, Eraser } from 'lucide-react';
+import { Building2, Database, History, Languages, Pencil, Plus, ScrollText, Shapes, Siren, Trash2, Upload, Users, Package, ArrowLeftRight, Wallet, KeyRound, Eraser, Archive, ArchiveRestore } from 'lucide-react';
 import { useApp } from '@/lib/client/app-context';
 import { api } from '@/lib/client/api';
 import { useRemote } from '@/lib/client/use-remote';
 import { fmtDateTime } from '@/lib/dates';
-import { D, fmtKg, rateLine } from '@/lib/money';
-import { ACTIONS, PAGES, actionKey, pageKey } from '@/lib/permissions';
+import { D, fmtKg, fmtMoney, rateLine } from '@/lib/money';
+import { ACTIONS, ACTIVITY_PAGES, PAGES, actionKey, activityKey, pageKey, type ActivityPage } from '@/lib/permissions';
 import type { DictKey, Lang } from '@/lib/i18n';
 import { hasKey } from '@/lib/i18n';
 import { cx } from '@/lib/cx';
@@ -784,8 +784,20 @@ function LanguageSection() {
 }
 
 // ─── Users & permissions ───────────────────────────────────────────────────────────────────────────
-type UserRow = { id: string; name: string; email: string; isOwner: boolean; active: boolean; permissions: string[]; lastLoginAt: string | null };
-type UserForm = { id?: string; name: string; email: string; password: string; active: boolean; permissions: string[]; isOwner?: boolean };
+type UserRow = {
+  id: string;
+  name: string;
+  email: string;
+  isOwner: boolean;
+  active: boolean;
+  archived: boolean;
+  archivedAt: string | null;
+  permissions: string[];
+  lastLoginAt: string | null;
+  vault: { USD: string; IQD: string } | null;
+  canDelete: boolean;
+};
+type UserForm = { id?: string; name: string; email: string; password: string; permissions: string[]; isOwner?: boolean };
 const NAV_LABEL: Record<(typeof PAGES)[number], DictKey> = {
   dashboard: 'nav.dashboard',
   customers: 'nav.customers',
@@ -806,6 +818,9 @@ function UsersSection() {
   const [f, setF] = useState<UserForm | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  // Archive / restore / delete confirmation.
+  const [ask, setAsk] = useState<{ user: UserRow; op: 'archive' | 'restore' | 'delete' } | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -822,51 +837,126 @@ function UsersSection() {
     setF(null);
     bump();
   }
-  const toggle = (key: string, on: boolean) => f && setF({ ...f, permissions: on ? [...new Set([...f.permissions, key])] : f.permissions.filter((p) => p !== key) });
+
+  async function runOp() {
+    if (!ask) return;
+    const { user: u, op } = ask;
+    setBusy(true);
+    const res =
+      op === 'delete'
+        ? await api(`/api/users/${u.id}`, { method: 'DELETE' })
+        : await api<{ returned?: { vault: 'USD' | 'IQD'; amount: string; number: string }[] }>(`/api/users/${u.id}/${op}`, { method: 'POST' });
+    setBusy(false);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    if (op === 'archive') {
+      const back = ((res.data as { returned?: { vault: 'USD' | 'IQD'; amount: string; number: string }[] }).returned ?? []).map((r) => `${fmtMoney(r.amount, r.vault)} (${r.number})`);
+      toast.success(back.length ? t('users.archivedReturned', { name: u.name, x: back.join(' + ') }) : t('users.archived', { name: u.name }));
+    } else toast.success(t(op === 'restore' ? 'users.restored' : 'users.deleted', { name: u.name }));
+    setAsk(null);
+    bump();
+  }
+
+  const toggle = (key: string, on: boolean) => {
+    if (!f) return;
+    let perms = on ? [...new Set([...f.permissions, key])] : f.permissions.filter((p) => p !== key);
+    // Turning a page off also turns off "see everyone's activity" on it.
+    if (!on && key.startsWith('page:')) perms = perms.filter((p) => p !== `activity:${key.slice(5)}`);
+    setF({ ...f, permissions: perms });
+  };
+
+  const active = (data ?? []).filter((u) => !u.archived);
+  const archived = (data ?? []).filter((u) => u.archived);
+
+  const row = (u: UserRow) => (
+    <li key={u.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <span className="min-w-0">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="bidi font-semibold text-ink">{u.name}</span>
+          {u.isOwner ? <Badge tone="brand">{t('common.owner')}</Badge> : null}
+          {u.archived ? <Badge tone="danger">{t('users.archivedBadge')}</Badge> : null}
+        </span>
+        <span className="num block text-caption text-muted" dir="ltr">
+          {u.email}
+        </span>
+        <span className="block text-caption text-muted">
+          {u.isOwner ? t('set.allAccess') : t('set.pagesCount', { n: u.permissions.filter((p) => p.startsWith('page:')).length })} · {t('common.lastLogin')}:{' '}
+          <span className="num">{u.lastLoginAt ? fmtDateTime(u.lastLoginAt) : t('common.never')}</span>
+        </span>
+        {u.vault ? (
+          <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption">
+            <span className="inline-flex items-center gap-1 font-semibold text-muted">
+              <Wallet className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('users.vault')}
+            </span>
+            <span className={cx('num', D(u.vault.USD).isNegative() ? 'text-danger-ink' : 'text-ink')}>{fmtMoney(u.vault.USD, 'USD')}</span>
+            <span className={cx('num', D(u.vault.IQD).isNegative() ? 'text-danger-ink' : 'text-ink')}>{fmtMoney(u.vault.IQD, 'IQD')}</span>
+          </span>
+        ) : null}
+      </span>
+      <span className="flex flex-wrap gap-2">
+        {!u.archived ? (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => (setErrors({}), setF({ id: u.id, name: u.name, email: u.email, password: '', permissions: u.permissions, isOwner: u.isOwner }))}
+            icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
+          >
+            {t('common.edit')}
+          </Button>
+        ) : null}
+        {!u.isOwner && !u.archived ? (
+          <Button size="sm" variant="quiet" onClick={() => setAsk({ user: u, op: 'archive' })} icon={<Archive className="h-4 w-4" aria-hidden="true" />}>
+            {t('users.archive')}
+          </Button>
+        ) : null}
+        {u.archived ? (
+          <Button size="sm" variant="secondary" onClick={() => setAsk({ user: u, op: 'restore' })} icon={<ArchiveRestore className="h-4 w-4" aria-hidden="true" />}>
+            {t('users.restore')}
+          </Button>
+        ) : null}
+        {u.canDelete ? (
+          <Button size="sm" variant="quiet" className="text-danger-ink" onClick={() => setAsk({ user: u, op: 'delete' })} icon={<Trash2 className="h-4 w-4" aria-hidden="true" />}>
+            {t('common.delete')}
+          </Button>
+        ) : null}
+      </span>
+    </li>
+  );
 
   return (
     <Section
       owner
       title={t('set.users')}
       action={
-        <Button onClick={() => (setErrors({}), setF({ name: '', email: '', password: '', active: true, permissions: [pageKey('dashboard')] }))} icon={<Plus className="h-4 w-4" aria-hidden="true" />}>
+        <Button onClick={() => (setErrors({}), setF({ name: '', email: '', password: '', permissions: [pageKey('dashboard')] }))} icon={<Plus className="h-4 w-4" aria-hidden="true" />}>
           {t('set.addUser')}
         </Button>
       }
     >
+      <p className="mb-3 rounded-ctl bg-tint px-4 py-3 text-meta text-ink">{t('users.vaultNote')}</p>
       {!data ? (
         <Skeleton className="h-40 w-full" />
       ) : (
         <>
-          <ul className="divide-y-2 divide-surface rounded-ctl bg-surface-2">
-            {data.map((u) => (
-              <li key={u.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <span className="min-w-0">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="bidi font-semibold text-ink">{u.name}</span>
-                    {u.isOwner ? <Badge tone="brand">{t('common.owner')}</Badge> : null}
-                    {!u.active ? <Badge tone="danger">{t('common.inactive')}</Badge> : null}
-                  </span>
-                  <span className="num block text-caption text-muted" dir="ltr">
-                    {u.email}
-                  </span>
-                  <span className="block text-caption text-muted">
-                    {u.isOwner ? t('set.allAccess') : t('set.pagesCount', { n: u.permissions.filter((p) => p.startsWith('page:')).length })} · {t('common.lastLogin')}:{' '}
-                    <span className="num">{u.lastLoginAt ? fmtDateTime(u.lastLoginAt) : t('common.never')}</span>
-                  </span>
-                </span>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => (setErrors({}), setF({ id: u.id, name: u.name, email: u.email, password: '', active: u.active, permissions: u.permissions, isOwner: u.isOwner }))}
-                  icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
-                >
-                  {t('common.edit')}
-                </Button>
-              </li>
-            ))}
-          </ul>
-          {data.length === 1 ? <p className="mt-3 text-meta text-muted">{t('set.usersEmpty')}</p> : null}
+          <ul className="divide-y-2 divide-surface rounded-ctl bg-surface-2">{active.map(row)}</ul>
+          {active.length === 1 ? <p className="mt-3 text-meta text-muted">{t('set.usersEmpty')}</p> : null}
+          {archived.length ? (
+            <div className="mt-4">
+              <button
+                type="button"
+                className="inline-flex min-h-11 items-center gap-2 rounded-ctl px-2 text-meta font-semibold text-muted hover:text-ink"
+                aria-expanded={showArchived}
+                onClick={() => setShowArchived((v) => !v)}
+              >
+                <Archive className="h-4 w-4" aria-hidden="true" />
+                {t('users.archivedList', { n: archived.length })}
+              </button>
+              {showArchived ? <ul className="mt-2 divide-y-2 divide-surface rounded-ctl bg-surface-2">{archived.map(row)}</ul> : null}
+            </div>
+          ) : null}
         </>
       )}
       <Dialog
@@ -902,20 +992,32 @@ function UsersSection() {
               <p className="rounded-ctl bg-tint px-4 py-3 text-meta text-ink">{t('block.ownerLocked')}</p>
             ) : (
               <>
-                <label className="flex items-center gap-3 text-body font-medium text-ink">
-                  <Toggle checked={f.active} onChange={(v) => setF({ ...f, active: v })} label={t('common.active')} />
-                  {f.active ? t('common.active') : t('common.inactive')}
-                  <span className="text-caption font-normal text-muted">{t('set.userInactive')}</span>
-                </label>
                 <fieldset>
-                  <legend className="mb-2 text-meta font-semibold text-ink">{t('set.pageAccess')}</legend>
+                  <legend className="mb-1 text-meta font-semibold text-ink">{t('set.pageAccess')}</legend>
+                  <p className="mb-2 text-caption text-muted">{t('users.activityHint')}</p>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {PAGES.map((p) => (
-                      <label key={p} className="flex items-center gap-3 rounded-ctl bg-surface-2 px-3 py-2 text-body text-ink">
-                        <Toggle checked={f.permissions.includes(pageKey(p))} onChange={(v) => toggle(pageKey(p), v)} label={t(NAV_LABEL[p])} />
-                        {t(NAV_LABEL[p])}
-                      </label>
-                    ))}
+                    {PAGES.map((p) => {
+                      const on = f.permissions.includes(pageKey(p));
+                      const act = (ACTIVITY_PAGES as readonly string[]).includes(p) ? (p as ActivityPage) : null;
+                      return (
+                        <div key={p} className="rounded-ctl bg-surface-2 px-3 py-2">
+                          <label className="flex items-center gap-3 text-body text-ink">
+                            <Toggle checked={on} onChange={(v) => toggle(pageKey(p), v)} label={t(NAV_LABEL[p])} />
+                            {t(NAV_LABEL[p])}
+                          </label>
+                          {act && on ? (
+                            <label className="mt-2 flex items-center gap-3 ps-1 text-meta text-muted">
+                              <Toggle
+                                checked={f.permissions.includes(activityKey(act))}
+                                onChange={(v) => toggle(activityKey(act), v)}
+                                label={`${t(NAV_LABEL[p])}: ${t('users.seeAll')}`}
+                              />
+                              {t('users.seeAll')}
+                            </label>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
                 </fieldset>
                 <fieldset>
@@ -933,6 +1035,35 @@ function UsersSection() {
               </>
             )}
           </form>
+        ) : null}
+      </Dialog>
+      <Dialog
+        open={!!ask}
+        onClose={() => setAsk(null)}
+        size="sm"
+        title={ask ? t(ask.op === 'archive' ? 'users.archiveTitle' : ask.op === 'restore' ? 'users.restoreTitle' : 'users.deleteTitle', { name: ask.user.name }) : ''}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setAsk(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant={ask?.op === 'delete' ? 'danger' : 'primary'} onClick={runOp} busy={busy}>
+              {ask ? t(ask.op === 'archive' ? 'users.archive' : ask.op === 'restore' ? 'users.restore' : 'common.delete') : ''}
+            </Button>
+          </>
+        }
+      >
+        {ask ? (
+          <div className="flex flex-col gap-3 text-body text-ink">
+            <p>{t(ask.op === 'archive' ? 'users.archiveBody' : ask.op === 'restore' ? 'users.restoreBody' : 'users.deleteBody')}</p>
+            {ask.op === 'archive' && ask.user.vault && (D(ask.user.vault.USD).gt(0) || D(ask.user.vault.IQD).gt(0)) ? (
+              <p className="rounded-ctl bg-tint px-4 py-3 text-meta">
+                {t('users.archiveMoney', {
+                  x: [D(ask.user.vault.USD).gt(0) ? fmtMoney(ask.user.vault.USD, 'USD') : '', D(ask.user.vault.IQD).gt(0) ? fmtMoney(ask.user.vault.IQD, 'IQD') : ''].filter(Boolean).join(' + '),
+                })}
+              </p>
+            ) : null}
+          </div>
         ) : null}
       </Dialog>
     </Section>

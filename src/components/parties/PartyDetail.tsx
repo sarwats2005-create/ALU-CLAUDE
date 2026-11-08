@@ -27,7 +27,10 @@ import { SummaryCell, SummaryStrip } from '../Summary';
 
 type Detail = {
   party: { id: string; name: string; phone: string; address: string; isDemo: boolean; hasAvatar: boolean; avatarV: number };
-  cards: { total: string; cashReceived: string; refunds: string; balance: string; profit: string; mainCount: number; txCount: number; kg: string };
+  /** profit is null for staff (owner only). */
+  cards: { total: string; cashReceived: string; refunds: string; balance: string; profit: string | null; mainCount: number; txCount: number; kg: string };
+  /** Staff without "see everyone's activity": the statement lists only their own documents. */
+  ownOnly?: boolean;
   series: { date: string; value: string }[];
 };
 
@@ -207,9 +210,9 @@ export function PartyDetail({ kind, id, editPayment }: { kind: PartyKind; id: st
         />
         <SummaryCell label={isC ? t('cust.totalSales') : t('ben.totalPurchases')} value={fmtMoney(c.total)} sub={isC ? t('cust.salesCount', { n: c.mainCount }) : t('ben.txCount', { n: c.txCount })} />
         <SummaryCell label={isC ? t('cust.cashReceived') : t('ben.paid')} value={fmtMoney(c.cashReceived)} sub={D(c.refunds).gt(0) ? `${t('kindShort.CUSTOMER_REFUND')}: ${fmtMoney(c.refunds)}` : undefined} />
-        {isC ? (
+        {isC && c.profit !== null ? (
           <SummaryCell label={t('cust.profit')} value={fmtMoney(c.profit)} tone={D(c.profit).isNegative() ? 'danger' : 'success'} />
-        ) : (
+        ) : isC ? null : (
           <SummaryCell label={t('ben.kgBought')} value={fmtKg(c.kg)} />
         )}
       </SummaryStrip>
@@ -226,10 +229,15 @@ export function PartyDetail({ kind, id, editPayment }: { kind: PartyKind; id: st
 
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 px-5 pb-4 pt-5 xl:flex-row xl:items-center xl:justify-between">
-          <h2 className="text-title font-semibold text-ink">{t('cust.statement')}</h2>
+          <div>
+            <h2 className="text-title font-semibold text-ink">{t('cust.statement')}</h2>
+            {data?.ownOnly ? <p className="text-caption text-muted">{t('stmt.ownOnly')}</p> : null}
+          </div>
           <div className="flex flex-col gap-2 md:flex-row md:items-center">
             <SearchBox value={L.q} onChange={L.setQ} placeholder={t('common.searchPlaceholder')} className="md:w-56" />
             <DateRange idPrefix="st" from={L.filters.from} to={L.filters.to} onFrom={(v) => L.setFilter('from', v)} onTo={(v) => L.setFilter('to', v)} />
+            {/* A full account statement covers everyone's documents — not offered to staff who only see their own. */}
+            {data?.ownOnly ? null : (
             <div className="flex gap-2">
               <Button
                 variant="secondary"
@@ -260,6 +268,7 @@ export function PartyDetail({ kind, id, editPayment }: { kind: PartyKind; id: st
                 {t('common.exportPdf')}
               </Button>
             </div>
+            )}
           </div>
         </div>
         <DataTable

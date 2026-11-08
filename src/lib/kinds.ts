@@ -14,7 +14,8 @@ export type Kind =
   | 'PROCESSING'
   | 'EXPENSE'
   | 'STOCK_TRANSFER'
-  | 'USER_VAULT_FUND';
+  | 'USER_VAULT_FUND'
+  | 'USER_VAULT_COLLECT';
 
 export const KINDS: Kind[] = [
   'SALE',
@@ -30,6 +31,7 @@ export const KINDS: Kind[] = [
   'EXPENSE',
   'STOCK_TRANSFER',
   'USER_VAULT_FUND',
+  'USER_VAULT_COLLECT',
 ];
 
 export const KIND_PAGE: Record<Kind, Page> = {
@@ -46,6 +48,7 @@ export const KIND_PAGE: Record<Kind, Page> = {
   EXPENSE: 'expenses',
   STOCK_TRANSFER: 'inventory',
   USER_VAULT_FUND: 'vault',
+  USER_VAULT_COLLECT: 'vault',
 };
 
 /** Pages from which a transaction of this kind may be viewed (its own page, the dashboard, and party pages). */
@@ -56,7 +59,7 @@ export function viewPages(kind: Kind): Page[] {
   if (kind.startsWith('CUSTOMER')) extra.push('customers');
   if (kind === 'PURCHASE' || kind.startsWith('BENEFICIARY')) extra.push('beneficiaries', 'inventory');
   if (kind === 'PROCESSING' || kind === 'STOCK_TRANSFER') extra.push('inventory');
-  if (kind === 'USER_VAULT_FUND') extra.push('vault', 'settings');
+  if (kind === 'USER_VAULT_FUND' || kind === 'USER_VAULT_COLLECT') extra.push('vault', 'settings');
   if (kind === 'SALE' || kind === 'PURCHASE') extra.push('invoices');
   extra.push('vault');
   return [...new Set([own, ...extra])];

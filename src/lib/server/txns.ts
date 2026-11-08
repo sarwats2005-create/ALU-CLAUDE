@@ -28,8 +28,23 @@ import { asState, cleanMultiline, cleanText, currentRate, reqCurrency, reqDate, 
 import { audit, jsonSafe } from './audit';
 import { isLocked } from '@/lib/lock';
 import { resolveInventoryId } from './inventories';
+import { notifyOwner } from './notify';
 
-export type Actor = { id: string; name: string };
+/** The vault a new document of this actor uses: null = main factory vault (owner); staff → their own vault. */
+export const walletOf = (actor: Actor): string | null => (actor.isOwner === false ? actor.id : null);
+
+/**
+ * Wallet for a save: a new document uses the actor's vault; an edit stays in the vault the document already
+ * uses (the owner editing a staff sale must not move its cash into the main vault, and vice versa).
+ */
+async function walletFor(tx: Tx, actor: Actor, editId?: string): Promise<string | null> {
+  if (!editId) return walletOf(actor);
+  const prev = await tx.txn.findUnique({ where: { id: editId }, select: { vaultOwnerUserId: true } });
+  return prev?.vaultOwnerUserId ?? null;
+}
+
+/** Who saves a document. Routes pass the signed-in user; `isOwner === false` marks a staff user. */
+export type Actor = { id: string; name: string; isOwner?: boolean };
 type Opts = { isDemo?: boolean; allowShortfall?: boolean };
 /** The user confirmed recording a payment the vault can't fully cover (see payOut). */
 const shortOk = (input: { allowShortfall?: unknown }, opts: Opts) => input.allowShortfall === true || !!opts.allowShortfall;
@@ -78,9 +93,23 @@ async function lockParties(tx: Tx, ids: (string | null | undefined)[]) {
 }
 
 // ─── (edit loading) ───────────────────────────────────────────────────────────────────────────────────────
-async function loadForEdit(tx: Tx, id: string, kinds: TxnKind[]) {
+/**
+ * Staff may change or delete only the documents they created themselves (never the owner's or a colleague's),
+ * and only when the money they moved went through their own vault — a document they recorded before staff
+ * vaults existed moved main-vault cash, so only the owner may change it.
+ */
+export function assertOwnDoc(actor: Actor, t: { createdById: string | null; number: string; kind: TxnKind; vaultOwnerUserId: string | null }) {
+  if (actor.isOwner !== false) return;
+  const movesNoMoney = t.kind === 'PROCESSING' || t.kind === 'STOCK_TRANSFER';
+  if (t.createdById !== actor.id || (!movesNoMoney && t.vaultOwnerUserId !== actor.id)) {
+    throw new AppError(403, 'txn.notYours', { number: t.number });
+  }
+}
+
+async function loadForEdit(tx: Tx, id: string, kinds: TxnKind[], actor?: Actor) {
   const old = await tx.txn.findUnique({ where: { id }, include: { lines: true } });
   if (!old || old.deletedAt || !kinds.includes(old.kind)) throw notFound();
+  if (actor) assertOwnDoc(actor, old);
   if (isLocked(old.kind, old.createdAt)) throw new AppError(409, 'invc.locked', { number: old.number });
   return old;
 }
@@ -170,8 +199,9 @@ export async function savePurchase(input: PurchaseInput, actor: Actor, editId?: 
       throw fieldError('productId', 'v.productRequired');
     }
 
-    await lockVaults(tx);
-    const old = editId ? await loadForEdit(tx, editId, ['PURCHASE']) : null;
+    const wallet = await walletFor(tx, actor, editId);
+    await lockVaults(tx, [wallet]);
+    const old = editId ? await loadForEdit(tx, editId, ['PURCHASE'], actor) : null;
     await lockParties(tx, [ben.id, old?.beneficiaryId]);
     await lockProducts(tx, [productId, ...(old ? old.lines.map((l) => l.productId) : [])]);
     const before = old ? await snapshotTxn(tx, old.id) : null;
@@ -201,6 +231,7 @@ export async function savePurchase(input: PurchaseInput, actor: Actor, editId?: 
       paidIqd: paid.iqd.toString(),
       vault: paid.vault,
       vaultAmount: paid.vaultAmount.toString(),
+      vaultOwnerUserId: wallet,
       inventoryId,
       notes,
     };
@@ -231,8 +262,8 @@ export async function savePurchase(input: PurchaseInput, actor: Actor, editId?: 
 
     const src: Src = { txnId, kind: 'PURCHASE', date };
     await stockIn(tx, src, productId, state!, kg, valueUsd, inventoryId);
-    await payOut(tx, src, 'USD', paid.usd, shortOk(input, opts));
-    await payOut(tx, src, 'IQD', paid.iqd, shortOk(input, opts));
+    await payOut(tx, src, 'USD', paid.usd, shortOk(input, opts), wallet);
+    await payOut(tx, src, 'IQD', paid.iqd, shortOk(input, opts), wallet);
     await partyMove(tx, src, { beneficiaryId: ben.id }, totalUsd.minus(cashUsd));
     touched.push({ productId, state: state!, inventoryId });
     if (old) await assertStockNonNegative(tx, touched, { number, action: 'update', txnId, createdAt: old.createdAt });
@@ -240,6 +271,7 @@ export async function savePurchase(input: PurchaseInput, actor: Actor, editId?: 
 
     await checkClientTotal(tx, actor, number, input.clientTotal, total);
     await audit({ user: actor, action: old ? 'update' : 'create', module: 'purchases', reference: number, before, after: await snapshotTxn(tx, txnId) }, tx);
+    await notifyOwner(tx, actor, txnId, old ? 'update' : 'create');
     return { id: txnId, number };
   });
 }
@@ -284,8 +316,9 @@ export async function saveSale(input: SaleInput, actor: Actor, editId?: string, 
     const customer = await tx.customer.findUnique({ where: { id: input.customerId! } });
     if (!customer) throw fieldError('customerId', 'v.customerRequired');
 
-    await lockVaults(tx);
-    const old = editId ? await loadForEdit(tx, editId, ['SALE']) : null;
+    const wallet = await walletFor(tx, actor, editId);
+    await lockVaults(tx, [wallet]);
+    const old = editId ? await loadForEdit(tx, editId, ['SALE'], actor) : null;
     await lockParties(tx, [customer.id, old?.customerId]);
     await lockProducts(tx, [...lines.map((l) => l.productId), ...(old ? old.lines.map((l) => l.productId) : [])]);
     const before = old ? await snapshotTxn(tx, old.id) : null;
@@ -346,6 +379,7 @@ export async function saveSale(input: SaleInput, actor: Actor, editId?: string, 
       paidIqd: paid.iqd.toString(),
       vault: paid.vault,
       vaultAmount: paid.vaultAmount.toString(),
+      vaultOwnerUserId: wallet,
       inventoryId,
       notes: cleanMultiline(input.notes),
     };
@@ -384,14 +418,15 @@ export async function saveSale(input: SaleInput, actor: Actor, editId?: string, 
       touched.push({ productId: l.productId, state: l.state, inventoryId });
     }
     await tx.txn.update({ where: { id: txnId }, data: { cogsUsd: round4(cogsTotal).toString() } });
-    await vaultMove(tx, src, 'USD', 'IN', paid.usd);
-    await vaultMove(tx, src, 'IQD', 'IN', paid.iqd);
+    await vaultMove(tx, src, 'USD', 'IN', paid.usd, { ownerUserId: wallet });
+    await vaultMove(tx, src, 'IQD', 'IN', paid.iqd, { ownerUserId: wallet });
     await partyMove(tx, src, { customerId: customer.id }, totalUsd.minus(cashUsd));
     if (old) await assertStockNonNegative(tx, touched, { number, action: 'update', txnId, createdAt: old.createdAt });
     await clearResidualCost(tx, src, touched);
 
     await checkClientTotal(tx, actor, number, input.clientTotal, total);
     await audit({ user: actor, action: old ? 'update' : 'create', module: 'sales', reference: number, before, after: await snapshotTxn(tx, txnId) }, tx);
+    await notifyOwner(tx, actor, txnId, old ? 'update' : 'create');
     return { id: txnId, number };
   });
 }
@@ -414,8 +449,9 @@ export async function savePayment(input: PaymentInput, actor: Actor, editId?: st
   const isCustomer = kind!.startsWith('CUSTOMER');
 
   return withTx(async (tx) => {
-    await lockVaults(tx);
-    const old = editId ? await loadForEdit(tx, editId, [kind!]) : null;
+    const wallet = await walletFor(tx, actor, editId);
+    await lockVaults(tx, [wallet]);
+    const old = editId ? await loadForEdit(tx, editId, [kind!], actor) : null;
     const partyId = old ? (isCustomer ? old.customerId : old.beneficiaryId) ?? '' : input.partyId!;
     await lockParties(tx, [partyId]);
     const party = isCustomer
@@ -448,6 +484,7 @@ export async function savePayment(input: PaymentInput, actor: Actor, editId?: st
       cashPaidUsd: amtUsd.toString(),
       vault,
       vaultAmount: vaultAmount.toString(),
+      vaultOwnerUserId: wallet,
       notes: cleanMultiline(input.notes),
     };
     let txnId: string;
@@ -476,23 +513,24 @@ export async function savePayment(input: PaymentInput, actor: Actor, editId?: st
     const p = isCustomer ? { customerId: party.id } : { beneficiaryId: party.id };
     switch (kind) {
       case 'CUSTOMER_PAYMENT':
-        await vaultMove(tx, src, vault, 'IN', vaultAmount);
+        await vaultMove(tx, src, vault, 'IN', vaultAmount, { ownerUserId: wallet });
         await partyMove(tx, src, p, amtUsd.neg());
         break;
       case 'CUSTOMER_REFUND':
-        await payOut(tx, src, vault, vaultAmount, shortOk(input, opts));
+        await payOut(tx, src, vault, vaultAmount, shortOk(input, opts), wallet);
         await partyMove(tx, src, p, amtUsd);
         break;
       case 'BENEFICIARY_PAYMENT':
-        await payOut(tx, src, vault, vaultAmount, shortOk(input, opts));
+        await payOut(tx, src, vault, vaultAmount, shortOk(input, opts), wallet);
         await partyMove(tx, src, p, amtUsd.neg());
         break;
       case 'BENEFICIARY_REFUND':
-        await vaultMove(tx, src, vault, 'IN', vaultAmount);
+        await vaultMove(tx, src, vault, 'IN', vaultAmount, { ownerUserId: wallet });
         await partyMove(tx, src, p, amtUsd);
         break;
     }
     await audit({ user: actor, action: old ? 'update' : 'create', module: isCustomer ? 'customers' : 'beneficiaries', reference: number, before, after: await snapshotTxn(tx, txnId) }, tx);
+    await notifyOwner(tx, actor, txnId, old ? 'update' : 'create');
     return { id: txnId, number };
   });
 }
@@ -510,16 +548,14 @@ export type VaultOpInput = {
   label?: string;
   notes?: string;
   allowShortfall?: boolean;
-  /** Personal wallet owner (staff). Null/omit = main factory vault. Staff ops always use their own id. */
-  ownerUserId?: string | null;
 };
 
 export async function saveVaultOp(input: VaultOpInput, actor: Actor, editId?: string, opts: Opts & { walletOwnerId?: string | null } = {}): Promise<Saved> {
   const v = new Validator();
   const kind = VAULT_KINDS.find((k) => k === input.kind);
   if (!kind) v.add('kind', 'v.required');
-  // Staff may not deposit into personal wallets (owner funds them); owner deposits only into main.
-  if (kind === 'VAULT_DEPOSIT' && opts.walletOwnerId) v.add('kind', 'vault.staffNoDeposit');
+  // Staff may not deposit into their vault (the owner funds it); the owner deposits only into the main vault.
+  if (kind === 'VAULT_DEPOSIT' && !editId && walletOf(actor)) v.add('kind', 'vault.staffNoDeposit');
   const date = reqDate(v, 'date', input.date);
   const vault = reqCurrency(v, 'vault', input.vault);
   const amount = reqPositive(v, 'amount', input.amount);
@@ -535,11 +571,12 @@ export async function saveVaultOp(input: VaultOpInput, actor: Actor, editId?: st
     }
   }
   v.throwIfAny();
-  const walletOwnerId = opts.walletOwnerId ?? null;
 
   return withTx(async (tx) => {
+    // New: the actor's own vault (the route may pass it explicitly). Edit: the vault the operation already uses.
+    const walletOwnerId = editId ? await walletFor(tx, actor, editId) : (opts.walletOwnerId ?? walletOf(actor));
     await lockVaults(tx, [walletOwnerId]);
-    const old = editId ? await loadForEdit(tx, editId, [kind!]) : null;
+    const old = editId ? await loadForEdit(tx, editId, [kind!], actor) : null;
     const before = old ? await snapshotTxn(tx, old.id) : null;
     const rate = opRate ?? (old ? D(old.rate) : await currentRate(tx));
     if (old) await reverseEffects(tx, { txnId: old.id, kind: old.kind, date: old.date });
@@ -583,11 +620,12 @@ export async function saveVaultOp(input: VaultOpInput, actor: Actor, editId?: st
       await vaultMove(tx, src, toVault!, 'IN', toAmount!, vo);
     }
     await audit({ user: actor, action: old ? 'update' : 'create', module: 'vault', reference: number, before, after: await snapshotTxn(tx, txnId) }, tx);
+    await notifyOwner(tx, actor, txnId, old ? 'update' : 'create');
     return { id: txnId, number };
   });
 }
 
-/** Owner moves cash from the main vault into a staff personal vault (same currency). */
+/** Owner moves cash from the main vault into a staff personal vault (same currency). Strict: the main vault must hold it. */
 export type FundStaffInput = { userId?: string; date?: string; vault?: string; amount?: string; notes?: string; allowShortfall?: boolean };
 
 export async function fundStaffVault(input: FundStaffInput, actor: Actor): Promise<Saved> {
@@ -600,7 +638,7 @@ export async function fundStaffVault(input: FundStaffInput, actor: Actor): Promi
 
   return withTx(async (tx) => {
     const staff = await tx.user.findUnique({ where: { id: input.userId! } });
-    if (!staff || staff.isOwner || !staff.active || !staff.hasPersonalVault) throw fieldError('userId', 'vault.fundUserInvalid');
+    if (!staff || staff.isOwner || !staff.active || staff.archivedAt) throw fieldError('userId', 'vault.fundUserInvalid');
     await lockVaults(tx, [staff.id]);
     const amt = roundMoney(amount, vault);
     if (amt.isZero()) throw fieldError('amount', 'v.positive');
@@ -625,11 +663,61 @@ export async function fundStaffVault(input: FundStaffInput, actor: Actor): Promi
       },
     });
     const src: Src = { txnId: t.id, kind: 'USER_VAULT_FUND', date };
-    await payOut(tx, src, vault, amt, input.allowShortfall === true, null);
+    // Strict: only cash the main vault really holds can be handed over (never creates a due on the main vault).
+    await assertCash(tx, vault, amt, null);
+    await vaultMove(tx, src, vault, 'OUT', amt, { ownerUserId: null });
     await vaultMove(tx, src, vault, 'IN', amt, { ownerUserId: staff.id });
     await audit({ user: actor, action: 'create', module: 'vault', reference: number, after: await snapshotTxn(tx, t.id) }, tx);
     return { id: t.id, number };
   });
+}
+
+/**
+ * Owner takes cash back from a staff vault into the main vault (same currency). Strict: the staff vault must
+ * hold the full amount, so a staff vault never goes below zero because of a collection.
+ */
+export async function collectStaffVault(input: FundStaffInput, actor: Actor, tx0?: Tx): Promise<Saved> {
+  const v = new Validator();
+  const date = reqDate(v, 'date', input.date);
+  const vault = reqCurrency(v, 'vault', input.vault);
+  const amount = reqPositive(v, 'amount', input.amount);
+  if (!input.userId) v.add('userId', 'v.required');
+  v.throwIfAny();
+
+  const run = async (tx: Tx) => {
+    const staff = await tx.user.findUnique({ where: { id: input.userId! } });
+    if (!staff || staff.isOwner) throw fieldError('userId', 'vault.fundUserInvalid');
+    await lockVaults(tx, [staff.id]);
+    const amt = roundMoney(amount, vault);
+    if (amt.isZero()) throw fieldError('amount', 'v.positive');
+    await assertCash(tx, vault, amt, staff.id);
+    const rate = await currentRate(tx);
+    const number = await nextNumber(tx, 'USER_VAULT_COLLECT');
+    const t = await tx.txn.create({
+      data: {
+        number,
+        kind: 'USER_VAULT_COLLECT',
+        date,
+        currency: vault,
+        rate: rate.toString(),
+        total: amt.toString(),
+        totalUsd: round2(toUsd(amt, vault, rate)).toString(),
+        vault,
+        vaultAmount: amt.toString(),
+        vaultOwnerUserId: staff.id,
+        fundUserId: staff.id,
+        label: staff.name,
+        notes: cleanMultiline(input.notes),
+        ...stamp(actor, true),
+      },
+    });
+    const src: Src = { txnId: t.id, kind: 'USER_VAULT_COLLECT', date };
+    await vaultMove(tx, src, vault, 'OUT', amt, { ownerUserId: staff.id });
+    await vaultMove(tx, src, vault, 'IN', amt, { ownerUserId: null });
+    await audit({ user: actor, action: 'create', module: 'vault', reference: number, after: await snapshotTxn(tx, t.id) }, tx);
+    return { id: t.id, number };
+  };
+  return tx0 ? run(tx0) : withTx(run);
 }
 
 // ─── Processing (loss) ─────────────────────────────────────────────────────────────────────────────
@@ -676,7 +764,7 @@ export async function saveProcessing(input: ProcessingInput, actor: Actor, editI
   v.throwIfAny();
 
   return withTx(async (tx) => {
-    const old = editId ? await loadForEdit(tx, editId, ['PROCESSING']) : null;
+    const old = editId ? await loadForEdit(tx, editId, ['PROCESSING'], actor) : null;
     const productId = old?.productId ?? input.productId!;
     const product = await tx.product.findUnique({ where: { id: productId } });
     if (!product) throw fieldError('productId', 'v.productRequired');
@@ -731,6 +819,7 @@ export async function saveProcessing(input: ProcessingInput, actor: Actor, editI
     if (old) await assertStockNonNegative(tx, touched, { number, action: 'update', txnId, createdAt: old.createdAt });
     await clearResidualCost(tx, src, touched);
     await audit({ user: actor, action: old ? 'update' : 'create', module: 'inventory', reference: number, before, after: await snapshotTxn(tx, txnId) }, tx);
+    await notifyOwner(tx, actor, txnId, old ? 'update' : 'create');
     return { id: txnId, number };
   });
 }
@@ -750,6 +839,7 @@ const MODULE_OF: Record<TxnKind, string> = {
   EXPENSE: 'expenses',
   STOCK_TRANSFER: 'inventory',
   USER_VAULT_FUND: 'vault',
+  USER_VAULT_COLLECT: 'vault',
 };
 
 /**
@@ -768,9 +858,13 @@ export const revertProcessing = (id: string, actor: Actor) => deleteTxn(id, acto
 
 export async function deleteTxn(id: string, actor: Actor, opts: { revert?: boolean } = {}): Promise<Saved> {
   return withTx(async (tx) => {
-    await lockVaults(tx);
+    const wallet = await walletFor(tx, actor, id);
+    await lockVaults(tx, [wallet]);
     const t = await tx.txn.findUnique({ where: { id }, include: { lines: true } });
     if (!t || t.deletedAt) throw notFound();
+    assertOwnDoc(actor, t);
+    // Moving money between the main vault and a staff vault is a fixed record: undo it with the opposite move.
+    if (t.kind === 'USER_VAULT_FUND' || t.kind === 'USER_VAULT_COLLECT') throw new AppError(409, 'vault.fundNoDelete');
     // A processing run is undone only by "Revert to raw" (master PIN), never by a plain delete.
     if (t.kind === 'PROCESSING' && !opts.revert) throw new AppError(409, 'prc.useRevert');
     if (opts.revert && t.kind !== 'PROCESSING') throw notFound();
@@ -784,6 +878,7 @@ export async function deleteTxn(id: string, actor: Actor, opts: { revert?: boole
     await clearResidualCost(tx, src, touched);
     await tx.txn.update({ where: { id }, data: { deletedAt: new Date(), ...(opts.revert ? { label: REVERTED } : {}), ...stamp(actor, false) } });
     await audit({ user: actor, action: 'delete', module: MODULE_OF[t.kind], reference: opts.revert ? `${t.number} reverted to raw` : t.number, before: snap }, tx);
+    await notifyOwner(tx, actor, id, 'delete');
     return { id, number: t.number };
   });
 }

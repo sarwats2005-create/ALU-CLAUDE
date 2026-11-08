@@ -4,7 +4,7 @@ import { D, round2, round4 } from '@/lib/money';
 import { isValidIsoDate, lastMonths, todayIso } from '@/lib/dates';
 import { sql, where, like, n, s, type Sql } from './sql';
 
-export type PurchaseFilters = { q?: string; typeId?: string; beneficiaryId?: string; from?: string; to?: string; productId?: string };
+export type PurchaseFilters = { q?: string; typeId?: string; beneficiaryId?: string; from?: string; to?: string; productId?: string; createdById?: string };
 
 /** WHERE over purchase lines (l) joined to their document (t), product (p), type (ty), beneficiary (b). */
 export function purchaseLineWhere(f: PurchaseFilters): Sql {
@@ -14,6 +14,7 @@ export function purchaseLineWhere(f: PurchaseFilters): Sql {
     f.typeId ? sql`p."typeId" = ${f.typeId}` : null,
     f.productId ? sql`p.id = ${f.productId}` : null,
     f.beneficiaryId ? sql`t."beneficiaryId" = ${f.beneficiaryId}` : null,
+    f.createdById ? sql`t."createdById" = ${f.createdById}` : null,
     isValidIsoDate(f.from) ? sql`t.date >= ${f.from}::date` : null,
     isValidIsoDate(f.to) ? sql`t.date <= ${f.to}::date` : null,
     f.q ? sql`(t.number ILIKE ${like(f.q)} OR p.name ILIKE ${like(f.q)} OR p.sku ILIKE ${like(f.q)} OR ty.name ILIKE ${like(f.q)} OR b.name ILIKE ${like(f.q)})` : null,

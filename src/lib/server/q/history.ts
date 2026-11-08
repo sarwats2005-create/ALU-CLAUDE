@@ -53,6 +53,10 @@ export type HistoryFilters = {
   createdBefore?: Date;
   /** Only documents with money still owed on them (total > cash paid). */
   owed?: boolean;
+  /** Only documents this user created (staff without "see everyone's activity"). */
+  createdById?: string;
+  /** Staff who see everyone's activity: still hide vault movements that are not in their own vault. */
+  hideVaultOf?: string;
 };
 
 export const HISTORY_SORT = ['number', 'date', 'kind', 'party', 'total', 'currency', 'vault', 'kg', 'created'];
@@ -74,6 +78,9 @@ export function historyWhere(f: HistoryFilters): Sql {
   if (f.createdFrom) conds.push(sql`t."createdAt" >= ${f.createdFrom}`);
   if (f.createdBefore) conds.push(sql`t."createdAt" < ${f.createdBefore}`);
   if (f.owed) conds.push(sql`t.total > t."cashPaid"`);
+  if (f.createdById) conds.push(sql`t."createdById" = ${f.createdById}`);
+  if (f.hideVaultOf)
+    conds.push(sql`(t.kind::text NOT IN ('VAULT_DEPOSIT','VAULT_WITHDRAWAL','VAULT_TRANSFER','USER_VAULT_FUND','USER_VAULT_COLLECT') OR t."vaultOwnerUserId" = ${f.hideVaultOf})`);
   const q = (f.q ?? '').trim();
   if (q) {
     const L = like(q);

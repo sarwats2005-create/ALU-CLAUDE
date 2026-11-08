@@ -47,7 +47,7 @@ import { useToast } from '@/components/Toast';
 type Party = { id: string; name: string; phone: string; balance: string };
 type Product = { id: string; name: string; sku: string };
 
-export function ReportsView({ initial }: { initial: ReportType }) {
+export function ReportsView({ initial, allowed }: { initial: ReportType; allowed: ReportType[] }) {
   const { t, lang } = useApp();
   const router = useRouter();
   const toast = useToast();
@@ -100,17 +100,19 @@ export function ReportsView({ initial }: { initial: ReportType }) {
         {/* Report picker: a select on phones, a list on wide screens */}
         <div className="xl:hidden">
           <Select aria-label={t('rep.title')} value={type} onChange={(e) => pick(e.target.value as ReportType)}>
-            {REPORT_TYPES.map((x) => (
+            {REPORT_TYPES.filter((x) => allowed.includes(x)).map((x) => (
               <option key={x} value={x}>
                 {t(REPORT_META[x].title)}
               </option>
             ))}
           </Select>
         </div>
-        {/* Nine reports in three small groups (Gestalt / chunking) instead of one long list. */}
+        {/* Reports in small groups (Gestalt / chunking) instead of one long list; only the ones this user may run. */}
         <Card as="div" className="hidden overflow-hidden py-2 xl:block">
           <nav aria-label={t('rep.title')}>
-            {REPORT_GROUPS.map((g) => (
+            {REPORT_GROUPS.map((g) => ({ ...g, items: g.items.filter((x) => allowed.includes(x)) }))
+              .filter((g) => g.items.length > 0)
+              .map((g) => (
               <div key={g.label} className="px-2 py-1.5">
                 <p className="px-3 pb-1 pt-1 text-caption font-semibold uppercase tracking-[0.06em] text-muted">{t(g.label)}</p>
                 <ul>

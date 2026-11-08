@@ -2,15 +2,13 @@ import { route, body } from '@/lib/server/api';
 import { saveVaultOp, type VaultOpInput } from '@/lib/server/txns';
 import { notFound } from '@/lib/server/errors';
 import { prisma } from '@/lib/db';
-import { personalVaultId } from '@/lib/server/scope';
 
+/**
+ * Edit a deposit / withdrawal / exchange. The operation stays in the vault it was made in (main or a staff
+ * vault), and staff can only edit operations they made themselves — both enforced in saveVaultOp.
+ */
 export const PUT = route<{ id: string }>({ pages: ['vault'], fail: 'err.update' }, async ({ req, user, params }) => {
-  const t = await prisma.txn.findUnique({ where: { id: params.id }, select: { kind: true, vaultOwnerUserId: true } });
+  const t = await prisma.txn.findUnique({ where: { id: params.id }, select: { kind: true } });
   if (!t) throw notFound();
-  const mine = personalVaultId(user);
-  // Staff may only edit their own personal-vault ops; owner edits main (null) or any when opening a staff op.
-  if (mine && t.vaultOwnerUserId !== mine) throw notFound();
-  if (!user.isOwner && !mine) throw notFound();
-  const walletOwnerId = user.isOwner ? (t.vaultOwnerUserId ?? null) : mine;
-  return saveVaultOp({ ...(await body<VaultOpInput>(req)), kind: t.kind }, user, params.id, { walletOwnerId });
+  return saveVaultOp({ ...(await body<VaultOpInput>(req)), kind: t.kind }, user, params.id);
 });

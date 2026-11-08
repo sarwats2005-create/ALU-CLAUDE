@@ -2,11 +2,13 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ChevronRight, History, Pencil } from 'lucide-react';
-import type { vaultHistory, vaultOverview } from '@/lib/server/q/dashboard';
+import { AlertTriangle, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ChevronRight, HandCoins, History, Pencil, Truck, Undo2, Users } from 'lucide-react';
+import type { MoneyPosition, vaultHistory, vaultOverview } from '@/lib/server/q/dashboard';
+import type { StaffVaults } from '@/lib/server/q/users';
 import type { TxnDetail } from '@/lib/server/q/history';
 import { useApp } from '@/lib/client/app-context';
 import { useRemote } from '@/lib/client/use-remote';
+import { api } from '@/lib/client/api';
 import { fmtDate, localTodayIso } from '@/lib/dates';
 import { D, Dec, convert, fmtMoney, fmtRate, parseDec, rateFromDisplay, rateToDisplay, roundMoney, type Cur } from '@/lib/money';
 import { cx } from '@/lib/cx';
@@ -20,13 +22,13 @@ import { useToast } from '@/components/Toast';
 import { RateEditDialog, RateLogDialog } from '@/components/RateDialogs';
 import { useMoneyGuard } from '@/components/MoneyGuard';
 
-type Overview = Awaited<ReturnType<typeof vaultOverview>>;
+type Overview = Awaited<ReturnType<typeof vaultOverview>> & { position: MoneyPosition | null };
 type VHist = Awaited<ReturnType<typeof vaultHistory>>;
 type HRow = VHist['rows'][number];
 type OpKind = 'VAULT_DEPOSIT' | 'VAULT_WITHDRAWAL' | 'VAULT_TRANSFER';
 
 export function VaultView({ editOp }: { editOp: TxnDetail | null }) {
-  const { t, rate, canDo } = useApp();
+  const { t, rate, canDo, user } = useApp();
   const router = useRouter();
   const panel = useTxnPanel();
   const { data } = useRemote<Overview>('/api/vault', { keepPrevious: true });
@@ -64,7 +66,8 @@ export function VaultView({ editOp }: { editOp: TxnDetail | null }) {
   return (
     <div>
       <PageHeader
-        title={t('vault.title')}
+        title={user.isOwner ? t('vault.title') : t('vault.myTitle')}
+        subtitle={user.isOwner ? undefined : t('vault.mySubtitle')}
         actions={
           <>
             {/* Exchange and withdraw are occasional; deposit is the everyday action (and pays open dues). */}
@@ -74,9 +77,12 @@ export function VaultView({ editOp }: { editOp: TxnDetail | null }) {
             <Button variant="secondary" size="lg" onClick={() => setOp({ kind: 'VAULT_WITHDRAWAL' })} icon={<ArrowUpRight className="h-4 w-4" aria-hidden="true" />}>
               {t('vault.withdraw')}
             </Button>
-            <Button size="lg" className="order-first sm:order-none" onClick={() => setOp({ kind: 'VAULT_DEPOSIT' })} icon={<ArrowDownLeft className="h-4 w-4" aria-hidden="true" />}>
-              {t('vault.deposit')}
-            </Button>
+            {/* Staff can't put money into their vault themselves — the owner funds it. */}
+            {user.isOwner ? (
+              <Button size="lg" className="order-first sm:order-none" onClick={() => setOp({ kind: 'VAULT_DEPOSIT' })} icon={<ArrowDownLeft className="h-4 w-4" aria-hidden="true" />}>
+                {t('vault.deposit')}
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -97,9 +103,13 @@ export function VaultView({ editOp }: { editOp: TxnDetail | null }) {
         </div>
       </Card>
 
+      {data?.position ? <MoneyPositionStrip p={data.position} vaults={data.vaults} /> : null}
+
       <div className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-2">
         {data ? data.vaults.map((v) => <VaultCard key={v.vault} v={v} onOpen={(id) => panel.open(id)} />) : [0, 1].map((i) => <Skeleton key={i} className="h-[420px] w-full" />)}
       </div>
+
+      {user.isOwner ? <StaffVaultsCard mainBalances={data?.vaults.map((v) => ({ vault: v.vault as Cur, balance: v.balance })) ?? []} /> : null}
 
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 px-5 pb-4 pt-5">
@@ -397,6 +407,217 @@ function VaultOpDialog({ kind, edit, balances, onClose }: { kind: OpKind; edit?:
         ) : null}
         <Field label={t('common.notes')} htmlFor="vop-notes" optionalLabel={t('common.optional')}>
           <Textarea id="vop-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={2000} />
+        </Field>
+      </form>
+    </Dialog>
+  );
+}
+
+/**
+ * Owner: debts on both sides, always in sight next to the cash. Turns red when the factory is short — unpaid
+ * vault dues, a vault below zero, or more owed to suppliers than the vaults hold.
+ */
+function MoneyPositionStrip({ p, vaults }: { p: MoneyPosition; vaults: Overview['vaults'] }) {
+  const { t, rate } = useApp();
+  const r = D(rate);
+  const cashUsd = vaults.reduce((sum, v) => sum.plus(v.vault === 'USD' ? D(v.balance) : r.gt(0) ? D(v.balance).div(r) : 0), new Dec(0));
+  const negative = vaults.some((v) => D(v.balance).isNegative());
+  const dues = D(p.duesUsd);
+  const payable = D(p.payable);
+  const short = payable.gt(cashUsd);
+  const danger = dues.gt(0) || negative || short;
+  return (
+    <section aria-label={t('money.title')} className="mb-5">
+      {danger ? (
+        <div role="alert" className="mb-3 flex items-start gap-3 rounded-card border border-danger/30 bg-danger-tint px-5 py-4 text-danger-ink">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+          <div className="min-w-0">
+            <p className="text-body font-bold">{t('money.inDebt')}</p>
+            <ul className="mt-1 list-disc ps-5 text-meta">
+              {dues.gt(0) ? <li>{t('money.duesLine', { x: fmtMoney(dues), n: p.duesCount })}</li> : null}
+              {negative ? <li>{t('money.negativeLine')}</li> : null}
+              {short ? <li>{t('money.shortLine', { owe: fmtMoney(payable), cash: fmtMoney(cashUsd) })}</li> : null}
+            </ul>
+          </div>
+        </div>
+      ) : null}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <PositionTile icon={<HandCoins className="h-4 w-4" aria-hidden="true" />} label={t('money.customersOwe')} value={fmtMoney(p.receivable)} sub={t('dash.customersN', { n: p.receivableCount })} href="/customers" />
+        <PositionTile icon={<Truck className="h-4 w-4" aria-hidden="true" />} label={t('money.youOwe')} value={fmtMoney(p.payable)} sub={t('dash.suppliersN', { n: p.payableCount })} tone={payable.gt(0) ? 'danger' : undefined} href="/beneficiaries" />
+        <PositionTile icon={<AlertTriangle className="h-4 w-4" aria-hidden="true" />} label={t('money.unpaidDues')} value={fmtMoney(dues)} sub={dues.gt(0) ? t('dash.duesN', { n: p.duesCount }) : t('dash.duesNone')} tone={dues.gt(0) ? 'danger' : 'success'} href="/vault/dues" />
+        <PositionTile icon={<Users className="h-4 w-4" aria-hidden="true" />} label={t('money.withStaff')} value={fmtMoney(p.staffUsd)} sub={t('money.withStaffSub')} />
+      </div>
+    </section>
+  );
+}
+
+function PositionTile({ icon, label, value, sub, tone, href }: { icon: React.ReactNode; label: string; value: string; sub: string; tone?: 'danger' | 'success'; href?: string }) {
+  const body = (
+    <>
+      <span className="flex items-center gap-1.5 text-caption font-semibold text-muted">
+        {icon}
+        {label}
+      </span>
+      <span className={cx('num mt-1 block text-title font-bold', tone === 'danger' ? 'text-danger-ink' : tone === 'success' ? 'text-success-ink' : 'text-ink')}>{value}</span>
+      <span className="block text-caption text-muted">{sub}</span>
+    </>
+  );
+  const cls = cx('block rounded-card border bg-surface px-4 py-3', tone === 'danger' ? 'border-danger/30' : 'border-line-soft');
+  return href ? (
+    <Link href={href} className={cx(cls, 'transition-colors hover:bg-surface-2')}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls}>{body}</div>
+  );
+}
+
+/** Owner: every staff member's vault, with "Give money" (from the main vault) and "Take back" (to it). */
+function StaffVaultsCard({ mainBalances }: { mainBalances: { vault: Cur; balance: string }[] }) {
+  const { t } = useApp();
+  const { data } = useRemote<StaffVaults>('/api/vault/staff', { keepPrevious: true });
+  const [move, setMove] = useState<{ user: StaffVaults['users'][number]; dir: 'fund' | 'collect' } | null>(null);
+  const users = (data?.users ?? []).filter((u) => !u.archived);
+  return (
+    <Card className="mb-5 overflow-hidden">
+      <div className="px-5 pb-2 pt-5">
+        <h2 className="text-title font-semibold text-ink">{t('staffVault.title')}</h2>
+        <p className="text-meta text-muted">{t('staffVault.subtitle')}</p>
+      </div>
+      {!data ? (
+        <Skeleton className="mx-5 mb-5 h-24" />
+      ) : users.length === 0 ? (
+        <p className="px-5 pb-5 text-meta text-muted">{t('staffVault.empty')}</p>
+      ) : (
+        <ul className="divide-y divide-line-soft">
+          {users.map((u) => {
+            const owes = D(u.duesUsd).gt(0) || D(u.duesIqd).gt(0);
+            return (
+              <li key={u.id} className="flex flex-col gap-3 px-5 py-3 md:flex-row md:items-center md:justify-between">
+                <span className="min-w-0">
+                  <span className="bidi block font-semibold text-ink">{u.name}</span>
+                  <span className="flex flex-wrap gap-x-4 gap-y-1 text-meta">
+                    <span className={cx('num', D(u.USD).isNegative() ? 'text-danger-ink' : 'text-ink')}>{fmtMoney(u.USD, 'USD')}</span>
+                    <span className={cx('num', D(u.IQD).isNegative() ? 'text-danger-ink' : 'text-ink')}>{fmtMoney(u.IQD, 'IQD')}</span>
+                    <span className="num text-muted">≈ {fmtMoney(u.totalUsd)}</span>
+                  </span>
+                  {owes ? (
+                    <span className="mt-1 inline-flex items-center gap-1 text-caption font-semibold text-danger-ink">
+                      <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                      {t('staffVault.dues', { x: [D(u.duesUsd).gt(0) ? fmtMoney(u.duesUsd, 'USD') : '', D(u.duesIqd).gt(0) ? fmtMoney(u.duesIqd, 'IQD') : ''].filter(Boolean).join(' + ') })}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => setMove({ user: u, dir: 'fund' })} icon={<ArrowDownLeft className="h-4 w-4" aria-hidden="true" />}>
+                    {t('staffVault.give')}
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => setMove({ user: u, dir: 'collect' })} icon={<Undo2 className="h-4 w-4" aria-hidden="true" />}>
+                    {t('staffVault.takeBack')}
+                  </Button>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {move ? <StaffMoneyDialog user={move.user} dir={move.dir} mainBalances={mainBalances} onClose={() => setMove(null)} /> : null}
+    </Card>
+  );
+}
+
+function StaffMoneyDialog({
+  user: u,
+  dir,
+  mainBalances,
+  onClose,
+}: {
+  user: StaffVaults['users'][number];
+  dir: 'fund' | 'collect';
+  mainBalances: { vault: Cur; balance: string }[];
+  onClose: () => void;
+}) {
+  const { t, bump } = useApp();
+  const toast = useToast();
+  const [vault, setVault] = useState<Cur>('USD');
+  const [amount, setAmount] = useState('');
+  const [date, setDate] = useState(localTodayIso());
+  const [notes, setNotes] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  // Where the money comes from: the main vault when giving, the staff vault when taking back.
+  const source = dir === 'fund' ? D(mainBalances.find((b) => b.vault === vault)?.balance ?? 0) : D(vault === 'USD' ? u.USD : u.IQD);
+  const amt = roundMoney(parseDec(amount) ?? new Dec(0), vault);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    const a = parseDec(amount);
+    const er: Record<string, string> = {};
+    if (!amount) er.amount = t('v.required');
+    else if (!a || !a.gt(0)) er.amount = t('v.positive');
+    else if (amt.gt(source)) er.amount = t('staffVault.notEnough', { x: fmtMoney(source.isNegative() ? 0 : source, vault) });
+    if (!date) er.date = t('v.date');
+    setErrors(er);
+    if (Object.keys(er).length) return;
+    setBusy(true);
+    const res = await api<{ number: string }>(dir === 'fund' ? '/api/vault/fund' : '/api/vault/collect', { method: 'POST', body: { userId: u.id, vault, amount, date, notes } });
+    setBusy(false);
+    if (!res.ok) {
+      setErrors(res.fieldErrors ?? {});
+      if (!res.fieldErrors) toast.error(res.error);
+      return;
+    }
+    toast.success(t(dir === 'fund' ? 'staffVault.given' : 'staffVault.taken', { x: fmtMoney(amt, vault), name: u.name, number: res.data.number }));
+    bump();
+    onClose();
+  }
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={t(dir === 'fund' ? 'staffVault.giveTitle' : 'staffVault.takeTitle', { name: u.name })}
+      description={t(dir === 'fund' ? 'staffVault.giveDesc' : 'staffVault.takeDesc')}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" form="staff-money" busy={busy}>
+            {t(dir === 'fund' ? 'staffVault.give' : 'staffVault.takeBack')}
+          </Button>
+        </>
+      }
+    >
+      <form id="staff-money" onSubmit={submit} noValidate className="flex flex-col gap-4">
+        <Field label={t('common.vault')} htmlFor="sm-vault">
+          <Segmented<Cur>
+            label={t('common.vault')}
+            value={vault}
+            onChange={setVault}
+            options={[
+              { value: 'USD', label: t('vault.USD') },
+              { value: 'IQD', label: t('vault.IQD') },
+            ]}
+            className="w-full"
+          />
+        </Field>
+        <p className="rounded-ctl bg-tint px-3 py-2 text-meta text-ink">
+          {t(dir === 'fund' ? 'staffVault.mainHas' : 'staffVault.staffHas', { name: u.name })}: <span className="num font-semibold">{fmtMoney(source, vault)}</span>
+        </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label={t('common.amount')} htmlFor="sm-amount" error={errors.amount} required>
+            <div className="relative">
+              <Input id="sm-amount" numeric value={amount} onChange={(e) => setAmount(e.target.value)} invalid={!!errors.amount} className="pe-14" data-autofocus />
+              <span className="input-suffix pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-meta font-semibold text-muted">{vault}</span>
+            </div>
+          </Field>
+          <Field label={t('common.date')} htmlFor="sm-date" error={errors.date} required>
+            <DateInput id="sm-date" value={date} onChange={setDate} invalid={!!errors.date} />
+          </Field>
+        </div>
+        <Field label={t('common.notes')} htmlFor="sm-notes" optionalLabel={t('common.optional')}>
+          <Textarea id="sm-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={2000} />
         </Field>
       </form>
     </Dialog>

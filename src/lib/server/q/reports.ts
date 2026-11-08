@@ -14,6 +14,10 @@ export type ReportParams = {
   productId?: string;
   typeId?: string;
   currency?: string;
+  /** Only documents this user created (staff without "see everyone's activity" for Reports). */
+  createdById?: string;
+  /** Leave out cost of goods and profit (staff never see them). */
+  hideProfit?: boolean;
 };
 
 function range(p: ReportParams) {
@@ -147,7 +151,9 @@ async function lineReport(kind: 'SALE' | 'PURCHASE', p: ReportParams): Promise<R
     p.productId ? sql`l."productId" = ${p.productId}` : null,
     p.typeId ? sql`pr."typeId" = ${p.typeId}` : null,
     p.currency === 'USD' || p.currency === 'IQD' ? sql`t.currency = ${p.currency}::"Currency"` : null,
+    p.createdById ? sql`t."createdById" = ${p.createdById}` : null,
   ];
+  const showProfit = isSale && !p.hideProfit;
   const rows = await prisma.$queryRaw<Record<string, unknown>[]>`
     SELECT t.id AS "txnId", t.number, t.date, t.currency, t."cashPaid", COALESCE(c.name, b.name) AS party,
            pr.name AS product, pr.sku, ty.name AS type, l.state, l.kg, l."unitPrice", l."lineTotal", l."lineTotalUsd", l."cogsUsd", l.position
@@ -180,8 +186,7 @@ async function lineReport(kind: 'SALE' | 'PURCHASE', p: ReportParams): Promise<R
       currency: String(r.currency),
       lineTotal: s(r.lineTotal),
       lineTotalUsd: round2(lu).toString(),
-      cogs: round2(lc).toString(),
-      profit: round2(lu.minus(lc)).toString(),
+      ...(showProfit ? { cogs: round2(lc).toString(), profit: round2(lu.minus(lc)).toString() } : {}),
     };
   });
   const summary: ReportData['summary'] = isSale
@@ -189,8 +194,12 @@ async function lineReport(kind: 'SALE' | 'PURCHASE', p: ReportParams): Promise<R
         { label: 'rep.invoiceCount', value: String(docs.size), fmt: 'int' },
         { label: 'rep.kgTotal', value: round3(kg).toString(), fmt: 'kg' },
         { label: 'rep.revenue', value: round2(usd).toString(), fmt: 'money' },
-        { label: 'rep.cogs', value: round2(cogs).toString(), fmt: 'money' },
-        { label: 'rep.grossProfit', value: round2(usd.minus(cogs)).toString(), fmt: 'money', tone: 'auto' },
+        ...(showProfit
+          ? ([
+              { label: 'rep.cogs', value: round2(cogs).toString(), fmt: 'money' },
+              { label: 'rep.grossProfit', value: round2(usd.minus(cogs)).toString(), fmt: 'money', tone: 'auto' },
+            ] as ReportData['summary'])
+          : []),
       ]
     : [
         { label: 'pur.count', value: String(docs.size), fmt: 'int' },
@@ -210,7 +219,7 @@ async function lineReport(kind: 'SALE' | 'PURCHASE', p: ReportParams): Promise<R
     { key: 'unitPrice', label: 'common.unitPriceShort', fmt: 'amountCur' },
     { key: 'lineTotal', label: 'common.total', fmt: 'moneyCur' },
     { key: 'lineTotalUsd', label: 'common.usdEquivalent', fmt: 'money' },
-    ...(isSale
+    ...(showProfit
       ? [
           { key: 'cogs', label: 'rep.cogs', fmt: 'money' },
           { key: 'profit', label: 'detail.profit', fmt: 'money' },
@@ -226,7 +235,7 @@ async function lineReport(kind: 'SALE' | 'PURCHASE', p: ReportParams): Promise<R
       {
         columns,
         rows: out,
-        totals: { kg: round3(kg).toString(), lineTotalUsd: round2(usd).toString(), ...(isSale ? { cogs: round2(cogs).toString(), profit: round2(usd.minus(cogs)).toString() } : {}) },
+        totals: { kg: round3(kg).toString(), lineTotalUsd: round2(usd).toString(), ...(showProfit ? { cogs: round2(cogs).toString(), profit: round2(usd.minus(cogs)).toString() } : {}) },
       },
     ],
   };

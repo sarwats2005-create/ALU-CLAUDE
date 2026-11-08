@@ -9,6 +9,7 @@ import { t } from '@/lib/i18n';
 import { fileName } from '@/lib/server/docs/pdf';
 import { audit } from '@/lib/server/audit';
 import { todayIso } from '@/lib/dates';
+import { seesAll } from '@/lib/permissions';
 
 /**
  * Sales invoices OR purchase invoices for the Invoices page (type=sale|purchase — always one kind, they are
@@ -24,6 +25,8 @@ export const GET = route({ pages: ['invoices'] }, async ({ url, lang, user }) =>
   const kind: TxnKind = sp.get('type') === 'purchase' ? 'PURCHASE' : 'SALE';
   const lock = sp.get('lock');
   const cutoff = new Date(Date.now() - EDIT_WINDOW_MS);
+  // Staff see only the invoices they made, unless the owner lets them see everyone's invoice activity.
+  const own = seesAll(user, 'invoices') ? undefined : user.id;
   const list = await listHistory(
     {
       q: p.q,
@@ -32,6 +35,7 @@ export const GET = route({ pages: ['invoices'] }, async ({ url, lang, user }) =>
       from: sp.get('from') ?? undefined,
       to: sp.get('to') ?? undefined,
       owed: sp.get('pay') === 'owed',
+      createdById: own,
       ...(lock === 'open' ? { createdFrom: cutoff } : lock === 'locked' ? { createdBefore: cutoff } : {}),
     },
     p,
@@ -69,14 +73,19 @@ export const GET = route({ pages: ['invoices'] }, async ({ url, lang, user }) =>
   }
 
   // Summary for this book (and the size of the other one, for its tab).
-  const live = { deletedAt: null, kind };
+  const mine = own ? { createdById: own } : {};
+  const live = { deletedAt: null, kind, ...mine };
   const [all, open, other, owed] = await Promise.all([
     prisma.txn.count({ where: live }),
     prisma.txn.count({ where: { ...live, createdAt: { gte: cutoff } } }),
-    prisma.txn.count({ where: { deletedAt: null, kind: kind === 'SALE' ? 'PURCHASE' : 'SALE' } }),
-    prisma.$queryRaw<{ n: bigint; usd: string | null }[]>`
-      SELECT COUNT(*) AS n, SUM("totalUsd" - "cashPaidUsd")::text AS usd
-      FROM "Txn" WHERE "deletedAt" IS NULL AND kind = ${kind}::"TxnKind" AND total > "cashPaid"`,
+    prisma.txn.count({ where: { deletedAt: null, kind: kind === 'SALE' ? 'PURCHASE' : 'SALE', ...mine } }),
+    own
+      ? prisma.$queryRaw<{ n: bigint; usd: string | null }[]>`
+          SELECT COUNT(*) AS n, SUM("totalUsd" - "cashPaidUsd")::text AS usd
+          FROM "Txn" WHERE "deletedAt" IS NULL AND kind = ${kind}::"TxnKind" AND total > "cashPaid" AND "createdById" = ${own}`
+      : prisma.$queryRaw<{ n: bigint; usd: string | null }[]>`
+          SELECT COUNT(*) AS n, SUM("totalUsd" - "cashPaidUsd")::text AS usd
+          FROM "Txn" WHERE "deletedAt" IS NULL AND kind = ${kind}::"TxnKind" AND total > "cashPaid"`,
   ]);
   return { ...list, counts: { all, open, other, owed: Number(owed[0]?.n ?? 0), owedUsd: owed[0]?.usd ?? '0' } };
 });

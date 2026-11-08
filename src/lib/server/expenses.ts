@@ -10,6 +10,8 @@ import { AppError, Validator, conflict, fieldError, notFound } from './errors';
 import { lockVaults, nextNumber, payOut, reverseEffects, vaultBalance, vaultMove, type Src } from './ledger';
 import { cleanMultiline, cleanText, currentRate, getSettings, nameKey, reqCurrency, reqDate, reqPositive } from './common';
 import { audit } from './audit';
+import { notifyOwner } from './notify';
+import { seesAll } from '@/lib/permissions';
 import { snapshotTxn, type Actor, type Saved } from './txns';
 
 // Expenses: every expense is an EXPENSE transaction that takes money OUT of one vault, in that vault's own
@@ -149,23 +151,21 @@ export async function saveExpense(input: ExpenseInput, actor: Actor, editId?: st
   if (!amount.gt(0)) throw fieldError(unitOn ? 'quantity' : 'amount', 'v.positive');
 
   return withTx(async (tx) => {
-    const actorUser = await tx.user.findUnique({
-      where: { id: actor.id },
-      select: { isOwner: true, hasPersonalVault: true, permissions: true },
-    });
-    const ownOnly = !!actorUser && !actorUser.isOwner && actorUser.permissions.includes('scope:expenses:own');
-    // Personal vault → always pay from it. Own-scope without a wallet is not allowed.
-    if (ownOnly && actorUser && !actorUser.hasPersonalVault) throw new AppError(403, 'exp.needPersonalVault');
-    const walletOwnerId = actorUser && !actorUser.isOwner && actorUser.hasPersonalVault ? actor.id : null;
-    await lockVaults(tx, [walletOwnerId]);
+    const actorUser = await tx.user.findUnique({ where: { id: actor.id }, select: { isOwner: true, permissions: true } });
+    const isStaff = !!actorUser && !actorUser.isOwner;
+    const ownOnly = isStaff && !seesAll(actorUser, 'expenses');
+    const prev = editId ? await tx.txn.findUnique({ where: { id: editId }, select: { vaultOwnerUserId: true } }) : null;
+    // A new expense is paid from the actor's vault (staff → their own); an edit stays in the vault it used.
+    const ownerId = editId ? (prev?.vaultOwnerUserId ?? null) : isStaff ? actor.id : null;
+    await lockVaults(tx, [ownerId]);
     const old = editId ? await tx.txn.findUnique({ where: { id: editId } }) : null;
     if (editId && (!old || old.deletedAt || old.kind !== 'EXPENSE')) throw notFound();
     if (old && ownOnly && old.createdById !== actor.id) throw notFound();
+    if (old && isStaff && (old.createdById !== actor.id || old.vaultOwnerUserId !== actor.id)) throw new AppError(403, 'txn.notYours', { number: old.number });
     const before = old ? await snapshotTxn(tx, old.id) : null;
     if (old) await reverseEffects(tx, { txnId: old.id, kind: old.kind, date: old.date });
 
     const rate = old ? D(old.rate) : await currentRate(tx);
-    const ownerId = walletOwnerId ?? old?.vaultOwnerUserId ?? null;
     const data = {
       date,
       currency: vault,
@@ -197,6 +197,7 @@ export async function saveExpense(input: ExpenseInput, actor: Actor, editId?: st
     }
     await payOut(tx, { txnId: id, kind: 'EXPENSE', date }, vault, amount, input.allowShortfall === true, ownerId);
     await audit({ user: actor, action: old ? 'update' : 'create', module: 'expenses', reference: number, before, after: await snapshotTxn(tx, id) }, tx);
+    await notifyOwner(tx, { ...actor, isOwner: !isStaff }, id, old ? 'update' : 'create');
     return { id, number };
   });
 }
@@ -213,13 +214,6 @@ function cleanSkips(input: ExpenseInput) {
 }
 
 export async function createRule(input: ExpenseInput, actor: Actor) {
-  const actorUser = await prisma.user.findUnique({
-    where: { id: actor.id },
-    select: { isOwner: true, hasPersonalVault: true, permissions: true },
-  });
-  const ownOnly = !!actorUser && !actorUser.isOwner && actorUser.permissions.includes('scope:expenses:own');
-  if (ownOnly && actorUser && !actorUser.hasPersonalVault) throw new AppError(403, 'exp.needPersonalVault');
-
   const v = new Validator();
   const start = isValidIsoDate(input.date) ? input.date : (v.add('date', 'v.date'), todayIso());
   if (!input.categoryId) v.add('categoryId', 'exp.categoryRequired');
@@ -269,6 +263,8 @@ export async function listRules() {
     skipFridays: r.skipFridays,
     skipWeekdays: r.skipWeekdays,
     skipDates: r.skipDates,
+    createdById: r.createdById,
+    createdByName: r.createdByName,
   }));
 }
 export type RuleRow = Awaited<ReturnType<typeof listRules>>[number];
@@ -316,7 +312,8 @@ async function stepRule(ruleId: string, today: string): Promise<Step> {
     const creator = rule.createdById
       ? await tx.user.findUnique({ where: { id: rule.createdById }, select: { isOwner: true, hasPersonalVault: true } })
       : null;
-    const ownerId = creator && !creator.isOwner && creator.hasPersonalVault ? rule.createdById : null;
+    // A rule created by a staff user pays from that user's vault.
+    const ownerId = creator && !creator.isOwner ? rule.createdById : null;
     await lockVaults(tx, [ownerId]);
     const amount = D(rule.amount);
     const bal = await vaultBalance(tx, rule.vault, ownerId);

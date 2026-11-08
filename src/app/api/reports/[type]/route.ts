@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { route } from '@/lib/server/api';
-import { notFound } from '@/lib/server/errors';
-import { isReportType } from '@/lib/reports-meta';
+import { AppError, notFound } from '@/lib/server/errors';
+import { allowedReports, isReportType } from '@/lib/reports-meta';
+import { seesAll, seesProfit } from '@/lib/permissions';
 import { runReport } from '@/lib/server/q/reports';
 import { reportCsv, reportDocument } from '@/lib/server/docs/other-docs';
 import { fileName, htmlToPdf } from '@/lib/server/docs/pdf';
@@ -10,6 +11,7 @@ import { audit } from '@/lib/server/audit';
 /** Report data as JSON (screen), CSV, printable HTML or PDF — all from the same ReportData. */
 export const GET = route<{ type: string }>({ pages: ['reports'], fail: 'err.generic' }, async ({ user, lang, params, url }) => {
   if (!isReportType(params.type)) throw notFound();
+  if (!allowedReports(user).includes(params.type)) throw new AppError(403, 'err.forbidden');
   const sp = url.searchParams;
   const get = (k: string) => sp.get(k) || undefined;
   const data = await runReport(params.type, {
@@ -20,6 +22,8 @@ export const GET = route<{ type: string }>({ pages: ['reports'], fail: 'err.gene
     productId: get('productId'),
     typeId: get('typeId'),
     currency: get('currency'),
+    createdById: seesAll(user, 'reports') ? undefined : user.id,
+    hideProfit: !seesProfit(user),
   });
   const format = sp.get('format') ?? 'json';
   const base = `${params.type}-${data.from}-${data.to}`;

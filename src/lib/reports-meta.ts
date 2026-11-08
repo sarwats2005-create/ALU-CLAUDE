@@ -6,6 +6,16 @@ export const REPORT_TYPES = ['pl', 'sales', 'purchases', 'custAging', 'benAging'
 export type ReportType = (typeof REPORT_TYPES)[number];
 export const isReportType = (v: unknown): v is ReportType => typeof v === 'string' && (REPORT_TYPES as readonly string[]).includes(v);
 
+/**
+ * Which reports a user may run. Owner: all. Staff: never P&L or the main-vault report; with "see everyone's
+ * activity" for Reports also the factory-wide ones; otherwise only sales / purchases of their own documents.
+ */
+export function allowedReports(u: { isOwner: boolean; permissions: string[] }): ReportType[] {
+  if (u.isOwner) return [...REPORT_TYPES];
+  if (u.permissions.includes('activity:reports')) return REPORT_TYPES.filter((r) => r !== 'pl' && r !== 'vault');
+  return ['sales', 'purchases'];
+}
+
 export type ReportFilter = 'customer' | 'beneficiary' | 'product' | 'type' | 'currency';
 
 export const REPORT_META: Record<ReportType, { title: DictKey; desc: DictKey; landscape: boolean; filters: ReportFilter[] }> = {

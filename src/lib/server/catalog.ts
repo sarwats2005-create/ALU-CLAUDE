@@ -9,6 +9,8 @@ import { cleanMultiline, cleanText, getSettings, nameKey, phone } from './common
 import { audit } from './audit';
 import { revokeOtherSessions } from './auth';
 import type { Actor } from './txns';
+import { lockVaults } from './ledger';
+import { todayIso as todayIsoLocal } from '@/lib/dates';
 import type { Tx } from '@/lib/db';
 import { skuFor } from '@/lib/rules';
 
@@ -268,14 +270,14 @@ export async function updateCompany(input: CompanyInput, actor: Actor) {
 }
 
 // ─── Users ─────────────────────────────────────────────────────────────────────────────────────────
+// Every staff user works from their own USD + IQD vault (the owner funds it). Status changes go through
+// archive / restore / delete below — saving the form never switches a user on or off.
 export type UserInput = {
   name?: string;
   email?: string;
   password?: string;
-  active?: boolean;
   permissions?: string[];
   lang?: string;
-  hasPersonalVault?: boolean;
 };
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -290,8 +292,7 @@ export async function saveUser(input: UserInput, actor: Actor, id?: string) {
   if (!id && password.length < 8) v.add('password', 'auth.passwordMin');
   if (id && password && password.length < 8) v.add('password', 'auth.passwordMin');
   v.throwIfAny();
-  const hasPersonalVault = input.hasPersonalVault === true;
-  const permissions = normalizeStaffPermissions(sanitizePermissions(input.permissions), hasPersonalVault);
+  const permissions = normalizeStaffPermissions(sanitizePermissions(input.permissions));
   return withTx(async (tx) => {
     const clash = await tx.user.findUnique({ where: { email }, select: { id: true } });
     if (clash && clash.id !== id) throw fieldError('email', 'v.emailExists');
@@ -300,46 +301,24 @@ export async function saveUser(input: UserInput, actor: Actor, id?: string) {
       const before = await tx.user.findUnique({ where: { id } });
       if (!before) throw notFound();
       if (before.isOwner) {
-        // The owner keeps full access and can never be deactivated; only name/email/password change.
-        if (input.active === false || actor.id !== before.id) throw new AppError(409, 'block.ownerLocked');
+        // The owner keeps full access and can never be archived; only name/email/password change, by the owner.
+        if (actor.id !== before.id) throw new AppError(409, 'block.ownerLocked');
         const after = await tx.user.update({ where: { id }, data: { name, email, ...(hash ? { passwordHash: hash } : {}) } });
         if (hash) await revokeOtherSessions(tx, id);
         await audit({ user: actor, action: 'update', module: 'users', reference: email, before: pub(before), after: pub(after) }, tx);
         return pub(after);
       }
-      if (before.hasPersonalVault && !hasPersonalVault) {
-        const bal = await tx.vaultEntry.groupBy({
-          by: ['direction'],
-          where: { ownerUserId: id },
-          _sum: { amount: true },
-        });
-        let net = D(0);
-        for (const r of bal) net = r.direction === 'IN' ? net.plus(D(r._sum.amount)) : net.minus(D(r._sum.amount));
-        if (!net.isZero()) throw conflict('users.vaultNotEmpty');
-      }
-      const active = input.active !== false;
       const after = await tx.user.update({
         where: { id },
-        data: { name, email, active, permissions, hasPersonalVault, ...(hash ? { passwordHash: hash } : {}) },
+        data: { name, email, permissions, hasPersonalVault: true, ...(hash ? { passwordHash: hash } : {}) },
       });
-      if (!active || hash) await tx.session.deleteMany({ where: { userId: id } });
-      const permsChanged =
-        JSON.stringify([...before.permissions].sort()) !== JSON.stringify([...permissions].sort()) ||
-        before.active !== active ||
-        before.hasPersonalVault !== hasPersonalVault;
+      if (hash) await tx.session.deleteMany({ where: { userId: id } });
+      const permsChanged = JSON.stringify([...before.permissions].sort()) !== JSON.stringify([...permissions].sort());
       await audit({ user: actor, action: permsChanged ? 'permission' : 'update', module: 'users', reference: email, before: pub(before), after: pub(after) }, tx);
       return pub(after);
     }
     const u = await tx.user.create({
-      data: {
-        name,
-        email,
-        passwordHash: hash!,
-        active: input.active !== false,
-        permissions,
-        hasPersonalVault,
-        lang: parseLang(input.lang),
-      },
+      data: { name, email, passwordHash: hash!, active: true, permissions, hasPersonalVault: true, lang: parseLang(input.lang) },
     });
     await audit({ user: actor, action: 'permission', module: 'users', reference: email, after: pub(u) }, tx);
     return pub(u);
@@ -352,10 +331,10 @@ function pub(u: {
   email: string;
   isOwner: boolean;
   active: boolean;
+  archivedAt?: Date | null;
   permissions: string[];
   lastLoginAt: Date | null;
   lang: string;
-  hasPersonalVault?: boolean;
 }) {
   return {
     id: u.id,
@@ -363,14 +342,106 @@ function pub(u: {
     email: u.email,
     isOwner: u.isOwner,
     active: u.active,
+    archivedAt: u.archivedAt ? u.archivedAt.toISOString() : null,
+    /** Switched off: archived now, or inactive in data from before archiving existed. */
+    archived: !u.isOwner && (!!u.archivedAt || !u.active),
     permissions: u.permissions,
     lastLoginAt: u.lastLoginAt,
     lang: u.lang,
-    hasPersonalVault: !!u.hasPersonalVault,
   };
 }
 
+/** Net balance of a staff vault (personal wallet) in one currency. */
+async function walletBalance(tx: Tx, userId: string, vault: 'USD' | 'IQD') {
+  const g = await tx.vaultEntry.groupBy({ by: ['direction'], where: { ownerUserId: userId, vault }, _sum: { amount: true } });
+  let net = D(0);
+  for (const r of g) net = r.direction === 'IN' ? net.plus(D(r._sum.amount)) : net.minus(D(r._sum.amount));
+  return net;
+}
+
+/** Has this user ever recorded anything? Such a user can only be archived, never deleted. */
+async function userHasData(tx: Tx, userId: string): Promise<boolean> {
+  const [txns, vault, dues, rules] = await Promise.all([
+    tx.txn.count({ where: { OR: [{ createdById: userId }, { updatedById: userId }, { vaultOwnerUserId: userId }, { fundUserId: userId }] } }),
+    tx.vaultEntry.count({ where: { ownerUserId: userId } }),
+    tx.vaultDue.count({ where: { ownerUserId: userId } }),
+    tx.recurringExpense.count({ where: { createdById: userId } }),
+  ]);
+  return txns + vault + dues + rules > 0;
+}
+
+/**
+ * Archive (deactivate) a staff user. Any cash left in their vault goes back to the main vault as a recorded
+ * "taken back" document, they are signed out everywhere, and their recurring expenses are paused. Refused
+ * while their vault has unpaid dues or is below zero — settle those first so no debt is left behind.
+ */
+export async function archiveUser(id: string, actor: Actor) {
+  const { collectStaffVault } = await import('./txns');
+  return withTx(async (tx) => {
+    const u = await tx.user.findUnique({ where: { id } });
+    if (!u) throw notFound();
+    if (u.isOwner) throw new AppError(409, 'block.ownerLocked');
+    if (u.archivedAt || !u.active) throw conflict('users.alreadyArchived');
+    await lockVaults(tx, [id]);
+    const openDues = await tx.vaultDue.count({ where: { ownerUserId: id, settledAt: null, txn: { deletedAt: null } } });
+    if (openDues > 0) throw conflict('users.archiveDues', { n: openDues });
+    const returned: { vault: 'USD' | 'IQD'; amount: string; number: string }[] = [];
+    for (const vault of ['USD', 'IQD'] as const) {
+      const bal = await walletBalance(tx, id, vault);
+      if (bal.isNegative()) throw conflict('users.archiveNegative', { vault: `@@vault.${vault}` });
+      if (bal.gt(0)) {
+        const saved = await collectStaffVault({ userId: id, vault, amount: bal.toString(), date: todayIsoLocal(), notes: 'archive' }, actor, tx);
+        returned.push({ vault, amount: bal.toString(), number: saved.number });
+      }
+    }
+    const after = await tx.user.update({ where: { id }, data: { active: false, archivedAt: new Date() } });
+    await tx.session.deleteMany({ where: { userId: id } });
+    await tx.recurringExpense.updateMany({ where: { createdById: id, state: { not: 'PAUSED' } }, data: { state: 'PAUSED' } });
+    await audit({ user: actor, action: 'update', module: 'users', reference: `${u.email} archived`, before: pub(u), after: { ...pub(after), returned } }, tx);
+    return { ...pub(after), returned };
+  });
+}
+
+/** Restore an archived user: they can sign in again and start from an empty vault. */
+export async function restoreUser(id: string, actor: Actor) {
+  return withTx(async (tx) => {
+    const u = await tx.user.findUnique({ where: { id } });
+    if (!u) throw notFound();
+    if (u.isOwner) throw new AppError(409, 'block.ownerLocked');
+    if (!u.archivedAt && u.active) throw conflict('users.notArchived');
+    const after = await tx.user.update({ where: { id }, data: { active: true, archivedAt: null, hasPersonalVault: true } });
+    await audit({ user: actor, action: 'update', module: 'users', reference: `${u.email} restored`, before: pub(u), after: pub(after) }, tx);
+    return pub(after);
+  });
+}
+
+/** Delete a user for good. Only allowed for a user who never recorded anything; otherwise archive them. */
+export async function deleteUser(id: string, actor: Actor) {
+  return withTx(async (tx) => {
+    const u = await tx.user.findUnique({ where: { id } });
+    if (!u) throw notFound();
+    if (u.isOwner) throw new AppError(409, 'block.ownerLocked');
+    if (await userHasData(tx, id)) throw conflict('users.hasData');
+    await tx.notification.deleteMany({ where: { OR: [{ userId: id }, { actorId: id }] } });
+    await tx.alertRead.deleteMany({ where: { userId: id } });
+    await tx.user.delete({ where: { id } });
+    await audit({ user: actor, action: 'delete', module: 'users', reference: u.email, before: pub(u) }, tx);
+    return { ok: true };
+  });
+}
+
+/** Users for Settings → Users, with each staff vault's balance and whether they can still be deleted. */
 export async function listUsers() {
   const rows = await prisma.user.findMany({ orderBy: [{ isOwner: 'desc' }, { createdAt: 'asc' }] });
-  return rows.map(pub);
+  return withTx(async (tx) => {
+    const out = [];
+    for (const u of rows) {
+      const staff = !u.isOwner;
+      const [usd, iqd, hasData] = staff
+        ? await Promise.all([walletBalance(tx, u.id, 'USD'), walletBalance(tx, u.id, 'IQD'), userHasData(tx, u.id)])
+        : [D(0), D(0), true];
+      out.push({ ...pub(u), vault: staff ? { USD: usd.toString(), IQD: iqd.toString() } : null, canDelete: staff && !hasData });
+    }
+    return out;
+  });
 }

@@ -18,6 +18,8 @@ import {
   type StockKey,
 } from './ledger';
 import { audit } from './audit';
+import { notifyOwner } from './notify';
+import { walletOf } from './txns';
 import { snapshotTxn, type Actor, type Saved } from './txns';
 
 const DEFAULT_NAME = 'Main Inventory';
@@ -222,7 +224,9 @@ export async function payInventoryRent(
   v.throwIfAny();
 
   return withTx(async (tx) => {
-    await lockVaults(tx);
+    // Rent paid by a staff user comes out of their own vault.
+    const wallet = walletOf(actor);
+    await lockVaults(tx, [wallet]);
     const inv = await tx.inventory.findUnique({ where: { id } });
     if (!inv) throw notFound();
     if (!inv.rentAmount || !inv.rentVault || !inv.rentNextDue) throw fieldError('amount', 'inv.rentNotSet');
@@ -247,6 +251,7 @@ export async function payInventoryRent(
         vaultAmount: amount.toString(),
         label,
         notes: '',
+        vaultOwnerUserId: wallet,
         inventoryId: inv.id,
         createdById: actor.id,
         createdByName: actor.name,
@@ -255,7 +260,7 @@ export async function payInventoryRent(
       },
     });
     const src: Src = { txnId: t.id, kind: 'EXPENSE', date };
-    await payOut(tx, src, vault, amount, input.allowShortfall === true);
+    await payOut(tx, src, vault, amount, input.allowShortfall === true, wallet);
 
     // Only roll the schedule forward when this month was fully paid from the vault.
     const short = await tx.vaultDue.findFirst({ where: { txnId: t.id, settledAt: null }, select: { id: true } });
@@ -265,6 +270,7 @@ export async function payInventoryRent(
       await tx.inventory.update({ where: { id: inv.id }, data: { rentNextDue: isoToDb(advanced) } });
     }
     await audit({ user: actor, action: 'create', module: 'inventory', reference: number, after: await snapshotTxn(tx, t.id) }, tx);
+    await notifyOwner(tx, actor, t.id, 'create');
     return { id: t.id, number };
   });
 }
@@ -336,6 +342,7 @@ export async function transferStock(input: TransferInput, actor: Actor): Promise
     ];
     await clearResidualCost(tx, src, touched);
     await audit({ user: actor, action: 'create', module: 'inventory', reference: number, after: await snapshotTxn(tx, t.id) }, tx);
+    await notifyOwner(tx, actor, t.id, 'create');
     return { id: t.id, number };
   });
 }

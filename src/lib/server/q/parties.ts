@@ -121,13 +121,14 @@ export type StatementRow = {
   rate: string;
   vault: string | null;
   isDemo: boolean;
+  createdById: string | null;
 };
 
 /** Every document for the party, oldest first, with the ledger-derived effect and running balance. */
 export async function statementRows(kind: PartyKind, id: string): Promise<StatementRow[]> {
   const fk = kind === 'customer' ? sql`"customerId"` : sql`"beneficiaryId"`;
   const rows = await prisma.$queryRaw<Record<string, unknown>[]>`
-    SELECT t.id, t.number, t.date, t.kind, t.currency, t.total, t."cashPaid", t.rate, t.vault, t."isDemo", t."createdAt",
+    SELECT t.id, t.number, t.date, t.kind, t.currency, t.total, t."cashPaid", t.rate, t.vault, t."isDemo", t."createdAt", t."createdById",
            COALESCE(pe.eff, 0) AS eff,
            COALESCE((
              SELECT string_agg(p.name || ' (' || p.sku || ') ' || trim(to_char(l.kg, 'FM999G999G990D00')) || ' kg', ', ' ORDER BY l.position)
@@ -155,6 +156,7 @@ export async function statementRows(kind: PartyKind, id: string): Promise<Statem
       rate: s(r.rate),
       vault: (r.vault as string) ?? null,
       isDemo: !!r.isDemo,
+      createdById: (r.createdById as string | null) ?? null,
     };
   });
 }
