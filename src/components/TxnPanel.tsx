@@ -20,8 +20,11 @@ import { useToast } from './Toast';
 import { useErase } from './EraseMode';
 import { RevertProcessingDialog } from './RevertProcessing';
 
-/** Square icon-only footer button: same height as every control, no side padding. */
-const ICON_BTN = 'w-[var(--ctl-h)] shrink-0 px-0';
+/**
+ * Square icon-only footer button: same height as every control, no side padding. `px-0!` because Button's own
+ * px-6 would otherwise win (cx joins, it does not merge) and squeeze the icon into the 8px left in the middle.
+ */
+const ICON_BTN = 'w-[var(--ctl-h)] shrink-0 px-0! [&>svg]:shrink-0';
 
 type OpenOpts = { confirmDelete?: boolean };
 type Ctx = { open: (id: string, opts?: OpenOpts) => void };
