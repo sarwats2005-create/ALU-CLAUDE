@@ -839,3 +839,124 @@ html.theme-dark .alu-kpi {
     transform: scale(1);
   }
 }
+
+/* ───────────── "Elegant redesign" (first used on Inventory): hero banner, pill tabs, tinted panel ───────────── */
+.elegant-hero {
+  background:
+    radial-gradient(ellipse 60% 120% at 100% 0%, rgba(91, 156, 240, 0.35), transparent 60%),
+    linear-gradient(112deg, #0b1f47 0%, #10306b 48%, #1a4f9c 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 18px 40px -20px rgba(11, 31, 71, 0.65);
+}
+.elegant-hero-icon {
+  background: linear-gradient(145deg, #3f86e8, #1b5db1);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 10px 24px -8px rgba(0, 0, 0, 0.45);
+}
+.elegant-hero-cta {
+  background: linear-gradient(168deg, #3f86e8, #1f5fc0);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.25) inset,
+    0 8px 22px -8px rgba(31, 95, 192, 0.9);
+  transition: filter var(--motion-base) ease, transform var(--motion-base) var(--ease-out);
+}
+.elegant-hero-cta:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.elegant-tab-on {
+  background: linear-gradient(168deg, color-mix(in srgb, var(--brand) 82%, white), var(--brand-strong));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.22) inset,
+    0 10px 24px -10px color-mix(in srgb, var(--brand) 75%, transparent);
+}
+.elegant-panel {
+  background:
+    radial-gradient(ellipse 50% 90% at 100% 50%, color-mix(in srgb, var(--brand) 14%, transparent), transparent 70%),
+    linear-gradient(105deg, var(--tint) 0%, color-mix(in srgb, var(--tint-2) 70%, var(--tint)) 100%);
+}
+
+/* ───────────────────────── Liquid glass pop-ups (every Dialog) ─────────────────────────
+   The page behind a pop-up is fully blurred out; the sheet itself is frosted, translucent glass with a
+   bright rim and a soft sheen. Falls back to a solid sheet without backdrop-filter support or when the
+   user asks for reduced transparency. */
+.liquid-backdrop {
+  background: color-mix(in srgb, var(--overlay) 38%, transparent);
+  backdrop-filter: blur(30px) saturate(1.35);
+  -webkit-backdrop-filter: blur(30px) saturate(1.35);
+}
+.liquid-glass-panel {
+  background:
+    radial-gradient(120% 55% at 0% 0%, rgba(255, 255, 255, 0.55), transparent 60%),
+    radial-gradient(90% 50% at 100% 100%, rgba(147, 197, 253, 0.18), transparent 60%),
+    linear-gradient(150deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.36));
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 30px 80px -24px rgba(15, 23, 42, 0.5),
+    0 8px 24px -12px rgba(15, 23, 42, 0.25);
+  backdrop-filter: blur(44px) saturate(1.9);
+  -webkit-backdrop-filter: blur(44px) saturate(1.9);
+}
+.liquid-glass-footer {
+  background: rgba(255, 255, 255, 0.3);
+  border-top: 1px solid rgba(255, 255, 255, 0.45);
+}
+.liquid-glass-panel .alu-field {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.65);
+  box-shadow:
+    inset 0 1px 2px rgba(15, 23, 42, 0.06),
+    0 1px 0 rgba(255, 255, 255, 0.7);
+}
+.liquid-glass-panel .alu-field:focus {
+  background: rgba(255, 255, 255, 0.82);
+}
+.liquid-glass-panel .alu-field[aria-invalid='true'] {
+  background: color-mix(in srgb, var(--danger-tint) 75%, transparent);
+}
+html.theme-dark .liquid-glass-panel {
+  background:
+    radial-gradient(120% 55% at 0% 0%, rgba(255, 255, 255, 0.1), transparent 60%),
+    radial-gradient(90% 50% at 100% 100%, rgba(61, 127, 212, 0.16), transparent 60%),
+    linear-gradient(150deg, rgba(30, 38, 54, 0.62), rgba(16, 21, 31, 0.48));
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 30px 80px -20px rgba(0, 0, 0, 0.7);
+}
+html.theme-dark .liquid-glass-footer {
+  background: rgba(255, 255, 255, 0.04);
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+html.theme-dark .liquid-glass-panel .alu-field {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+html.theme-dark .liquid-glass-panel .alu-field:focus {
+  background: rgba(255, 255, 255, 0.1);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .liquid-backdrop {
+    background: var(--overlay);
+  }
+  .liquid-glass-panel {
+    background: var(--surface-solid);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .liquid-backdrop {
+    background: var(--overlay);
+  }
+  .liquid-glass-panel,
+  html.theme-dark .liquid-glass-panel {
+    background: var(--surface-solid);
+  }
+}

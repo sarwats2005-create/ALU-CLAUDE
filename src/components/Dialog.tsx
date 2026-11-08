@@ -99,18 +99,19 @@ export function Dialog({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6">
-      <div className="anim-fade absolute inset-0 bg-overlay" onClick={dismissible ? onClose : undefined} aria-hidden="true" />
+      {/* Liquid glass: the whole page behind is blurred out, and the sheet itself is frosted translucent glass. */}
+      <div className="anim-fade liquid-backdrop absolute inset-0" onClick={dismissible ? onClose : undefined} aria-hidden="true" />
       <div
         ref={panel}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         className={cx(
-          'alu-card alu-card--elevated alu-glass anim-sheet relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-card md:rounded-card',
+          'liquid-glass-panel anim-sheet relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[24px] md:rounded-[24px]',
           width,
         )}
       >
-        {/* Flat sheet: no divider lines. The footer is a Gray 100 colour block instead. */}
+        {/* No divider lines: the footer is a lighter band of the same glass. */}
         <div className="flex items-start justify-between gap-3 px-5 pb-2 pt-5 md:px-7 md:pt-6">
           <div className="min-w-0">
             <h2 id={titleId} className="bidi text-heading font-extrabold text-ink">
@@ -135,7 +136,7 @@ export function Dialog({
           <div
             data-dialog-footer
             data-on-canvas
-            className="safe-bottom flex flex-col-reverse gap-3 bg-surface-2 px-5 py-4 md:flex-row md:justify-end md:px-7"
+            className="liquid-glass-footer safe-bottom flex flex-col-reverse gap-3 px-5 py-4 md:flex-row md:justify-end md:px-7"
           >
             {footer}
           </div>
