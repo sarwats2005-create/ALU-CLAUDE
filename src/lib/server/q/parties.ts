@@ -12,8 +12,10 @@ export type BalanceFilter = '' | 'owes' | 'settled' | 'credit';
 // ─── Lists ─────────────────────────────────────────────────────────────────────────────────────────
 export async function listParties(
   kind: PartyKind,
-  p: { q: string; state: BalanceFilter; sort: string; dir: 'asc' | 'desc'; size: number; offset: number },
+  p: { q: string; state: BalanceFilter; sort: string; dir: 'asc' | 'desc'; size: number; offset: number; createdById?: string },
 ) {
+  // Totals and counts can be limited to one user's documents; the balance is always the whole account's.
+  const byUser = p.createdById ? sql`AND "createdById" = ${p.createdById}` : sql``;
   const isC = kind === 'customer';
   const table = isC ? sql`"Customer"` : sql`"Beneficiary"`;
   const fk = isC ? sql`"customerId"` : sql`"beneficiaryId"`;
@@ -42,7 +44,7 @@ export async function listParties(
              SUM(CASE WHEN kind = ${mainKind}::"TxnKind" THEN "totalUsd" ELSE 0 END) AS total,
              SUM(CASE WHEN kind = ${mainKind}::"TxnKind" THEN 1 ELSE 0 END) AS main_cnt,
              COUNT(*) AS cnt
-      FROM "Txn" WHERE ${fk} IS NOT NULL AND "deletedAt" IS NULL GROUP BY ${fk}
+      FROM "Txn" WHERE ${fk} IS NOT NULL AND "deletedAt" IS NULL ${byUser} GROUP BY ${fk}
     ) t ON t.pid = x.id
     ${where(conds)}`;
   const [rows, count] = await Promise.all([
@@ -161,7 +163,7 @@ export async function statementRows(kind: PartyKind, id: string): Promise<Statem
   });
 }
 
-export async function partyDetail(kind: PartyKind, id: string) {
+export async function partyDetail(kind: PartyKind, id: string, createdById?: string) {
   const isC = kind === 'customer';
   const party = isC
     ? await prisma.customer.findUnique({ where: { id }, select: { id: true, name: true, phone: true, address: true, isDemo: true, updatedAt: true, avatar: true } })
@@ -177,12 +179,12 @@ export async function partyDetail(kind: PartyKind, id: string) {
       COALESCE(SUM(CASE WHEN kind = 'SALE' THEN "cogsUsd" END),0) AS cogs,
       COUNT(*) FILTER (WHERE kind IN ('SALE','PURCHASE')) AS main_count,
       COUNT(*) AS tx_count
-    FROM "Txn" WHERE ${fk} = ${id} AND "deletedAt" IS NULL`;
+    FROM "Txn" WHERE ${fk} = ${id} AND "deletedAt" IS NULL ${createdById ? sql`AND "createdById" = ${createdById}` : sql``}`;
   const kgRow = isC
     ? [{ kg: 0 }]
     : await prisma.$queryRaw<{ kg: unknown }[]>`
         SELECT COALESCE(SUM(l.kg),0) AS kg FROM "TxnLine" l JOIN "Txn" t ON t.id = l."txnId"
-        WHERE t."beneficiaryId" = ${id} AND t."deletedAt" IS NULL AND t.kind = 'PURCHASE'`;
+        WHERE t."beneficiaryId" = ${id} AND t."deletedAt" IS NULL AND t.kind = 'PURCHASE' ${createdById ? sql`AND t."createdById" = ${createdById}` : sql``}`;
   const bal = await prisma.partyEntry.aggregate({ where: isC ? { customerId: id } : { beneficiaryId: id }, _sum: { amountUsd: true } });
   const a = agg[0] ?? {};
   const mainTotal = D(s(a.main_total));

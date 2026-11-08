@@ -38,9 +38,22 @@ export const walletOf = (actor: Actor): string | null => (actor.isOwner === fals
  * uses (the owner editing a staff sale must not move its cash into the main vault, and vice versa).
  */
 async function walletFor(tx: Tx, actor: Actor, editId?: string): Promise<string | null> {
-  if (!editId) return walletOf(actor);
-  const prev = await tx.txn.findUnique({ where: { id: editId }, select: { vaultOwnerUserId: true } });
-  return prev?.vaultOwnerUserId ?? null;
+  const wallet = editId ? ((await tx.txn.findUnique({ where: { id: editId }, select: { vaultOwnerUserId: true } }))?.vaultOwnerUserId ?? null) : walletOf(actor);
+  // Lock first (advisory locks are re-entrant, callers lock again), then check — an archive running at the same
+  // moment holds the same lock, so it can't empty the vault between this check and the write.
+  await lockVaults(tx, [wallet]);
+  await assertWalletOpen(tx, wallet);
+  return wallet;
+}
+
+/**
+ * An archived staff user's vault is closed: its cash went back to the main vault, so nothing may be written
+ * into it (editing or deleting one of their documents would leave it below zero). Restore the user first.
+ */
+export async function assertWalletOpen(tx: Tx, wallet: string | null) {
+  if (!wallet) return;
+  const u = await tx.user.findUnique({ where: { id: wallet }, select: { active: true, archivedAt: true } });
+  if (!u || !u.active || u.archivedAt) throw new AppError(409, 'users.vaultArchived');
 }
 
 /** Who saves a document. Routes pass the signed-in user; `isOwner === false` marks a staff user. */
@@ -637,9 +650,10 @@ export async function fundStaffVault(input: FundStaffInput, actor: Actor): Promi
   v.throwIfAny();
 
   return withTx(async (tx) => {
+    await lockVaults(tx, [input.userId]);
+    // Checked after the lock, so an archive running at the same moment can't be overtaken.
     const staff = await tx.user.findUnique({ where: { id: input.userId! } });
     if (!staff || staff.isOwner || !staff.active || staff.archivedAt) throw fieldError('userId', 'vault.fundUserInvalid');
-    await lockVaults(tx, [staff.id]);
     const amt = roundMoney(amount, vault);
     if (amt.isZero()) throw fieldError('amount', 'v.positive');
     const rate = await currentRate(tx);

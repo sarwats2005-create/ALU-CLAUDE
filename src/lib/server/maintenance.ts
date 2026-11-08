@@ -93,7 +93,7 @@ export async function removeDemo(actor: Actor) {
     // Recompute each vault's running balance over the remaining (real) entries.
     await tx.$executeRaw`
       UPDATE "VaultEntry" v SET "balanceAfter" = x.run
-      FROM (SELECT id, SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END) OVER (PARTITION BY vault ORDER BY id) AS run FROM "VaultEntry") x
+      FROM (SELECT id, SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END) OVER (PARTITION BY vault, "ownerUserId" ORDER BY id) AS run FROM "VaultEntry") x
       WHERE v.id = x.id`;
     await audit({ user: actor, action: 'delete', module: 'settings', reference: 'demo data', before: counts }, tx);
     return counts;

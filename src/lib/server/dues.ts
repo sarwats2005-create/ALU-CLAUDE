@@ -6,7 +6,8 @@ import { dbToIso, isoToDb, todayIso } from '@/lib/dates';
 import { AppError, conflict, notFound } from './errors';
 import { lockVaults, vaultBalance, vaultMove } from './ledger';
 import { audit } from './audit';
-import type { Actor } from './txns';
+import { walletOf, type Actor } from './txns';
+import { notifyOwner } from './notify';
 
 // Unpaid vault dues: the part of a payment that the vault couldn't cover when it was recorded (the user
 // confirmed "continue anyway"). Paying a due takes the money out of the vault now, as a movement on the
@@ -99,10 +100,13 @@ export async function payDue(dueId: string, actor: Actor) {
   return withTx(async (tx) => {
     const due = await tx.vaultDue.findUnique({ where: { id: dueId } });
     if (!due) throw notFound();
+    // A due is paid only from the vault it belongs to, and only by that vault's holder (owner = main vault).
+    if (due.ownerUserId !== walletOf(actor)) throw notFound();
     await lockVaults(tx, [due.ownerUserId]);
     if (due.settledAt) throw conflict('due.alreadyPaid');
     const paid = await payOne(tx, dueId, actor);
     if (!paid.gt(0)) throw new AppError(409, 'due.noCash', { vault: `@@vault.${due.vault}` });
+    await notifyOwner(tx, actor, due.txnId, 'update');
     const left = D(due.amount).minus(D(due.paid)).minus(paid);
     return { paid: fmtMoney(paid, due.vault), left: left.gt(0) ? fmtMoney(left, due.vault) : null };
   });

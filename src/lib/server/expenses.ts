@@ -12,7 +12,7 @@ import { cleanMultiline, cleanText, currentRate, getSettings, nameKey, reqCurren
 import { audit } from './audit';
 import { notifyOwner } from './notify';
 import { seesAll } from '@/lib/permissions';
-import { snapshotTxn, type Actor, type Saved } from './txns';
+import { assertWalletOpen, snapshotTxn, type Actor, type Saved } from './txns';
 
 // Expenses: every expense is an EXPENSE transaction that takes money OUT of one vault, in that vault's own
 // currency. Recurring rules post the same expense automatically on a daily / weekly / monthly schedule.
@@ -158,6 +158,7 @@ export async function saveExpense(input: ExpenseInput, actor: Actor, editId?: st
     // A new expense is paid from the actor's vault (staff → their own); an edit stays in the vault it used.
     const ownerId = editId ? (prev?.vaultOwnerUserId ?? null) : isStaff ? actor.id : null;
     await lockVaults(tx, [ownerId]);
+    await assertWalletOpen(tx, ownerId);
     const old = editId ? await tx.txn.findUnique({ where: { id: editId } }) : null;
     if (editId && (!old || old.deletedAt || old.kind !== 'EXPENSE')) throw notFound();
     if (old && ownOnly && old.createdById !== actor.id) throw notFound();
@@ -274,6 +275,11 @@ export async function toggleRule(id: string, actor: Actor) {
   const r = await prisma.recurringExpense.findUnique({ where: { id } });
   if (!r) throw notFound();
   const state: RecurState = r.state === 'PAUSED' ? (dbToIso(r.startDate) > todayIso() ? 'SCHEDULED' : 'ACTIVE') : 'PAUSED';
+  // A rule of an archived staff user pays from that user's (closed) vault — restore the user first.
+  if (state !== 'PAUSED' && r.createdById) {
+    const creator = await prisma.user.findUnique({ where: { id: r.createdById }, select: { isOwner: true, active: true, archivedAt: true } });
+    if (creator && !creator.isOwner && (!creator.active || creator.archivedAt)) throw conflict('users.vaultArchived');
+  }
   await prisma.recurringExpense.update({ where: { id }, data: { state } });
   await audit({ user: actor, action: 'update', module: 'expenses', reference: `recurring:${id}`, before: { state: r.state }, after: { state } });
   if (state !== 'PAUSED') await runRecurringExpenses();
@@ -310,9 +316,13 @@ async function stepRule(ruleId: string, today: string): Promise<Step> {
     }
 
     const creator = rule.createdById
-      ? await tx.user.findUnique({ where: { id: rule.createdById }, select: { isOwner: true, hasPersonalVault: true } })
+      ? await tx.user.findUnique({ where: { id: rule.createdById }, select: { isOwner: true, active: true, archivedAt: true } })
       : null;
-    // A rule created by a staff user pays from that user's vault.
+    // A rule created by a staff user pays from that user's vault. An archived user's vault is closed: pause it.
+    if (creator && !creator.isOwner && (!creator.active || creator.archivedAt)) {
+      await tx.recurringExpense.update({ where: { id: rule.id }, data: { state: 'PAUSED' } });
+      return 'stop';
+    }
     const ownerId = creator && !creator.isOwner ? rule.createdById : null;
     await lockVaults(tx, [ownerId]);
     const amount = D(rule.amount);

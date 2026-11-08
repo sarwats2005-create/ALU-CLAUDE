@@ -15,11 +15,12 @@ const PAGE: Record<PartyKind, ActivityPage> = { customer: 'customers', beneficia
 export function partyCollection(kind: PartyKind) {
   const page = PAGE[kind];
   return {
-    GET: route({ pages: [page] }, async ({ url }) => {
+    GET: route({ pages: [page] }, async ({ url, user }) => {
       const p = listParams(url, ['name', 'balance', 'total', 'count', 'createdAt'], 'name', 'asc');
       const st = url.searchParams.get('state') ?? '';
       const state: BalanceFilter = st === 'owes' || st === 'settled' || st === 'credit' ? st : '';
-      return listParties(kind, { ...p, state });
+      // Staff who see only their own records: totals/counts from their own documents (balance stays complete).
+      return listParties(kind, { ...p, state, createdById: seesAll(user, page) ? undefined : user.id });
     }),
     POST: route({ pages: kind === 'customer' ? ['customers', 'pos'] : ['beneficiaries'] }, async ({ req, user }) => {
       const b = await body<PartyInput>(req);
@@ -34,7 +35,8 @@ export function partyItem(kind: PartyKind) {
   const page = PAGE[kind];
   return {
     GET: route<{ id: string }>({ pages: [page] }, async ({ params, user }) => {
-      const [detail, rows] = await Promise.all([partyDetail(kind, params.id), statementRows(kind, params.id)]);
+      const own = seesAll(user, page) ? undefined : user.id;
+      const [detail, rows] = await Promise.all([partyDetail(kind, params.id, own), statementRows(kind, params.id)]);
       // Profit is owner only. Staff without "see everyone's activity" see only their own documents.
       const cards = seesProfit(user) ? detail.cards : { ...detail.cards, profit: null };
       return { ...detail, cards, ownOnly: !seesAll(user, page), series: balanceSeries(rows) };

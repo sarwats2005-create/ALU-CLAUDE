@@ -408,11 +408,11 @@ async function vault(p: ReportParams): Promise<ReportData> {
   for (const v of ['USD', 'IQD'] as const) {
     const [opening, entries] = await Promise.all([
       prisma.$queryRaw<Record<string, unknown>[]>`
-        SELECT COALESCE(SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END),0) AS bal FROM "VaultEntry" WHERE vault = ${v}::"Currency" AND date < ${from}::date`,
+        SELECT COALESCE(SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END),0) AS bal FROM "VaultEntry" WHERE vault = ${v}::"Currency" AND "ownerUserId" IS NULL AND date < ${from}::date`,
       prisma.$queryRaw<Record<string, unknown>[]>`
         SELECT e.id, e.date, e.direction, e.amount, e."isReversal", e."sourceType", t.number, t.label, COALESCE(c.name, b.name, '') AS party
         FROM "VaultEntry" e JOIN "Txn" t ON t.id = e."txnId" LEFT JOIN "Customer" c ON c.id = t."customerId" LEFT JOIN "Beneficiary" b ON b.id = t."beneficiaryId"
-        WHERE e.vault = ${v}::"Currency" AND e.date >= ${from}::date AND e.date <= ${to}::date
+        WHERE e.vault = ${v}::"Currency" AND e."ownerUserId" IS NULL AND e.date >= ${from}::date AND e.date <= ${to}::date
         ORDER BY e.date ASC, e.id ASC`,
     ]);
     let run = D(s(opening[0]?.bal));

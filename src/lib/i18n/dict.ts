@@ -1272,6 +1272,7 @@ export const dict = {
   'users.notArchived': ['This user is not archived.', 'ئەم بەکارهێنەرە ئەرشیف نەکراوە.'],
   'users.archiveDues': ['This user’s vault has {n} unpaid dues. Fund their vault and pay the dues first, then archive.', 'قاسەی ئەم بەکارهێنەرە {n} قەرزی نەدراوی هەیە. سەرەتا پارە بخە قاسەکەی و قەرزەکان بدە، پاشان ئەرشیفی بکە.'],
   'users.archiveNegative': ['This user’s {vault} is below zero. Fund it back to zero first, then archive.', '{vault}ی ئەم بەکارهێنەرە لە ژێر سفرە. سەرەتا بیگەڕێنەوە بۆ سفر، پاشان ئەرشیفی بکە.'],
+  'users.vaultArchived': ['This staff user is archived, so their vault is closed. Restore the user first.', 'ئەم کارمەندە ئەرشیف کراوە، بۆیە قاسەکەی داخراوە. سەرەتا بەکارهێنەرەکە بگەڕێنەوە.'],
   'users.hasData': ['This user has recorded documents, so they can’t be deleted. Archive them instead — their records stay.', 'ئەم بەکارهێنەرە بەڵگەی تۆمار کردووە، بۆیە ناسڕدرێتەوە. لە جیاتی ئەوە ئەرشیفی بکە — تۆمارەکانی دەمێنن.'],
   'users.activityHint': ['On each page, staff see only what they recorded. Turn on “Also see everyone’s activity” to show them your and other staff’s documents there too.', 'لە هەر پەڕەیەکدا، کارمەند تەنها ئەوە دەبینێت کە خۆی تۆماری کردووە. «چالاکیی هەمووان ببینە» چالاک بکە بۆ ئەوەی بەڵگەکانی تۆ و کارمەندانی تریش لەوێ ببینێت.'],
   'users.seeAll': ['Also see everyone’s activity', 'چالاکیی هەمووان ببینە'],
