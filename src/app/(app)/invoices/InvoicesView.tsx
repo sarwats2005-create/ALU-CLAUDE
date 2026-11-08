@@ -1,4 +1,6 @@
 'use client';
+import { FileText as PageIcon } from 'lucide-react';
+import { HeroDocs } from '@/components/hero-art';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Clock, Eraser, Eye, FileDown, FileSpreadsheet, FolderCheck, HandCoins, Loader2, FolderOpen, FolderX, Lock, PackagePlus, Pencil, ReceiptText, ShoppingCart, Trash2 } from 'lucide-react';
@@ -200,7 +202,7 @@ export function InvoicesView({ initialType }: { initialType: Book }) {
 
   return (
     <div>
-      <PageHeader
+      <PageHeader icon={<PageIcon aria-hidden="true" />} art={<HeroDocs />}
         title={t('invc.title')}
         subtitle={t('invc.subtitle')}
         actions={

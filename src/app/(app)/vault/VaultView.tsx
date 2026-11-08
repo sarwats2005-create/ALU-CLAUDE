@@ -1,4 +1,6 @@
 'use client';
+import { Vault as PageIcon } from 'lucide-react';
+import { HeroSafe } from '@/components/hero-art';
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -65,7 +67,7 @@ export function VaultView({ editOp }: { editOp: TxnDetail | null }) {
 
   return (
     <div>
-      <PageHeader
+      <PageHeader icon={<PageIcon aria-hidden="true" />} art={<HeroSafe />}
         title={user.isOwner ? t('vault.title') : t('vault.myTitle')}
         subtitle={user.isOwner ? undefined : t('vault.mySubtitle')}
         actions={

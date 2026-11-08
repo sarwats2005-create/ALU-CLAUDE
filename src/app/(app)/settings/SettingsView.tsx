@@ -1,4 +1,6 @@
 'use client';
+import { Settings as PageIcon } from 'lucide-react';
+import { HeroGears } from '@/components/hero-art';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { Building2, Database, History, Languages, Pencil, Plus, ScrollText, Shapes, Siren, Trash2, Upload, Users, Package, ArrowLeftRight, Wallet, KeyRound, Eraser, Archive, ArchiveRestore } from 'lucide-react';
@@ -53,7 +55,7 @@ export function SettingsView({ initial }: { initial: string }) {
   };
   return (
     <div>
-      <PageHeader title={t('set.title')} />
+      <PageHeader icon={<PageIcon aria-hidden="true" />} art={<HeroGears />} title={t('set.title')} />
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
         <div className="lg:hidden">
           <Select aria-label={t('set.section')} value={sec} onChange={(e) => go(e.target.value as Section)}>

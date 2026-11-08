@@ -214,7 +214,7 @@ export function Segmented<T extends string>({
 }) {
   const gid = useId();
   return (
-    <div role="radiogroup" aria-label={label} className={cx('alu-segmented alu-glass inline-flex max-w-full gap-1 rounded-ctl p-1', className)}>
+    <div role="radiogroup" aria-label={label} className={cx('alu-segmented alu-glass inline-flex max-w-full gap-1 rounded-full p-1', className)}>
       {options.map((o) => {
         const on = o.value === value;
         return (
@@ -227,7 +227,7 @@ export function Segmented<T extends string>({
             onClick={() => onChange(o.value)}
             className={cx(
               // Long labels wrap to two lines on narrow phones instead of pushing the page sideways.
-              'min-w-0 flex-1 rounded-[5px] px-3 py-1 font-semibold leading-tight motion-safe:transition-[background-color,color] motion-safe:duration-[var(--motion-base)] sm:whitespace-nowrap sm:px-4',
+              'min-w-0 flex-1 rounded-full px-3 py-1 font-semibold leading-tight motion-safe:transition-[background-color,color] motion-safe:duration-[var(--motion-base)] sm:whitespace-nowrap sm:px-4',
               size === 'sm' ? 'min-h-11 text-body' : 'min-h-11 text-body',
               on ? 'text-on-brand' : 'text-muted hover:bg-line/80 hover:text-ink',
             )}
@@ -271,19 +271,66 @@ export function Card({ children, className, as: As = 'section', elevated, ...res
   );
 }
 
-export function PageHeader({ title, subtitle, actions, back }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; back?: ReactNode }) {
+/**
+ * "Elegant redesign" page banner: dark navy hero with an icon tile, the page title + subtitle, a decorative
+ * illustration (lg+) and the page actions. Inside `.elegant-hero` the colour tokens are re-mapped for the dark
+ * background (globals.css), so ordinary Buttons, links and muted text just work on it.
+ */
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
+  back,
+  icon,
+  media,
+  art,
+  eyebrow,
+  extra,
+  className,
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  actions?: ReactNode;
+  back?: ReactNode;
+  /** Lucide icon shown in the gradient tile. */
+  icon?: ReactNode;
+  /** Replaces the icon tile (e.g. a person's avatar). */
+  media?: ReactNode;
+  /** Decorative scene from `@/components/hero-art`. */
+  art?: ReactNode;
+  /** Small line above the title (e.g. today's date). */
+  eyebrow?: ReactNode;
+  /** Extra content under the subtitle (badges, small links). */
+  extra?: ReactNode;
+  className?: string;
+}) {
   return (
-    <header className="subline-host mb-5 flex flex-col gap-3 md:mb-6 md:flex-row md:items-end md:justify-between">
-      <div className="min-w-0">
-        {back}
-        <h1 className="bidi text-large font-extrabold tracking-[-0.02em] text-ink md:text-[40px] md:leading-[42px]">{title}</h1>
-        {subtitle ? <p className="subline mt-1 text-body text-muted">{subtitle}</p> : null}
+    <header data-on-hero className={cx('elegant-hero relative mb-5 overflow-hidden rounded-[20px] px-5 py-6 md:mb-6 md:px-8 md:py-7', className)}>
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <svg viewBox="0 0 600 200" preserveAspectRatio="none" className="absolute inset-y-0 end-0 h-full w-[70%] rtl:-scale-x-100">
+          <path d="M330 220 C 430 150, 470 60, 600 10" fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth="1.5" />
+          <path d="M380 220 C 470 160, 520 80, 620 40" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" />
+          <path d="M440 220 C 520 170, 560 110, 640 90 L640 220 Z" fill="rgba(255,255,255,0.05)" />
+        </svg>
+        <div className="absolute -top-24 end-[18%] h-64 w-64 rounded-full bg-[#5b9cf0]/25 blur-3xl" />
       </div>
-      {actions ? (
-        <div data-on-canvas className="flex flex-wrap items-center gap-3">
-          {actions}
+      <div className="relative flex flex-col gap-5 md:flex-row md:items-center">
+        <div className="flex min-w-0 items-center gap-4 md:gap-6">
+          {media ?? (icon ? <span className="elegant-hero-icon flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-white md:h-[72px] md:w-[72px] [&_svg]:h-7 [&_svg]:w-7 md:[&_svg]:h-9 md:[&_svg]:w-9">{icon}</span> : null)}
+          {media || icon ? <span className="hidden h-14 w-px shrink-0 bg-white/25 sm:block" aria-hidden="true" /> : null}
+          <div className="min-w-0">
+            {back}
+            {eyebrow ? <p className="text-meta font-medium text-muted">{eyebrow}</p> : null}
+            <h1 className="bidi text-[26px] font-extrabold leading-tight tracking-[-0.02em] text-ink md:text-[36px] md:leading-[42px]">{title}</h1>
+            {subtitle ? <div className="mt-1 text-body text-muted">{subtitle}</div> : null}
+            {extra}
+          </div>
         </div>
-      ) : null}
+        <div className="pointer-events-none relative hidden min-w-[140px] flex-1 self-stretch lg:block" aria-hidden="true">
+          {art ? <div className="absolute inset-x-0 -bottom-14 flex h-[172px] justify-center [&>svg]:h-full [&>svg]:w-auto [&>svg]:max-w-full [&>svg]:drop-shadow-[0_18px_24px_rgba(4,16,40,0.45)]">{art}</div> : null}
+        </div>
+        {actions ? <div className="flex flex-wrap items-center gap-3 md:shrink-0 md:justify-end md:self-start">{actions}</div> : null}
+      </div>
     </header>
   );
 }

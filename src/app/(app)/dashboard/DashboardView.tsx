@@ -1,4 +1,6 @@
 'use client';
+import { LayoutDashboard } from 'lucide-react';
+import { HeroFactory } from '@/components/hero-art';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -7,7 +9,7 @@ import type { dashboard } from '@/lib/server/q/dashboard';
 import { useApp } from '@/lib/client/app-context';
 import { D, fmtKg, fmtMoney } from '@/lib/money';
 import { cx } from '@/lib/cx';
-import { Badge, Button, Card, Segmented } from '@/components/ui';
+import { Badge, Button, Card, PageHeader, Segmented } from '@/components/ui';
 import { HBarList, LineChart, SignedBarChart, compactMoney, useMonthLabel } from '@/components/charts';
 import { statusTone } from '@/components/TxnRows';
 import { SectionLabel, SummaryCell, SummaryStrip } from '@/components/Summary';
@@ -77,28 +79,31 @@ export function DashboardView({ data }: { data: Data }) {
   return (
     <div className="flex flex-col gap-6">
       {/* ── Header: who / when, and the two things people come here to do ── */}
-      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div className="min-w-0">
-          <p className="min-h-[18px] text-meta font-medium text-muted">{today}</p>
-          <h1 className="bidi mt-1 text-large font-bold tracking-[-0.02em] text-ink md:text-[34px] md:leading-[40px]">{t('dash.greeting', { name: user.name.split(' ')[0] })}</h1>
-        </div>
-        <div data-on-canvas className="flex flex-col-reverse gap-2 sm:flex-row">
-          {can('beneficiaries') ? (
-            <Link href="/beneficiaries/purchase" className="sm:w-auto">
-              <Button variant="secondary" size="lg" block icon={<PackagePlus className="h-5 w-5" aria-hidden="true" />}>
-                {t('dash.recordPurchase')}
-              </Button>
-            </Link>
-          ) : null}
-          {can('pos') ? (
-            <Link href="/pos" className="sm:w-auto">
-              <Button size="lg" block className="px-7" icon={<ShoppingCart className="h-5 w-5" aria-hidden="true" />}>
-                {t('pos.newSale')}
-              </Button>
-            </Link>
-          ) : null}
-        </div>
-      </header>
+      <PageHeader
+        className="mb-0! md:mb-0!"
+        icon={<LayoutDashboard aria-hidden="true" />}
+        art={<HeroFactory />}
+        eyebrow={today}
+        title={t('dash.greeting', { name: user.name.split(' ')[0] })}
+        actions={
+          <>
+            {can('beneficiaries') ? (
+              <Link href="/beneficiaries/purchase" className="sm:w-auto">
+                <Button variant="secondary" size="lg" block icon={<PackagePlus className="h-5 w-5" aria-hidden="true" />}>
+                  {t('dash.recordPurchase')}
+                </Button>
+              </Link>
+            ) : null}
+            {can('pos') ? (
+              <Link href="/pos" className="sm:w-auto">
+                <Button size="lg" block className="px-7" icon={<ShoppingCart className="h-5 w-5" aria-hidden="true" />}>
+                  {t('pos.newSale')}
+                </Button>
+              </Link>
+            ) : null}
+          </>
+        }
+      />
 
       {!data.hasAnyData ? (
         <Card className="flex flex-col items-start gap-4 p-6 md:flex-row md:items-center">

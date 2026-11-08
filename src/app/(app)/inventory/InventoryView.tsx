@@ -30,8 +30,8 @@ import { useRemote } from '@/lib/client/use-remote';
 import { fmtDate, localTodayIso } from '@/lib/dates';
 import { D, Dec, fmtCost, fmtKg, fmtMoney, fmtPct, parseDec, type Cur } from '@/lib/money';
 import { cx } from '@/lib/cx';
-import { Badge, Button, EmptyState, Field, Input, Segmented, Select, Skeleton, Textarea } from '@/components/ui';
-import { CalendarArt, HeroBoxes, KpiWave, ProductArt, WarehouseArt } from './illustrations';
+import { Badge, Button, EmptyState, Field, Input, PageHeader, Segmented, Select, Skeleton, Textarea } from '@/components/ui';
+import { CalendarArt, HeroBoxes, KpiWave, ProductArt, WarehouseArt } from '@/components/illustrations';
 import { Pager, SearchBox, useListState } from '@/components/DataTable';
 import { DateInput } from '@/components/DateInput';
 import { Dialog, EditingBanner } from '@/components/Dialog';
@@ -121,36 +121,20 @@ export function InventoryView({ editProcessing }: { editProcessing: TxnDetail | 
 
   return (
     <div>
-      {/* ── Hero banner ── */}
-      <header className="elegant-hero relative mb-5 overflow-hidden rounded-[20px] px-5 py-6 text-white md:px-8 md:py-7">
-        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-          <svg viewBox="0 0 600 200" preserveAspectRatio="none" className="absolute inset-y-0 end-0 h-full w-[70%] rtl:-scale-x-100">
-            <path d="M330 220 C 430 150, 470 60, 600 10" fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth="1.5" />
-            <path d="M380 220 C 470 160, 520 80, 620 40" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" />
-            <path d="M440 220 C 520 170, 560 110, 640 90 L640 220 Z" fill="rgba(255,255,255,0.05)" />
-          </svg>
-          <div className="absolute -top-24 end-[18%] h-64 w-64 rounded-full bg-[#5b9cf0]/25 blur-3xl" />
-        </div>
-        <HeroBoxes className="pointer-events-none absolute -bottom-7 end-[19%] hidden h-[172px] w-auto drop-shadow-[0_18px_24px_rgba(4,16,40,0.45)] lg:block" />
-        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 items-center gap-4 md:gap-6">
-            <span className="elegant-hero-icon flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl md:h-[72px] md:w-[72px]">
-              <Box className="h-7 w-7 md:h-9 md:w-9" strokeWidth={1.75} aria-hidden="true" />
-            </span>
-            <span className="hidden h-14 w-px shrink-0 bg-white/25 sm:block" aria-hidden="true" />
-            <div className="min-w-0">
-              <h1 className="bidi text-[28px] font-extrabold leading-tight tracking-[-0.02em] md:text-[40px] md:leading-[44px]">{t('inv.title')}</h1>
-              <p className="mt-1 text-body text-white/80">{t('inv.subtitle')}</p>
-            </div>
-          </div>
-          {can('beneficiaries') ? (
-            <Link href="/beneficiaries/purchase" className="elegant-hero-cta inline-flex h-12 shrink-0 items-center justify-center gap-2 self-start rounded-xl px-5 text-meta font-semibold text-white">
+      <PageHeader
+        title={t('inv.title')}
+        subtitle={t('inv.subtitle')}
+        icon={<Box aria-hidden="true" strokeWidth={1.75} />}
+        art={<HeroBoxes />}
+        actions={
+          can('beneficiaries') ? (
+            <Link href="/beneficiaries/purchase" className="elegant-hero-cta inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl px-5 text-meta font-semibold text-white">
               <PackagePlus className="h-[18px] w-[18px]" aria-hidden="true" />
               {t('dash.recordPurchase')}
             </Link>
-          ) : null}
-        </div>
-      </header>
+          ) : null
+        }
+      />
 
       {/* ── Inventory tabs ── */}
       <div className="mb-5 flex items-center gap-3">

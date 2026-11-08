@@ -1,4 +1,6 @@
 'use client';
+import { CalendarClock as PageIcon } from 'lucide-react';
+import { HeroSafe } from '@/components/hero-art';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
@@ -18,7 +20,7 @@ export function DuesView() {
   const { t, can } = useApp();
   return (
     <div className="min-w-0">
-      <PageHeader
+      <PageHeader icon={<PageIcon aria-hidden="true" />} art={<HeroSafe />}
         title={t('due.title')}
         subtitle={t('due.subtitle')}
         back={

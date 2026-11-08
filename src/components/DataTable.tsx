@@ -70,7 +70,7 @@ export function useListState(defaultSort: string, defaultDir: 'asc' | 'desc' = '
 export function SearchBox({ value, onChange, placeholder, className, label }: { value: string; onChange: (v: string) => void; placeholder: string; className?: string; label?: string }) {
   const { t } = useApp();
   return (
-    <div className={cx('relative min-w-0', className)}>
+    <div className={cx('elegant-search relative min-w-0', className)}>
       <Search className="pointer-events-none absolute start-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" aria-hidden="true" />
       <input
         type="search"
@@ -78,7 +78,7 @@ export function SearchBox({ value, onChange, placeholder, className, label }: { 
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={label ?? placeholder}
-        className="alu-field bidi h-[var(--ctl-h)] w-full rounded-ctl ps-11 pe-12 text-body text-ink placeholder:text-muted motion-safe:transition-[background-color,border-color,box-shadow] motion-safe:duration-[var(--motion-base)] focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+        className="alu-field bidi h-[var(--ctl-h)] w-full rounded-full ps-11 pe-12 text-body text-ink placeholder:text-muted motion-safe:transition-[background-color,border-color,box-shadow] motion-safe:duration-[var(--motion-base)] focus:outline-none [&::-webkit-search-cancel-button]:hidden"
       />
       {value ? (
         <button type="button" onClick={() => onChange('')} aria-label={t('common.clear')} className="absolute end-1 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-ctl text-muted hover:bg-surface-2 hover:text-ink">

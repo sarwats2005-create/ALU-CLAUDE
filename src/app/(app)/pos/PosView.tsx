@@ -1,4 +1,6 @@
 'use client';
+import { ShoppingCart as PageIcon } from 'lucide-react';
+import { HeroRegister } from '@/components/hero-art';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -209,7 +211,7 @@ export function PosView({ edit, customerId }: { edit: TxnDetail | null; customer
 
   return (
     <div>
-      <PageHeader
+      <PageHeader icon={<PageIcon aria-hidden="true" />} art={<HeroRegister />}
         title={edit ? t('pos.editing', { number: edit.number }) : t('pos.title')}
         actions={
           edit ? (

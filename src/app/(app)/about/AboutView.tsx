@@ -1,4 +1,6 @@
 "use client";
+import { BookOpen as PageIcon } from 'lucide-react';
+import { HeroBooks } from '@/components/hero-art';
 import { Fragment, useMemo, useState } from "react";
 import {
   BarChart3,
@@ -167,7 +169,7 @@ export function AboutView({ live }: { live: AboutLive }) {
 
   return (
     <div className="min-w-0">
-      <PageHeader title={t("about.title")} subtitle={t("about.subtitle")} />
+      <PageHeader icon={<PageIcon aria-hidden="true" />} art={<HeroBooks />} title={t("about.title")} subtitle={t("about.subtitle")} />
 
       {/* Live values: the same numbers the app enforces right now. */}
       <SectionLabel id="about-live">{t("about.live")}</SectionLabel>

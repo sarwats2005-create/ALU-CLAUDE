@@ -1,4 +1,6 @@
 'use client';
+import { Truck as PageIcon } from 'lucide-react';
+import { HeroTruck } from '@/components/hero-art';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -33,7 +35,7 @@ export function BeneficiariesView({ initialTab }: { initialTab: Tab }) {
   ];
   return (
     <div>
-      <PageHeader
+      <PageHeader icon={<PageIcon aria-hidden="true" />} art={<HeroTruck />}
         title={t('ben.title')}
         subtitle={t('ben.subtitle')}
         actions={

@@ -1,4 +1,6 @@
 'use client';
+import { PackagePlus as PageIcon } from 'lucide-react';
+import { HeroBoxes } from '@/components/illustrations';
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -174,7 +176,7 @@ export function PurchaseForm({ edit, beneficiaryId, productId }: { edit: TxnDeta
         <ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
         {ben ? ben.label : t('ben.title')}
       </Link>
-      <PageHeader title={edit ? t('pur.editing', { number: edit.number }) : t('pur.title')} />
+      <PageHeader icon={<PageIcon aria-hidden="true" />} art={<HeroBoxes />} title={edit ? t('pur.editing', { number: edit.number }) : t('pur.title')} />
       {edit ? (
         <div className="-mt-2 mb-5 overflow-hidden rounded-card">
           <EditingBanner text={t('pur.editing', { number: edit.number })} />

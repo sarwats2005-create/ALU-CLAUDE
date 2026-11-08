@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { cx } from '@/lib/cx';
+import { KpiWave } from '@/components/illustrations';
 
 // Shared page-summary pieces (used on every main page, same as the dashboard). Flat "colour block" stats:
 //  • Each figure is its own white block on the grey canvas, separated by space, never by lines or shadows.
@@ -50,15 +51,16 @@ export function SummaryCell({ icon, label, value, sub, tone, alert, active, href
   const go = !!(href || onClick);
   const body = (
     <>
-      <span className="flex items-center gap-2 text-meta font-medium text-muted">
+      <KpiWave className={cx('stat-wave absolute end-0 top-3 h-[72px] w-[46%] opacity-90 rtl:-scale-x-100', alert && 'is-alert')} />
+      <span className="relative flex items-center gap-3 text-meta font-medium text-muted">
         {icon ? (
           <span className={cx('stat-icon flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white transition-transform duration-200 group-hover:scale-110', alert && 'is-alert')}>{icon}</span>
         ) : null}
         <span className="min-w-0 leading-tight">{label}</span>
       </span>
-      <span className={cx('fig mt-4 block break-words text-heading font-extrabold md:text-large', tone === 'danger' ? 'text-danger-ink' : tone === 'success' ? 'text-success-ink' : 'text-ink')}>{value}</span>
+      <span className={cx('fig relative mt-4 block break-words text-heading font-extrabold md:text-large', tone === 'danger' ? 'text-danger-ink' : tone === 'success' ? 'text-success-ink' : 'text-ink')}>{value}</span>
       {sub ? (
-        <span className={cx('mt-1.5 flex items-center gap-1 text-caption', alert ? 'font-semibold text-danger-ink' : 'text-muted')}>
+        <span className={cx('relative mt-1.5 flex items-center gap-1 text-caption', alert ? 'font-semibold text-danger-ink' : 'text-muted')}>
           <span className="min-w-0">{sub}</span>
           {go ? <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-60 transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" aria-hidden="true" /> : null}
         </span>
@@ -66,7 +68,7 @@ export function SummaryCell({ icon, label, value, sub, tone, alert, active, href
     </>
   );
   const cls = cx(
-    'alu-kpi alu-glass group relative block min-w-0 overflow-hidden rounded-card p-5 text-start md:p-6',
+    'alu-kpi alu-glass group relative block min-w-0 overflow-hidden rounded-[18px] p-5 text-start md:p-6',
     alert && 'is-alert bg-danger-tint',
     !alert && active && 'bg-tint-2',
     active && 'after:absolute after:inset-x-0 after:bottom-0 after:h-1.5 after:bg-gradient-to-r after:from-brand after:to-brand-strong',

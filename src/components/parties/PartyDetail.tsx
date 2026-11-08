@@ -13,7 +13,8 @@ import { balanceLabel } from '@/lib/format';
 import { fmtDate } from '@/lib/dates';
 import { D, fmtKg, fmtMoney } from '@/lib/money';
 import { cx } from '@/lib/cx';
-import { Badge, Button, Card, EmptyState, Skeleton } from '../ui';
+import { Badge, Button, Card, EmptyState, PageHeader, Skeleton } from '../ui';
+import { HeroPeople, HeroTruck } from '../hero-art';
 import { Dialog } from '../Dialog';
 import { DataTable, Pager, SearchBox, useListState, type Column } from '../DataTable';
 import { DateRange } from '../DateInput';
@@ -106,21 +107,29 @@ export function PartyDetail({ kind, id, editPayment }: { kind: PartyKind; id: st
 
   return (
     <div>
-      <Link href={base} className="mb-3 inline-flex items-center gap-1.5 rounded text-meta font-semibold text-brand-ink hover:underline">
-        <ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
-        {isC ? t('cust.allCustomers') : t('ben.title')}
-      </Link>
 
       {/* Identity + actions */}
-      <header className="mb-5 flex flex-col gap-4 md:mb-6 xl:flex-row xl:items-start xl:justify-between">
-        <div className="flex min-w-0 items-start gap-4">
-          <Avatar name={p.name} src={p.hasAvatar ? `/api/customers/${p.id}/avatar?v=${p.avatarV}` : null} size={64} />
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="bidi text-heading font-bold tracking-[-0.02em] text-ink md:text-large">{p.name}</h1>
-              {p.isDemo ? <Badge tone="brand">{t('app.demo')}</Badge> : null}
-            </div>
-            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-meta text-muted">
+      <PageHeader
+        back={
+          <Link href={base} className="mb-1 inline-flex items-center gap-1.5 rounded text-meta font-semibold text-brand-ink hover:underline">
+            <ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+            {isC ? t('cust.allCustomers') : t('ben.title')}
+          </Link>
+        }
+        media={
+          <span className="shrink-0 rounded-full ring-4 ring-white/20">
+            <Avatar name={p.name} src={p.hasAvatar ? `/api/customers/${p.id}/avatar?v=${p.avatarV}` : null} size={64} />
+          </span>
+        }
+        art={isC ? <HeroPeople /> : <HeroTruck />}
+        title={
+          <span className="inline-flex flex-wrap items-center gap-2">
+            {p.name}
+            {p.isDemo ? <Badge tone="brand">{t('app.demo')}</Badge> : null}
+          </span>
+        }
+        subtitle={
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-meta text-muted">
               {p.phone ? (
                 <a href={`tel:${p.phone.replace(/\s+/g, '')}`} className="num inline-flex items-center gap-1.5 hover:text-ink" dir="ltr">
                   <Phone className="h-3.5 w-3.5" aria-hidden="true" />
@@ -134,6 +143,8 @@ export function PartyDetail({ kind, id, editPayment }: { kind: PartyKind; id: st
                 </span>
               ) : null}
             </div>
+        }
+        extra={
             <div className="-ms-3 mt-1.5 flex gap-1">
               <Button variant="quiet" size="sm" onClick={() => setEditing(true)} icon={<Pencil className="h-4 w-4" aria-hidden="true" />}>
                 {t('common.edit')}
@@ -156,9 +167,9 @@ export function PartyDetail({ kind, id, editPayment }: { kind: PartyKind; id: st
                 </Button>
               )}
             </div>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+        }
+        actions={
+          <>
           {/* The most likely next step is the primary (biggest, blue) button: collect / pay when money is owed,
               otherwise a new sale / purchase. */}
           {isC ? (
@@ -196,8 +207,9 @@ export function PartyDetail({ kind, id, editPayment }: { kind: PartyKind; id: st
               </Link>
             </>
           )}
-        </div>
-      </header>
+          </>
+        }
+      />
 
       {/* Balance first (serial position) and the only coloured figure when something is owed (Von Restorff). */}
       <SummaryStrip className="mb-5">

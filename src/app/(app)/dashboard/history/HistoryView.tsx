@@ -1,4 +1,6 @@
 'use client';
+import { History as PageIcon } from 'lucide-react';
+import { HeroClock } from '@/components/hero-art';
 import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Eraser, FileSpreadsheet } from 'lucide-react';
@@ -96,7 +98,7 @@ export function HistoryView() {
         <ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
         {t('nav.dashboard')}
       </Link>
-      <PageHeader
+      <PageHeader icon={<PageIcon aria-hidden="true" />} art={<HeroClock />}
         title={t('hist.title')}
         subtitle={t('hist.subtitle')}
         actions={

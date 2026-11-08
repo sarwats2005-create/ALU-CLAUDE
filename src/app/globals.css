@@ -166,7 +166,7 @@ html.theme-light {
 
   /* Radius: consistent and moderate (6px controls, 12px cards); pills only for tags. */
   --radius-ctl: 6px;
-  --radius-card: 12px;
+  --radius-card: 18px;
   --radius-pill: 999px;
   /* Soft indexed depth + brand glow — elegant, not heavy. */
   --shadow-card:
@@ -974,4 +974,99 @@ html.dialog-open body > :not([data-dialog-layer]) {
   body > * {
     transition: none;
   }
+}
+
+/* ───────────── Elegant redesign: shared page pieces ─────────────
+   Page banner (PageHeader): the colour tokens are re-mapped for the dark navy background, so ordinary text,
+   Buttons, Badges and links placed in it read correctly without per-page overrides. */
+.elegant-hero {
+  color: #ffffff;
+  --ink: #ffffff;
+  --muted: rgba(255, 255, 255, 0.78);
+  --brand-ink: #cfe2ff;
+  --brand: #3f86e8;
+  --brand-strong: #1f5fc0;
+  --surface: rgba(255, 255, 255, 0.1);
+  --surface-2: rgba(255, 255, 255, 0.12);
+  --surface-glass: rgba(255, 255, 255, 0.1);
+  --tint: rgba(255, 255, 255, 0.14);
+  --tint-2: rgba(255, 255, 255, 0.2);
+  --line: rgba(255, 255, 255, 0.24);
+  --line-soft: rgba(255, 255, 255, 0.2);
+  --success-ink: #86efac;
+  --danger-ink: #fca5a5;
+  --warning-ink: #fcd34d;
+  --success-tint: rgba(34, 197, 94, 0.2);
+  --danger-tint: rgba(239, 68, 68, 0.22);
+  --warning-tint: rgba(245, 158, 11, 0.2);
+}
+.elegant-hero [data-variant] {
+  height: 3rem;
+  padding-inline: 1.25rem;
+  font-size: 14px;
+  border-radius: 12px;
+}
+.elegant-hero [data-variant='primary'] {
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.25) inset,
+    0 8px 22px -8px rgba(31, 95, 192, 0.9);
+}
+.elegant-hero [data-variant='secondary'],
+.elegant-hero [data-on-canvas] [data-variant='secondary'] {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.26);
+  color: #ffffff;
+}
+.elegant-hero [data-variant='secondary']:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+.elegant-hero [data-variant='outline'] {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #ffffff;
+}
+.elegant-hero [data-variant='quiet'],
+.elegant-hero [data-variant='ghost'] {
+  color: rgba(255, 255, 255, 0.85);
+}
+.elegant-hero [data-variant='quiet']:hover,
+.elegant-hero [data-variant='ghost']:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+.elegant-hero select option {
+  color: #111827;
+  background: #ffffff;
+}
+
+/* KPI cells: the corner wave takes the same colour as the cell's icon circle. */
+.stat-wave {
+  --stat-fill: var(--brand);
+  color: var(--stat-fill);
+}
+.stat-strip > :nth-child(4n + 2) .stat-wave {
+  --stat-fill: var(--success);
+}
+.stat-strip > :nth-child(4n + 3) .stat-wave {
+  --stat-fill: var(--warning);
+}
+.stat-strip > :nth-child(4n + 4) .stat-wave {
+  --stat-fill: #64748b;
+}
+.stat-strip .stat-wave.is-alert,
+.stat-wave.is-alert {
+  --stat-fill: var(--danger);
+}
+
+/* Filter bars: dropdowns sitting next to the (pill) search box become pills too. */
+:has(> .elegant-search) > select.alu-field,
+:has(> .elegant-search) > * > select.alu-field {
+  border-radius: 999px;
+  padding-inline-start: 1.25rem;
+}
+.elegant-search .alu-field:not(:focus),
+:has(> .elegant-search) > select.alu-field:not(:focus),
+:has(> .elegant-search) > * > select.alu-field:not(:focus) {
+  background: var(--surface-solid);
 }

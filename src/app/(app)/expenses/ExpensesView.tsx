@@ -1,4 +1,6 @@
 'use client';
+import { Receipt as PageIcon } from 'lucide-react';
+import { HeroCoins } from '@/components/hero-art';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, Copy, Eye, FileSpreadsheet, Pause, Pencil, Play, Receipt, Repeat, RotateCw, Tags, Trash2, Wallet } from 'lucide-react';
@@ -194,7 +196,7 @@ export function ExpensesView({ editId }: { editId: string | null }) {
 
   return (
     <div>
-      <PageHeader
+      <PageHeader icon={<PageIcon aria-hidden="true" />} art={<HeroCoins />}
         title={t('exp.title')}
         subtitle={t('exp.subtitle')}
       />

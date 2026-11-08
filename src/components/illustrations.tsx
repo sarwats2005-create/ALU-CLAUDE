@@ -3,18 +3,18 @@
 import { useId } from 'react';
 import { cx } from '@/lib/cx';
 
-type V3 = [number, number, number];
+export type V3 = [number, number, number];
 
 /** Isometric projection: x runs down-right, y down-left, z up. */
-function iso(ox: number, oy: number, s: number) {
+export function iso(ox: number, oy: number, s: number) {
   const C = Math.cos(Math.PI / 6);
   return ([x, y, z]: V3) => `${(ox + (x - y) * C * s).toFixed(1)},${(oy + (x + y) * 0.5 * s - z * s).toFixed(1)}`;
 }
 
-type Faces = { top: string; left: string; right: string };
+export type Faces = { top: string; left: string; right: string };
 
 /** The three visible faces of an axis-aligned box. */
-function boxFaces(p: (v: V3) => string, [x, y, z]: V3, [w, d, h]: V3): Faces {
+export function boxFaces(p: (v: V3) => string, [x, y, z]: V3, [w, d, h]: V3): Faces {
   const pts = (vs: V3[]) => vs.map(p).join(' ');
   return {
     top: pts([[x, y, z + h], [x + w, y, z + h], [x + w, y + d, z + h], [x, y + d, z + h]]),
@@ -267,19 +267,12 @@ export function ProductArt({ seed, className }: { seed: string; className?: stri
 // ─── KPI wave ──────────────────────────────────────────────────────────────────────────────────
 
 /** Soft decorative wave in the corner of a KPI card (not a chart: it carries no data). */
-export function KpiWave({ color, className }: { color: string; className?: string }) {
-  const id = useId().replace(/:/g, '');
+export function KpiWave({ color = 'currentColor', className }: { color?: string; className?: string }) {
   const line = 'M0 62 C16 62 24 46 38 48 S58 66 74 52 S98 10 120 14';
   return (
     <svg viewBox="0 0 120 80" preserveAspectRatio="none" className={cx('pointer-events-none', className)} aria-hidden="true" focusable="false">
-      <defs>
-        <linearGradient id={`${id}f`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={color} stopOpacity="0.28" />
-          <stop offset="1" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={`${line} L120 80 L0 80 Z`} fill={`url(#${id}f)`} />
-      <path d={line} fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <path d={`${line} L120 80 L0 80 Z`} style={{ fill: color, fillOpacity: 0.12 }} />
+      <path d={line} fill="none" style={{ stroke: color }} strokeWidth="2.2" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }

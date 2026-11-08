@@ -1,4 +1,6 @@
 'use client';
+import { BarChart3 as PageIcon } from 'lucide-react';
+import { HeroChart } from '@/components/hero-art';
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileDown, FileSpreadsheet, Printer } from 'lucide-react';
@@ -95,7 +97,7 @@ export function ReportsView({ initial, allowed }: { initial: ReportType; allowed
 
   return (
     <div>
-      <PageHeader title={t('rep.title')} subtitle={t('rep.subtitle')} />
+      <PageHeader icon={<PageIcon aria-hidden="true" />} art={<HeroChart />} title={t('rep.title')} subtitle={t('rep.subtitle')} />
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[280px_minmax(0,1fr)]">
         {/* Report picker: a select on phones, a list on wide screens */}
         <div className="xl:hidden">
