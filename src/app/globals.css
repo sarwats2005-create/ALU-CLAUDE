@@ -1099,10 +1099,13 @@ html.dialog-open body > :not([data-dialog-layer]):not(.hm-dropdown):not(.hm-over
 :root {
   --table-line: color-mix(in srgb, var(--ink) 13%, transparent);
   --table-head: color-mix(in srgb, var(--brand) 9%, var(--surface-solid));
+  /* Banded rows: every other body row gets this faint brand wash. */
+  --table-band: color-mix(in srgb, var(--brand) 6.5%, transparent);
 }
 html.theme-dark {
   --table-line: rgba(255, 255, 255, 0.12);
   --table-head: color-mix(in srgb, var(--brand) 18%, var(--surface-solid));
+  --table-band: rgba(255, 255, 255, 0.045);
 }
 table {
   border-collapse: collapse;
@@ -1124,6 +1127,13 @@ table thead th {
   color: var(--ink);
   font-weight: 700;
   border-bottom: 2px solid color-mix(in srgb, var(--brand) 35%, var(--table-line));
+}
+/* Banded rows. In the base layer on purpose: any row background set with a utility (hover, focus, a
+   highlighted or unread row) still wins over the stripe. */
+@layer base {
+  table tbody tr:nth-child(even) {
+    background-color: var(--table-band);
+  }
 }
 /* Content laid out with flex inside a cell (sort buttons, action groups) is centred too. */
 table :is(th, td) > :is(.flex, .inline-flex) {
