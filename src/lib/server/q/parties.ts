@@ -295,3 +295,26 @@ export async function allPartyEffects(kind: PartyKind) {
   }
   return [...map.values()];
 }
+
+/**
+ * Beneficiary dues: every beneficiary the factory still owes (positive balance, USD), largest first.
+ * Same definition as "what you owe" on the dashboard, listed one by one for Vault → Unpaid dues.
+ */
+export async function owedBeneficiaries() {
+  const rows = await prisma.$queryRaw<Record<string, unknown>[]>`
+    SELECT x.id, x.name, x.phone, b.bal AS balance
+    FROM "Beneficiary" x
+    JOIN (
+      SELECT "beneficiaryId" AS pid, SUM("amountUsd") AS bal
+      FROM "PartyEntry" WHERE "beneficiaryId" IS NOT NULL GROUP BY 1
+    ) b ON b.pid = x.id
+    WHERE b.bal > 0
+    ORDER BY b.bal DESC, lower(x.name) ASC`;
+  return rows.map((r) => ({
+    id: String(r.id),
+    name: String(r.name),
+    phone: String(r.phone ?? ''),
+    balance: round2(D(s(r.balance))).toString(),
+  }));
+}
+export type OwedBeneficiary = Awaited<ReturnType<typeof owedBeneficiaries>>[number];

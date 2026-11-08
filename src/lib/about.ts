@@ -170,6 +170,7 @@ export const ABOUT_SECTIONS: AboutSection[] = [
       ['**Withdrawal**: money out. If the vault is short you are warned and the rest becomes an unpaid due.', '**ڕاکێشان**: پارە دەردەچێت. ئەگەر قاسە بەس نەکات ئاگادار دەکرێیتەوە و ماوەکەی دەبێتە قەرزی نەدراو.'],
       ['**Exchange** between vaults uses its own rate. It is strict: it is refused when the money isn\'t there, because half an exchange would create fake cash.', '**گۆڕینەوە** لە نێوان قاسەکان نرخی تایبەتی خۆی هەیە. توندە: ئەگەر پارەکە نەبێت ڕەت دەکرێتەوە، چونکە نیوەی گۆڕینەوە پارەی ساختە دروست دەکات.'],
       ['**Unpaid dues** = the part a payment could not cover. Paying a due takes the money out now, on the original document; editing or deleting that document undoes the payment too.', '**قەرزی نەدراو** = ئەو بەشەی پارەدانێک نەیتوانی دابینی بکات. دانی قەرزێک ئێستا پارە دەردەهێنێت، لەسەر بەڵگە ڕەسەنەکە؛ دەستکاری یان سڕینەوەی ئەو بەڵگەیە پارەدانەکەش دەگەڕێنێتەوە.'],
+      ['**Vault → Unpaid dues** also lists the **beneficiary dues**: every beneficiary the factory still owes, largest first. **Pay** there records a normal beneficiary payment from your vault (short vault → warning, then an unpaid due).', '**قاسە ← قەرزە نەدراوەکان** **قەرزی دابینکەران**یش پیشان دەدات: هەموو ئەو دابینکەرانەی کارگە هێشتا قەرزاریانە، گەورەترین یەکەم. **بدە** لەوێ پارەدانێکی ئاسایی بۆ دابینکەر لە قاسەکەتەوە تۆمار دەکات (قاسەی کەم ← ئاگادارکردنەوە، پاشان قەرزی نەدراو).'],
       ['The vault card shows cash now, unpaid dues, and what is left (cash − dues).', 'کارتی قاسە کاشی ئێستا، قەرزی نەدراو و پاشماوە (کاش − قەرز) پیشان دەدات.'],
       ['Every staff user has their own **personal vault** (USD + IQD). **Everything** they record — sales, purchases, payments, refunds, expenses, rent, withdrawals — moves their vault, never the main vault. A staff user never sees the main factory vault.', 'هەر کارمەندێک **قاسەی کەسی**ی خۆی هەیە (دۆلار + دینار). **هەموو** ئەوەی تۆماری دەکات — فرۆشتن، کڕین، پارەدان، گەڕاندنەوە، خەرجی، کرێ، ڕاکێشان — قاسەکەی خۆی دەجووڵێنێت، هەرگیز قاسەی سەرەکی نا. کارمەند هەرگیز قاسەی سەرەکی کارگە نابینێت.'],
       ['Only the owner puts money into a staff vault: **Give money** moves cash from the main vault into it, **Take back** moves it back. Both are strict — they only move cash that is really there — and are kept as VLT documents that can\'t be deleted (record the opposite move instead). Staff can\'t deposit into their own vault.', 'تەنها خاوەن پارە دەخاتە قاسەی کارمەند: **پارەدان** کاش لە قاسەی سەرەکییەوە دەخاتە ناوی، **وەرگرتنەوە** دەیگەڕێنێتەوە. هەردووکیان توندن — تەنها ئەو کاشە دەجووڵێنن کە بەڕاستی هەیە — و وەک بەڵگەی VLT هەڵدەگیرێن کە ناسڕدرێنەوە (لە جیاتی ئەوە جووڵەی پێچەوانە تۆمار بکە). کارمەند ناتوانێت پارە بخاتە قاسەکەی خۆی.'],
@@ -286,6 +287,13 @@ export const ABOUT_SECTIONS: AboutSection[] = [
 
 /** Newest first. Add an entry here whenever a rule is added, changed or removed. */
 export const ABOUT_CHANGELOG: AboutChange[] = [
+  {
+    version: '2.1',
+    date: '2026-11-08',
+    items: [
+      { type: 'added', text: ['Vault → Unpaid dues now lists beneficiary dues (what the factory owes each beneficiary), with Pay.', 'قاسە ← قەرزە نەدراوەکان ئێستا قەرزی دابینکەرانیش پیشان دەدات (ئەوەی کارگە قەرزاری هەر دابینکەرێکە)، لەگەڵ «بدە».'] },
+    ],
+  },
   {
     version: '2.0',
     date: '2026-11-08',
