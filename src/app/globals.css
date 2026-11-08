@@ -1070,3 +1070,43 @@ html.dialog-open body > :not([data-dialog-layer]) {
 :has(> .elegant-search) > * > select.alu-field:not(:focus) {
   background: var(--surface-solid);
 }
+
+/* ───────────── Tables: crisp grid lines, everything centred ─────────────
+   Every data table in the app: each cell is boxed by a clear hairline, the header row is a firmer band, and
+   cell content sits in the middle both ways. The side edges are left open so the grid meets the card edge. */
+:root {
+  --table-line: color-mix(in srgb, var(--ink) 13%, transparent);
+  --table-head: color-mix(in srgb, var(--brand) 9%, var(--surface-solid));
+}
+html.theme-dark {
+  --table-line: rgba(255, 255, 255, 0.12);
+  --table-head: color-mix(in srgb, var(--brand) 18%, var(--surface-solid));
+}
+table {
+  border-collapse: collapse;
+}
+table th,
+table td {
+  border: 1px solid var(--table-line);
+  text-align: center;
+  vertical-align: middle;
+}
+table tr > :first-child {
+  border-inline-start: 0;
+}
+table tr > :last-child {
+  border-inline-end: 0;
+}
+table thead th {
+  background: var(--table-head);
+  color: var(--ink);
+  font-weight: 700;
+  border-bottom: 2px solid color-mix(in srgb, var(--brand) 35%, var(--table-line));
+}
+/* Content laid out with flex inside a cell (sort buttons, action groups) is centred too. */
+table :is(th, td) > :is(.flex, .inline-flex) {
+  justify-content: center;
+}
+table :is(th, td) > .flex {
+  margin-inline: auto;
+}
