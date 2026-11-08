@@ -226,6 +226,7 @@ export async function txnDetail(id: string) {
     number: t.number,
     kind: t.kind,
     date: dbToIso(t.date),
+    time: t.time ?? null,
     customer: t.customer,
     beneficiary: t.beneficiary,
     currency: t.currency,

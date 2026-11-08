@@ -23,6 +23,8 @@ export type ExpenseRow = {
   id: string;
   number: string;
   date: string;
+  /** "HH:MM" when one was entered, else null. */
+  time: string | null;
   category: string;
   categoryId: string | null;
   unitName: string;
@@ -71,7 +73,7 @@ function where(f: ExpenseFilters): Prisma.TxnWhereInput {
 export async function listExpenses(f: ExpenseFilters, p: { size: number; offset: number; dir: 'asc' | 'desc' }) {
   const w = where(f);
   const [rows, total] = await Promise.all([
-    prisma.txn.findMany({ where: w, orderBy: [{ date: p.dir }, { createdAt: p.dir }], take: p.size, skip: p.offset }),
+    prisma.txn.findMany({ where: w, orderBy: [{ date: p.dir }, { time: { sort: p.dir, nulls: 'last' } }, { createdAt: p.dir }], take: p.size, skip: p.offset }),
     prisma.txn.count({ where: w }),
   ]);
   return {
@@ -81,6 +83,7 @@ export async function listExpenses(f: ExpenseFilters, p: { size: number; offset:
         id: t.id,
         number: t.number,
         date: dbToIso(t.date),
+        time: t.time ?? null,
         category: t.label,
         categoryId: t.categoryId,
         unitName: t.unitName,

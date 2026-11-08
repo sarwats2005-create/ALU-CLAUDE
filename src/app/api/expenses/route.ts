@@ -41,7 +41,7 @@ export const GET = route({ pages: ['expenses'] }, async ({ url, lang, user }) =>
   for (const r of res.rows) {
     const details = r.unitPrice && r.quantity ? `${r.quantity} ${r.unitName} × ${r.unitPrice}` : '';
     lines.push(
-      [fmtCell(r.date, 'date', lang), r.number, r.category, details, fmtCell(r.amount, 'amountCur', lang, { currency: r.currency }), r.currency, t(`vault.${r.vault}`, lang), r.note, t(`exp.src.${r.source}`, lang), r.createdByName]
+      [fmtCell(r.date, 'date', lang) + (r.time ? ` ${r.time}` : ''), r.number, r.category, details, fmtCell(r.amount, 'amountCur', lang, { currency: r.currency }), r.currency, t(`vault.${r.vault}`, lang), r.note, t(`exp.src.${r.source}`, lang), r.createdByName]
         .map((x) => qq(String(x)))
         .join(','),
     );

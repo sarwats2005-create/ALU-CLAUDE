@@ -187,6 +187,7 @@ export const ABOUT_SECTIONS: AboutSection[] = [
     rules: [
       ['An expense takes money **out of one vault**, in that vault\'s currency. Amount = a fixed amount, or unit price × quantity for categories with a unit.', 'خەرجی پارە لە **یەک قاسە** دەردەهێنێت، بە دراوی ئەو قاسەیە. بڕ = بڕێکی تەواو، یان نرخی یەکە × ژمارە بۆ ئەو پۆلانەی یەکەیان هەیە.'],
       ['Which vault pays: **{expVault}** (set in Settings).', 'کام قاسە دەیدات: **{expVault}** (لە ڕێکخستنەکان دیاری دەکرێت).'],
+      ['An expense keeps its **date and time** (the time is optional; it starts at the current time and is saved exactly as entered, in local time). Recurring rules use a start date only.', 'خەرجی **ڕێکەوت و کات**ی خۆی هەڵدەگرێت (کات ئارەزوومەندانەیە؛ بە کاتی ئێستا دەست پێدەکات و وەک خۆی بە کاتی ناوخۆیی پاشەکەوت دەکرێت). یاسای دووبارەبووەوە تەنها ڕێکەوتی دەستپێکی هەیە.'],
       ['Short vault → warning, then an unpaid due for the rest.', 'قاسەی کەم ← ئاگادارکردنەوە، پاشان قەرزی نەدراو بۆ ماوەکەی.'],
       ['**Recurring** expenses post themselves daily, weekly or monthly, and can skip chosen days. If the vault doesn\'t have the money the run is not posted and shows as **Due** (it does not create debt).', 'خەرجی **دووبارەبووەوە** خۆی ڕۆژانە، هەفتانە یان مانگانە تۆمار دەکات، و دەتوانێت ڕۆژانی دیاریکراو تێپەڕێنێت. ئەگەر قاسە پارەی نەبێت تۆمار ناکرێت و وەک **Due** پیشان دەدرێت (قەرز دروست ناکات).'],
       ['Expense PIN: **{expPin}**. When set, a new expense or recurring rule needs it ({pinMin}–{pinMax} digits; locked {pinLock} min after {pinTries} wrong tries).', 'PINی خەرجی: **{expPin}**. ئەگەر دانرابێت، خەرجی نوێ یان یاسای دووبارەبووەوە پێویستی پێیەتی ({pinMin}–{pinMax} ژمارە؛ دوای {pinTries} هەڵە بۆ {pinLock} خولەک قفڵ دەبێت).'],
@@ -307,6 +308,13 @@ export const ABOUT_SECTIONS: AboutSection[] = [
 
 /** Newest first. Add an entry here whenever a rule is added, changed or removed. */
 export const ABOUT_CHANGELOG: AboutChange[] = [
+  {
+    version: '2.3',
+    date: '2026-11-09',
+    items: [
+      { type: 'added', text: ['Expenses record a time as well as a date. The expense form puts the amount first, with its currency (which is also the vault that pays) beside it.', 'خەرجی کاتیش وەک ڕێکەوت تۆمار دەکات. فۆرمی خەرجی بڕی پارە یەکەم دادەنێت، و دراوەکەی (کە هەمان ئەو قاسەیەیە کە دەیدات) لە تەنیشتیەتی.'] },
+    ],
+  },
   {
     version: '2.2',
     date: '2026-11-09',

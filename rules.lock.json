@@ -1,6 +1,6 @@
 {
-  "version": "2.2",
-  "about": "580df72b7148bf4b",
+  "version": "2.3",
+  "about": "59067993d9320691",
   "files": {
     "src/lib/rules.ts": "62c3746dce697c69",
     "src/lib/lock.ts": "efcbe54f3c625fbb",
@@ -11,7 +11,7 @@
     "src/lib/server/txns.ts": "66b3c6ea81b385a1",
     "src/lib/server/ledger.ts": "61c06c5e1a880745",
     "src/lib/server/dues.ts": "545b8496d721064e",
-    "src/lib/server/expenses.ts": "06ef139da2002b72",
+    "src/lib/server/expenses.ts": "f72dea36e133a80c",
     "src/lib/server/employees.ts": "27c9bd46228ff043",
     "src/lib/server/q/dashboard.ts": "445455b8de00678c",
     "src/lib/server/q/reports.ts": "1660495c4cefd50a",

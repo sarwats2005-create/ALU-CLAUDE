@@ -113,6 +113,8 @@ export async function deleteCategory(id: string, actor: Actor) {
 // ─── Expense (manual) ──────────────────────────────────────────────────────────────────────────────
 export type ExpenseInput = {
   date?: string;
+  /** Optional local time of day, "HH:MM" (24h). Anything else is stored as no time. */
+  time?: string;
   categoryId?: string;
   note?: string;
   amount?: string;
@@ -127,6 +129,11 @@ export type ExpenseInput = {
   pin?: string;
   allowShortfall?: boolean;
 };
+
+/** "HH:MM" (00:00–23:59) or null. Kept as entered — a wall-clock time beside the local date, never converted. */
+export function cleanTime(s: unknown): string | null {
+  return typeof s === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s) ? s : null;
+}
 
 /** Create or edit a manual expense. Edit = reverse the old vault movement, then post the new one. */
 export async function saveExpense(input: ExpenseInput, actor: Actor, editId?: string): Promise<Saved> {
@@ -169,6 +176,7 @@ export async function saveExpense(input: ExpenseInput, actor: Actor, editId?: st
     const rate = old ? D(old.rate) : await currentRate(tx);
     const data = {
       date,
+      time: cleanTime(input.time),
       currency: vault,
       rate: rate.toString(),
       total: amount.toString(),

@@ -259,6 +259,9 @@ model Txn {
   number        String      @unique
   kind          TxnKind
   date          DateTime    @db.Date
+  /// Local wall-clock time ("HH:MM", business time zone) the user entered with the date. Optional: only
+  /// expenses record it for now; null on older rows and on documents that carry a date only.
+  time          String?     @db.VarChar(5)
   customerId    String?
   customer      Customer?   @relation(fields: [customerId], references: [id])
   beneficiaryId String?

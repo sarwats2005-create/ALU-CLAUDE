@@ -138,7 +138,9 @@ export function Dialog({
           <div
             data-dialog-footer
             data-on-canvas
-            className="liquid-glass-footer safe-bottom flex flex-col-reverse gap-3 px-5 py-4 md:flex-row md:justify-end md:px-7"
+            // Bottom padding: 8px clear of the sheet's edge, plus the phone's home-bar inset. (The old
+            // .safe-bottom replaced py-4's bottom padding with the inset alone — 0 on desktop.)
+            className="liquid-glass-footer flex flex-col-reverse gap-3 px-5 pb-[calc(8px+env(safe-area-inset-bottom))] pt-4 md:flex-row md:justify-end md:px-7"
           >
             {footer}
           </div>

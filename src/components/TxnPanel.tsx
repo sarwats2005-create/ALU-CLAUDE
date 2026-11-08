@@ -20,6 +20,9 @@ import { useToast } from './Toast';
 import { useErase } from './EraseMode';
 import { RevertProcessingDialog } from './RevertProcessing';
 
+/** Square icon-only footer button: same height as every control, no side padding. */
+const ICON_BTN = 'w-[var(--ctl-h)] shrink-0 px-0';
+
 type OpenOpts = { confirmDelete?: boolean };
 type Ctx = { open: (id: string, opts?: OpenOpts) => void };
 const PanelCtx = createContext<Ctx>({ open: () => {} });
@@ -100,14 +103,18 @@ export function TxnPanelProvider({ children }: { children: ReactNode }) {
         onClose={close}
         size="lg"
         title={data ? `${t(`kind.${data.kind}` as 'kind.SALE')} ${data.number}` : t('detail.title')}
-        description={data ? fmtDate(data.date) : undefined}
+        description={data ? (data.time ? `${fmtDate(data.date)} · ${data.time}` : fmtDate(data.date)) : undefined}
         footer={
           data ? (
-            <>
+            // One row of icon-only buttons (name in aria-label + tooltip), all the same height. Closing is the
+            // × in the header. Destructive actions sit apart at the start of the row.
+            <div className="flex w-full flex-wrap items-center gap-2">
               {erase.active ? (
                 <Button
                   variant="danger"
-                  className="md:me-auto"
+                  className={ICON_BTN}
+                  aria-label={t('erase.txn')}
+                  title={t('erase.txn')}
                   onClick={async () => {
                     const d = data;
                     if (await erase.eraseTxn(d.id, d.number)) {
@@ -115,28 +122,35 @@ export function TxnPanelProvider({ children }: { children: ReactNode }) {
                       close();
                     }
                   }}
-                  icon={<Eraser className="h-4 w-4" aria-hidden="true" />}
-                >
-                  {t('erase.txn')}
-                </Button>
+                  icon={<Eraser className="h-5 w-5" aria-hidden="true" />}
+                />
               ) : null}
               {mayEdit && !erase.active && kind !== 'PROCESSING' ? (
-                <Button variant="quiet" className="md:me-auto text-danger-ink hover:text-danger-ink" onClick={() => setConfirm(true)} icon={<Trash2 className="h-4 w-4" aria-hidden="true" />}>
-                  {t('common.delete')}
-                </Button>
+                <Button
+                  variant="quiet"
+                  className={cx(ICON_BTN, 'text-danger-ink hover:text-danger-ink')}
+                  aria-label={t('common.delete')}
+                  title={t('common.delete')}
+                  onClick={() => setConfirm(true)}
+                  icon={<Trash2 className="h-5 w-5" aria-hidden="true" />}
+                />
               ) : null}
               {/* A processing run is undone by reverting it to raw (master PIN), not by deleting it. */}
               {mayEdit && !erase.active && kind === 'PROCESSING' ? (
-                <Button variant="quiet" className="md:me-auto" onClick={() => (setRevert(data.id), close())} icon={<Undo2 className="h-4 w-4" aria-hidden="true" />}>
-                  {t('prc.revert')}
-                </Button>
+                <Button
+                  variant="quiet"
+                  className={ICON_BTN}
+                  aria-label={t('prc.revert')}
+                  title={t('prc.revert')}
+                  onClick={() => (setRevert(data.id), close())}
+                  icon={<Undo2 className="h-5 w-5" aria-hidden="true" />}
+                />
               ) : null}
-              <Button variant="secondary" onClick={close}>
-                {t('common.close')}
-              </Button>
+              <span className="flex-1" aria-hidden="true" />
               <Segmented<Paper>
                 label={t('invc.paper')}
                 size="sm"
+                className="h-[var(--ctl-h)]"
                 value={paper}
                 onChange={setPaper}
                 options={[
@@ -144,25 +158,38 @@ export function TxnPanelProvider({ children }: { children: ReactNode }) {
                   { value: 'A4', label: 'A4' },
                 ]}
               />
-              <Button variant="secondary" onClick={doPdf} busy={busy === 'pdf'} icon={<FileDown className="h-4 w-4" aria-hidden="true" />}>
-                {t('common.downloadPdf')}
-              </Button>
-              <Button variant="secondary" onClick={doPrint} busy={busy === 'print'} icon={<Printer className="h-4 w-4" aria-hidden="true" />}>
-                {t('common.print')}
-              </Button>
+              <Button
+                variant="secondary"
+                className={ICON_BTN}
+                aria-label={t('common.downloadPdf')}
+                title={t('common.downloadPdf')}
+                onClick={doPdf}
+                busy={busy === 'pdf'}
+                icon={<FileDown className="h-5 w-5" aria-hidden="true" />}
+              />
+              <Button
+                variant="secondary"
+                className={ICON_BTN}
+                aria-label={t('common.print')}
+                title={t('common.print')}
+                onClick={doPrint}
+                busy={busy === 'print'}
+                icon={<Printer className="h-5 w-5" aria-hidden="true" />}
+              />
               {/* A salary is not edited: delete it (the money goes back) and pay it again. */}
               {mayEdit && kind !== 'SALARY' ? (
                 <Button
+                  className={ICON_BTN}
+                  aria-label={t('common.edit')}
+                  title={t('common.edit')}
                   onClick={() => {
                     close();
                     router.push(editHref(kind!, data.id, partyId));
                   }}
-                  icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
-                >
-                  {t('common.edit')}
-                </Button>
+                  icon={<Pencil className="h-5 w-5" aria-hidden="true" />}
+                />
               ) : null}
-            </>
+            </div>
           ) : undefined
         }
       >

@@ -175,7 +175,13 @@ export function ExpensesView({ editId }: { editId: string | null }) {
   };
 
   const cols: Column<ExpenseRow>[] = [
-    { key: 'date', label: t('common.date'), sortable: true, render: (r) => <span className="num whitespace-nowrap text-muted">{fmtDate(r.date)}</span> },
+    { key: 'date', label: t('common.date'), sortable: true, render: (r) => (
+        <span className="num whitespace-nowrap text-muted">
+          {fmtDate(r.date)}
+          {r.time ? <span className="block text-caption">{r.time}</span> : null}
+        </span>
+      ),
+    },
     {
       key: 'category',
       label: t('exp.category'),
