@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogOut, Ellipsis, Menu, PanelLeftClose, PanelLeftOpen, Info } from 'lucide-react';
+import { LogOut, Ellipsis, Menu, PanelLeftClose, PanelLeftOpen, Info, X } from 'lucide-react';
 import { AppProvider, useApp, type ClientUser } from '@/lib/client/app-context';
 import { api } from '@/lib/client/api';
 import { PAGES, PAGE_HREF, type Page } from '@/lib/permissions';
@@ -13,7 +13,7 @@ import { ToastProvider, useToast } from '../Toast';
 import { AlertsBell } from '../AlertsBell';
 import { ExchangeRateFab } from '../ExchangeRateFab';
 import { StaffActivityNotices } from '../StaffActivityNotices';
-import { Dialog } from '../Dialog';
+import { MenuLink, MenuOverlay } from '../menu/hamburger-menu';
 import { Segmented } from '../ui';
 import { TxnPanelProvider } from '../TxnPanel';
 import { MoneyGuardProvider } from '../MoneyGuard';
@@ -88,6 +88,11 @@ function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const prefs = usePrefs();
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreBtn = useRef<HTMLButtonElement>(null);
+  const closeMore = useCallback((refocus: boolean) => {
+    setMoreOpen(false);
+    if (refocus) moreBtn.current?.focus({ preventScroll: true });
+  }, []);
 
   const activeGroups = useMemo(() => activeNavGroupIds(pathname, can), [pathname, can]);
   const sidebar = useSidebarState(pathname, activeGroups);
@@ -190,7 +195,8 @@ function Shell({ children }: { children: ReactNode }) {
               ALU FACTORY
             </span>
           </span>
-          {showLabels ? <AlertsBell onBrand align="end" /> : null}
+          {/* align="start": the panel opens toward the page; "end" ran it off the screen's left edge. */}
+          {showLabels ? <AlertsBell onBrand align="start" /> : null}
         </div>
         {!showLabels ? (
           <div className="hidden flex-col gap-2 px-2 pb-2 lg:flex">
@@ -293,7 +299,10 @@ function Shell({ children }: { children: ReactNode }) {
       </div>
 
       {/* Mobile / tablet bottom tabs */}
-      <nav aria-label={t('nav.menu')} className="alu-chrome alu-glass safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-line-soft lg:hidden">
+      <nav
+        aria-label={t('nav.menu')}
+        className={cx('alu-chrome alu-glass safe-bottom fixed inset-x-0 bottom-0 border-t border-line-soft lg:hidden', moreOpen ? 'z-[62]' : 'z-30')}
+      >
         <ul className="mx-auto flex max-w-xl">
           {tabs.map((p) => {
             const Icon = PAGE_NAV[p].icon;
@@ -316,42 +325,49 @@ function Shell({ children }: { children: ReactNode }) {
           })}
           <li className="flex-1">
             <button
+              ref={moreBtn}
               type="button"
-              onClick={() => setMoreOpen(true)}
-              aria-haspopup="dialog"
+              onClick={() => setMoreOpen((o) => !o)}
+              aria-haspopup="menu"
+              aria-expanded={moreOpen}
               className={cx(
                 'flex h-16 w-full flex-col items-center justify-center gap-0.5 text-[12px] font-semibold motion-safe:transition-colors motion-safe:duration-150',
-                overflow.some(isActive) || pathname === '/about' ? 'bg-brand text-on-brand' : 'text-muted hover:text-ink',
+                moreOpen || overflow.some(isActive) || pathname === '/about' ? 'bg-brand text-on-brand' : 'text-muted hover:text-ink',
               )}
             >
-              <Ellipsis className="h-5 w-5" aria-hidden="true" />
+              {/* The dots and the × cross-fade and spin into each other. */}
+              <span className="relative h-5 w-5" aria-hidden="true">
+                <Ellipsis className={cx('absolute inset-0 h-5 w-5 motion-safe:transition-[opacity,transform] motion-safe:duration-300', moreOpen && 'rotate-90 scale-50 opacity-0')} />
+                <X className={cx('absolute inset-0 h-5 w-5 motion-safe:transition-[opacity,transform] motion-safe:duration-300', !moreOpen && '-rotate-90 scale-50 opacity-0')} />
+              </span>
               <span>{t('nav.more')}</span>
             </button>
           </li>
         </ul>
       </nav>
 
-      <Dialog open={moreOpen} onClose={() => setMoreOpen(false)} title={t('nav.more')} size="sm">
-        <ul className="-mx-2 flex flex-col">
-          {overflow.map((p) => {
-            const Icon = PAGE_NAV[p].icon;
-            return (
-              <li key={p}>
-                <Link href={PAGE_HREF[p]} className="flex h-11 items-center gap-3 rounded-ctl px-3 text-lead font-semibold text-ink motion-safe:transition-colors motion-safe:duration-150 hover:bg-tint">
-                  <Icon className="h-5 w-5 text-brand-ink" aria-hidden="true" />
-                  {t(PAGE_NAV[p].label)}
-                </Link>
-              </li>
-            );
-          })}
-          <li>
-            <Link href="/about" className="flex h-11 items-center gap-3 rounded-ctl px-3 text-lead font-semibold text-ink motion-safe:transition-colors motion-safe:duration-150 hover:bg-tint">
-              <Info className="h-5 w-5 text-brand-ink" aria-hidden="true" />
-              {t('nav.about')}
-            </Link>
-          </li>
-        </ul>
-        <div className="mt-4 flex flex-col gap-3 border-t border-line-soft pt-4">
+      {/* Phone "More" menu: springs up out of the More tab over the blurred page (rate button included); rows
+          bounce in one by one. While it is open the tab bar is lifted above it (z-[62]), so the bar stays sharp
+          and the More tab closes it again. */}
+      <MenuOverlay
+        open={moreOpen}
+        onClose={closeMore}
+        label={t('nav.more')}
+        panelClassName="hm-panel-bottom"
+        style={{ '--hm-z': 61, '--hm-bottom': 'calc(4.75rem + env(safe-area-inset-bottom))' } as CSSProperties}
+      >
+        {overflow.map((p) => {
+          const Icon = PAGE_NAV[p].icon;
+          return (
+            <MenuLink key={p} as={Link} href={PAGE_HREF[p]} current={isActive(p)} icon={<Icon className="h-5 w-5" aria-hidden="true" />}>
+              {t(PAGE_NAV[p].label)}
+            </MenuLink>
+          );
+        })}
+        <MenuLink as={Link} href="/about" current={pathname === '/about'} icon={<Info className="h-5 w-5" aria-hidden="true" />}>
+          {t('nav.about')}
+        </MenuLink>
+        <div className="flex flex-col gap-3 rounded-[12px] bg-surface-2 p-3">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-tint text-meta font-bold text-brand-ink" aria-hidden="true">
               {initials(user.name)}
@@ -373,7 +389,7 @@ function Shell({ children }: { children: ReactNode }) {
             {t('nav.logout')}
           </button>
         </div>
-      </Dialog>
+      </MenuOverlay>
 
       <ExchangeRateFab />
       {user.isOwner ? <WeeklyBackup /> : null}

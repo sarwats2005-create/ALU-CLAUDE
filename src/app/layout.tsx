@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { cookies } from 'next/headers';
 import '@/app/globals.css';
+import '@/app/menu.css';
 import { getSessionUser, LANG_COOKIE } from '@/lib/server/auth';
 import { dirOf, parseLang } from '@/lib/i18n';
 import { GlobalLoader } from '@/components/Loader';

@@ -1,15 +1,20 @@
 'use client';
 import {
+  Children,
+  Fragment,
   forwardRef,
+  isValidElement,
   useId,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
+  type ReactElement,
   type ReactNode,
-  type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react';
 
+import { ChevronDown } from 'lucide-react';
 import { cx } from '@/lib/cx';
+import { DropdownItem, DropdownMenu } from './menu/hamburger-menu';
 export { cx };
 
 // ─── Button ────────────────────────────────────────────────────────────────────────────────────────
@@ -167,32 +172,126 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
   );
 });
 
+type SelectOption = { value: string; label: ReactNode; disabled: boolean };
+type OptionProps = { value?: string | number; children?: ReactNode; disabled?: boolean; hidden?: boolean };
+
+/** Reads the <option> children (also inside arrays and fragments) into a plain list. */
+function readOptions(children: ReactNode): SelectOption[] {
+  const out: SelectOption[] = [];
+  const walk = (nodes: ReactNode) =>
+    Children.forEach(nodes, (c) => {
+      if (!isValidElement(c)) return;
+      const el = c as ReactElement<OptionProps>;
+      if (el.type === 'option') {
+        if (el.props.hidden) return;
+        out.push({ value: String(el.props.value ?? textOf(el.props.children)), label: el.props.children, disabled: !!el.props.disabled });
+      } else if (el.type === Fragment || el.type === 'optgroup') walk(el.props.children);
+    });
+  walk(children);
+  return out;
+}
+
+function textOf(n: ReactNode): string {
+  if (n == null || typeof n === 'boolean') return '';
+  if (typeof n === 'string' || typeof n === 'number') return String(n);
+  if (Array.isArray(n)) return n.map(textOf).join('');
+  if (isValidElement(n)) return textOf((n as ReactElement<{ children?: ReactNode }>).props.children);
+  return '';
+}
+
+/** What `onChange` receives: shaped like a change event, so `e.target.value` works as with a native select. */
+export type SelectChange = { target: { value: string }; currentTarget: { value: string } };
+
 /**
- * Dropdown. `placeholder` is shown in the field while nothing is picked (muted, like a text field's hint) but is
- * never offered in the open list: it is a hidden, disabled option, so it can't be chosen. Picking an item replaces it.
+ * Dropdown (springy list, see components/menu). Same API as a native <select>: `value`, `onChange(e)` with
+ * `e.target.value`, and <option> children. `placeholder` is shown in the field while nothing is picked (muted,
+ * like a text field's hint) but is never offered in the open list. Picking an item replaces it.
  */
-export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean; placeholder?: string }>(function Select(
-  { invalid, className, children, placeholder, ...rest },
-  ref,
-) {
-  const empty = placeholder !== undefined && (rest.value === '' || rest.value === undefined || rest.value === null);
-  return (
-    <select
-      ref={ref}
-      aria-invalid={invalid || undefined}
-      data-empty={empty || undefined}
-      className={cx(INPUT, 'select-chevron appearance-none pe-9', className)}
-      {...rest}
+export function Select({
+  id,
+  name,
+  value,
+  onChange,
+  children,
+  placeholder,
+  invalid,
+  disabled,
+  className,
+  title,
+  'aria-label': ariaLabel,
+  'aria-describedby': describedBy,
+}: {
+  id?: string;
+  name?: string;
+  value?: string | number | null;
+  onChange?: (e: SelectChange) => void;
+  children?: ReactNode;
+  placeholder?: string;
+  invalid?: boolean;
+  disabled?: boolean;
+  className?: string;
+  title?: string;
+  'aria-label'?: string;
+  'aria-describedby'?: string;
+}) {
+  const options = readOptions(children);
+  const val = value == null ? '' : String(value);
+  const current = options.find((o) => o.value === val);
+  // Like a native select: with no placeholder and no match, the first option is what shows.
+  const shown = current ?? (placeholder === undefined ? options[0] : undefined);
+  const empty = !shown;
+  const menu = (
+    <DropdownMenu
+      role="listbox"
+      label={ariaLabel ?? placeholder ?? ''}
+      disabled={disabled}
+      trigger={(p) => (
+        <button
+          {...p}
+          type="button"
+          id={id}
+          // Select-only combobox: the label names it, its text is the current value.
+          role="combobox"
+          disabled={disabled}
+          title={title}
+          aria-label={ariaLabel}
+          aria-invalid={invalid || undefined}
+          aria-describedby={describedBy ?? (invalid && id ? `${id}-error` : undefined)}
+          data-empty={empty || undefined}
+          className={cx(INPUT, 'alu-select group relative flex items-center pe-10 text-start', className)}
+        >
+          <span className="bidi min-w-0 flex-1 truncate">{shown ? shown.label : placeholder}</span>
+          {/* A real icon, not a background image: .alu-field's background shorthand would wipe an image out. */}
+          <ChevronDown
+            className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted motion-safe:transition-transform motion-safe:duration-300 group-aria-expanded:rotate-180"
+            aria-hidden="true"
+          />
+        </button>
+      )}
     >
-      {placeholder !== undefined ? (
-        <option value="" disabled hidden>
-          {placeholder}
-        </option>
-      ) : null}
-      {children}
-    </select>
+      {options.map((o) => (
+        <DropdownItem
+          key={o.value}
+          selected={o.value === val}
+          disabled={o.disabled}
+          onSelect={() => {
+            if (o.value !== val) onChange?.({ target: { value: o.value }, currentTarget: { value: o.value } });
+          }}
+        >
+          {o.label}
+        </DropdownItem>
+      ))}
+    </DropdownMenu>
   );
-});
+  return name ? (
+    <>
+      {menu}
+      <input type="hidden" name={name} value={val} />
+    </>
+  ) : (
+    menu
+  );
+}
 
 /** Apple-style segmented control (radio group). */
 export function Segmented<T extends string>({

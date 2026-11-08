@@ -1,10 +1,11 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { Bell, AlertTriangle, AlertOctagon } from 'lucide-react';
 import { useApp } from '@/lib/client/app-context';
 import { api } from '@/lib/client/api';
 import { cx } from '@/lib/cx';
+import { usePresence } from './menu/hamburger-menu';
 
 type Alert = { key: string; type: string; severity: 'danger' | 'warning'; text: string; href: string; unread: boolean };
 
@@ -40,6 +41,10 @@ export function AlertsBell({ className, onBrand, align = 'end' }: { className?: 
   }, [open]);
 
   const unread = alerts.filter((a) => a.unread).length;
+  const shown = usePresence(open, 190);
+  // Grow out of the bell's side: the panel's end edge (align="end") or start edge, mirrored in Kurdish (RTL).
+  const rtl = typeof document !== 'undefined' && document.documentElement.dir === 'rtl';
+  const origin = `top ${(align === 'end') !== rtl ? 'right' : 'left'}`;
 
   async function markRead(keys: string[]) {
     if (!keys.length) return;
@@ -67,12 +72,15 @@ export function AlertsBell({ className, onBrand, align = 'end' }: { className?: 
           </span>
         ) : null}
       </button>
-      {open ? (
+      {shown ? (
+        // Springs out of the bell and plays backwards on close (hm-pop, src/app/menu.css).
         <div
           role="dialog"
           aria-label={t('alerts.title')}
+          data-state={open ? 'open' : 'closed'}
+          style={{ '--hm-origin': origin } as CSSProperties}
           className={cx(
-            'anim-sheet fixed inset-x-3 top-16 z-50 max-h-[70dvh] overflow-hidden rounded-card border-2 border-ink bg-surface md:absolute md:inset-x-auto md:top-12 md:w-[380px]',
+            'hm-pop fixed inset-x-3 top-16 z-50 max-h-[70dvh] overflow-hidden rounded-card border border-line-soft bg-surface-solid shadow-[var(--hm-shadow)] md:absolute md:inset-x-auto md:top-12 md:w-[380px]',
             align === 'end' ? 'md:end-0' : 'md:start-0',
           )}
         >

@@ -704,6 +704,9 @@ select[data-empty] {
 select[data-empty] option {
   color: var(--ink);
 }
+.alu-select[data-empty] {
+  color: var(--muted);
+}
 
 /* ───────────────────────── Premium surfaces & controls ───────────────────────── */
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
@@ -977,7 +980,8 @@ html.theme-dark .liquid-glass-panel .alu-field:focus {
 body > * {
   transition: filter var(--motion-panel) var(--ease-out);
 }
-html.dialog-open body > :not([data-dialog-layer]) {
+/* Dropdown lists opened from inside a pop-up are portalled to <body> too, so they stay sharp and clickable. */
+html.dialog-open body > :not([data-dialog-layer]):not(.hm-dropdown):not(.hm-overlay) {
   filter: blur(18px) saturate(1.2);
   pointer-events: none;
   user-select: none;
@@ -1073,9 +1077,15 @@ html.dialog-open body > :not([data-dialog-layer]) {
 
 /* Filter bars: dropdowns sitting next to the (pill) search box become pills too. */
 :has(> .elegant-search) > select.alu-field,
-:has(> .elegant-search) > * > select.alu-field {
+:has(> .elegant-search) > * > select.alu-field,
+:has(> .elegant-search) > .alu-select.alu-field,
+:has(> .elegant-search) > * > .alu-select.alu-field {
   border-radius: 999px;
   padding-inline-start: 1.25rem;
+}
+:has(> .elegant-search) > .alu-select.alu-field:not(:focus),
+:has(> .elegant-search) > * > .alu-select.alu-field:not(:focus) {
+  background: var(--surface-solid);
 }
 .elegant-search .alu-field:not(:focus),
 :has(> .elegant-search) > select.alu-field:not(:focus),

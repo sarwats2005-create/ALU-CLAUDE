@@ -5,7 +5,7 @@ import { useApp } from '@/lib/client/app-context';
 import { qs } from '@/lib/client/api';
 import { useDebounced } from '@/lib/client/use-remote';
 import { cx } from '@/lib/cx';
-import { Skeleton } from './ui';
+import { Select, Skeleton } from './ui';
 
 export type Column<R> = {
   key: string;
@@ -226,16 +226,18 @@ export function Pager({ total, page, size, onPage, onSize }: { total: number; pa
     <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-2 px-5 py-3 text-meta text-muted">
       <p className="num">{t('common.showing', { from, to, total })}</p>
       <div className="flex items-center gap-2">
-        <label className="flex items-center gap-2">
-          <span className="hidden sm:inline">{t('common.perPage')}</span>
-          <select value={size} onChange={(e) => onSize(Number(e.target.value))} className="select-chevron h-[var(--ctl-h)] appearance-none rounded-ctl border-2 border-transparent bg-surface ps-4 pe-9 text-body text-ink focus:border-brand focus:outline-none">
+        <span className="flex items-center gap-2">
+          <span className="hidden sm:inline" aria-hidden="true">
+            {t('common.perPage')}
+          </span>
+          <Select aria-label={t('common.perPage')} value={size} onChange={(e) => onSize(Number(e.target.value))} className="num w-24">
             {[25, 50, 100].map((n) => (
               <option key={n} value={n}>
                 {n}
               </option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </span>
         <span className="num px-1">{t('common.page', { n: page, total: pages })}</span>
         <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label={t('common.prev')} className="inline-flex h-11 w-11 items-center justify-center rounded-ctl bg-surface text-ink motion-safe:transition-[background-color,transform] motion-safe:duration-[var(--motion-base)] hover:scale-[1.02] hover:bg-tint-2 disabled:opacity-40 disabled:hover:scale-100">
           <ChevronLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />

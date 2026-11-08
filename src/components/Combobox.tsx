@@ -6,6 +6,7 @@ import { api } from '@/lib/client/api';
 import { useDebounced } from '@/lib/client/use-remote';
 import { cx } from '@/lib/cx';
 import { Spinner } from './ui';
+import { usePresence } from './menu/hamburger-menu';
 
 export type Option<T> = { id: string; label: string; data: T };
 
@@ -73,7 +74,8 @@ export function Combobox<T>({
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
 
-  const showCreate = !!onCreate && dq.trim().length > 0 && !items.some((i) => i.label.toLocaleLowerCase() === dq.trim().toLocaleLowerCase());
+  const listShown = usePresence(open, 190);
+  const showCreate =!!onCreate && dq.trim().length > 0 && !items.some((i) => i.label.toLocaleLowerCase() === dq.trim().toLocaleLowerCase());
   const count = items.length + (showCreate ? 1 : 0);
 
   function pick(i: number) {
@@ -170,11 +172,14 @@ export function Combobox<T>({
           <span className="pointer-events-none absolute end-4 top-1/2 -translate-y-1/2 text-muted">{loading && open ? <Spinner /> : <ChevronDown className="h-4 w-4" aria-hidden="true" />}</span>
         </div>
       )}
-      {open ? (
+      {listShown ? (
+        // Springs open under the field and plays backwards on close (hm-pop, src/app/menu.css).
         <ul
           id={listId}
           role="listbox"
-          className="scroll-thin absolute inset-x-0 top-full z-40 mt-1 max-h-72 overflow-y-auto rounded-ctl border-2 border-brand bg-surface py-1"
+          data-state={open ? 'open' : 'closed'}
+          aria-hidden={open ? undefined : true}
+          className="hm-pop scroll-thin absolute inset-x-0 top-full z-40 mt-1.5 flex max-h-72 flex-col gap-0.5 overflow-y-auto rounded-[14px] border border-line-soft bg-surface-solid p-1.5 shadow-[var(--hm-shadow)]"
         >
           {items.map((o, i) => (
             <li
@@ -185,7 +190,11 @@ export function Combobox<T>({
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => pick(i)}
               onMouseEnter={() => setActive(i)}
-              className={cx('cursor-pointer px-3 py-2 text-body text-ink', i === active && 'bg-tint')}
+              className={cx(
+                'flex min-h-11 cursor-pointer items-center rounded-[10px] px-3 py-2 text-body text-ink motion-safe:transition-colors motion-safe:duration-150',
+                i === active && 'bg-surface-2',
+                value?.id === o.id && 'bg-tint font-semibold text-brand-ink',
+              )}
             >
               {renderOption ? renderOption(o) : <span className="bidi">{o.label}</span>}
             </li>
@@ -198,7 +207,10 @@ export function Combobox<T>({
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => pick(items.length)}
               onMouseEnter={() => setActive(items.length)}
-              className={cx('flex cursor-pointer items-center gap-2 px-3 py-2 text-body font-semibold text-brand-ink', active === items.length && 'bg-tint')}
+              className={cx(
+                'flex min-h-11 cursor-pointer items-center gap-2 rounded-[10px] px-3 py-2 text-body font-semibold text-brand-ink motion-safe:transition-colors motion-safe:duration-150',
+                active === items.length && 'bg-surface-2',
+              )}
             >
               <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="bidi truncate">{t('common.addNamed', { name: dq.trim() })}</span>
