@@ -77,7 +77,7 @@ export const ABOUT_SECTIONS: AboutSection[] = [
       ['Only the owner, or a user with the "edit exchange rate" permission, can change the rate.', 'تەنها خاوەن، یان بەکارهێنەرێک کە مۆڵەتی «گۆڕینی نرخی دراو»ی هەیە، دەتوانێت نرخەکە بگۆڕێت.'],
       ['IQD amounts are rounded to a whole dinar; USD to the cent; weight to 3 decimals (kg).', 'بڕی دینار بۆ دینارێکی تەواو خڕ دەکرێتەوە؛ دۆلار بۆ سەنت؛ کێش بۆ ٣ ژمارەی دوای فاریزە (کیلۆ).'],
       ['The server always calculates totals itself. If the screen shows a different total, the server total wins.', 'سێرڤەر هەمیشە خۆی کۆی گشتی حیساب دەکات. ئەگەر شاشەکە کۆیەکی جیاواز پیشان بدات، کۆی سێرڤەر ڕاستە.'],
-      ['Every document type has its own number series (INV, PUR, RCV, PAY, VLT, PRC, EXP). Numbers are never reused, even after a delete.', 'هەر جۆرە بەڵگەیەک زنجیرە ژمارەی خۆی هەیە (INV، PUR، RCV، PAY، VLT، PRC، EXP). ژمارەکان هەرگیز دووبارە بەکارنایەنەوە، تەنانەت دوای سڕینەوەش.'],
+      ['Every document type has its own number series (INV, PUR, RCV, PAY, VLT, PRC, EXP, STR). Numbers are never reused, even after a delete.', 'هەر جۆرە بەڵگەیەک زنجیرە ژمارەی خۆی هەیە (INV، PUR، RCV، PAY، VLT، PRC، EXP، STR). ژمارەکان هەرگیز دووبارە بەکارنایەنەوە، تەنانەت دوای سڕینەوەش.'],
       ['Every save, edit and delete is written to the audit log (who, when, before and after).', 'هەر تۆمارکردن، دەستکاری و سڕینەوەیەک لە تۆماری چاودێری دەنووسرێت (کێ، کەی، پێش و دوای).'],
     ],
   },
@@ -127,6 +127,11 @@ export const ABOUT_SECTIONS: AboutSection[] = [
       ['Every product gets its **code (SKU) automatically**: {skuExample}, then the next number. Codes are never typed, never changed and never given twice, even after a product is deleted.', 'هەر بەرهەمێک **کۆدەکەی (SKU) خۆکار** وەردەگرێت: {skuExample}، پاشان ژمارەی دواتر. کۆد نانووسرێت، ناگۆڕدرێت و هەرگیز دووجار نادرێت، تەنانەت دوای سڕینەوەی بەرهەمەکەش.'],
       ['Aluminum types are added by you (Settings, or "Add type" when buying). None are pre-added. A type that a product uses cannot be deleted.', 'جۆرەکانی ئەلەمنیۆم خۆت زیادیان دەکەیت (ڕێکخستنەکان، یان «زیادکردنی جۆر» لە کاتی کڕیندا). هیچیان پێشوەختە زیاد نەکراون. جۆرێک کە کاڵایەک بەکاری دەهێنێت ناسڕدرێتەوە.'],
       ['A product is **low** when its stock is at or below its own limit, or the general limit (**{lowStock}**); **out** at zero.', 'کاڵایەک **کەمە** کاتێک کۆگاکەی گەیشتە سنووری خۆی یان سنووری گشتی (**{lowStock}**) یان کەمتر؛ لە سفردا **نەماوە**.'],
+      ['The factory can have **several inventories** (warehouses or stores). Products are shared; the kg and the cost are kept per inventory. Every purchase, sale, processing run and rent payment says which inventory it uses; the main inventory is the default.', 'کارگە دەتوانێت **چەند کۆگایەکی** هەبێت (کۆگا یان دوکان). بەرهەمەکان هاوبەشن؛ کیلۆ و تێچوو بۆ هەر کۆگایەک جیا هەڵدەگیرێن. هەر کڕین، فرۆشتن، پرۆسێس و دانی کرێیەک دیاری دەکات کام کۆگا بەکاردێنێت؛ کۆگای سەرەکی بنەڕەتە.'],
+      ['You can only sell or process the kg that are in **that** inventory, not the total of all inventories.', 'تەنها ئەو کیلۆیە دەفرۆشیت یان پرۆسێس دەکەیت کە لە **هەمان** کۆگادایە، نەک کۆی هەموو کۆگاکان.'],
+      ['**Transfer stock (STR)** moves kg from one inventory to another at their average cost. No money moves and the total kg stays the same.', '**گواستنەوەی کاڵا (STR)** کیلۆ لە کۆگایەکەوە بۆ کۆگایەکی تر دەگوازێتەوە بە تێکڕای تێچووەکەیان. هیچ پارەیەک ناجووڵێت و کۆی کیلۆ وەک خۆی دەمێنێتەوە.'],
+      ['An inventory can have a **monthly rent**. When it is due, **Pay rent** saves it as an expense (EXP) from the vault you pick. The next due date moves forward one month only when the rent was paid in full; if the vault was short, the rest stays as an unpaid due and the date does not move.', 'کۆگایەک دەتوانێت **کرێی مانگانە**ی هەبێت. کاتێک کاتی هات، **دانی کرێ** وەک خەرجی (EXP) لەو قاسەیەی هەڵیدەبژێریت تۆمار دەکرێت. وادەی داهاتوو تەنها کاتێک یەک مانگ دەچێتە پێشەوە کە کرێکە بە تەواوی درابێت؛ ئەگەر قاسە کەم بوو، ماوەکەی وەک قەرزی نەدراو دەمێنێتەوە و وادەکە ناجووڵێت.'],
+      ['The main inventory cannot be deleted. Another inventory can be deleted only when it is empty and no document uses it.', 'کۆگای سەرەکی ناسڕدرێتەوە. کۆگایەکی تر تەنها کاتێک دەسڕدرێتەوە کە بەتاڵ بێت و هیچ بەڵگەیەک بەکاری نەهێنابێت.'],
     ],
   },
   {
@@ -166,6 +171,8 @@ export const ABOUT_SECTIONS: AboutSection[] = [
       ['**Exchange** between vaults uses its own rate. It is strict: it is refused when the money isn\'t there, because half an exchange would create fake cash.', '**گۆڕینەوە** لە نێوان قاسەکان نرخی تایبەتی خۆی هەیە. توندە: ئەگەر پارەکە نەبێت ڕەت دەکرێتەوە، چونکە نیوەی گۆڕینەوە پارەی ساختە دروست دەکات.'],
       ['**Unpaid dues** = the part a payment could not cover. Paying a due takes the money out now, on the original document; editing or deleting that document undoes the payment too.', '**قەرزی نەدراو** = ئەو بەشەی پارەدانێک نەیتوانی دابینی بکات. دانی قەرزێک ئێستا پارە دەردەهێنێت، لەسەر بەڵگە ڕەسەنەکە؛ دەستکاری یان سڕینەوەی ئەو بەڵگەیە پارەدانەکەش دەگەڕێنێتەوە.'],
       ['The vault card shows cash now, unpaid dues, and what is left (cash − dues).', 'کارتی قاسە کاشی ئێستا، قەرزی نەدراو و پاشماوە (کاش − قەرز) پیشان دەدات.'],
+      ['A staff user can be given a **personal vault** (USD + IQD). Only the owner can fund it: **Fund staff vault** moves cash from the main vault into it (VLT). A staff user never sees the main factory vault, only their own.', 'بەکارهێنەرێکی کارمەند دەتوانرێت **قاسەی کەسی**ی پێ بدرێت (دۆلار + دینار). تەنها خاوەن دەتوانێت پارەی تێبکات: **پارەدان بۆ قاسەی کارمەند** کاش لە قاسەی سەرەکییەوە دەگوازێتەوە بۆ ئەو (VLT). کارمەند هەرگیز قاسەی سەرەکی کارگە نابینێت، تەنها هی خۆی.'],
+      ['Deposits, withdrawals, exchanges and expenses saved by a staff user with a personal vault use **their personal vault**. Sales, purchases and partner payments always use the main vault.', 'دانان، ڕاکێشان، گۆڕینەوە و خەرجییەک کە کارمەندێکی خاوەن قاسەی کەسی تۆماری دەکات **قاسە کەسییەکەی خۆی** بەکاردێنێت. فرۆشتن، کڕین و پارەدانی لایەنەکان هەمیشە قاسەی سەرەکی بەکاردێنن.'],
     ],
   },
   {
@@ -181,6 +188,7 @@ export const ABOUT_SECTIONS: AboutSection[] = [
       ['**Recurring** expenses post themselves daily, weekly or monthly, and can skip chosen days. If the vault doesn\'t have the money the run is not posted and shows as **Due** (it does not create debt).', 'خەرجی **دووبارەبووەوە** خۆی ڕۆژانە، هەفتانە یان مانگانە تۆمار دەکات، و دەتوانێت ڕۆژانی دیاریکراو تێپەڕێنێت. ئەگەر قاسە پارەی نەبێت تۆمار ناکرێت و وەک **Due** پیشان دەدرێت (قەرز دروست ناکات).'],
       ['Expense PIN: **{expPin}**. When set, a new expense or recurring rule needs it ({pinMin}–{pinMax} digits; locked {pinLock} min after {pinTries} wrong tries).', 'PINی خەرجی: **{expPin}**. ئەگەر دانرابێت، خەرجی نوێ یان یاسای دووبارەبووەوە پێویستی پێیەتی ({pinMin}–{pinMax} ژمارە؛ دوای {pinTries} هەڵە بۆ {pinLock} خولەک قفڵ دەبێت).'],
       ['A category that is used by expenses cannot be deleted.', 'پۆلێک کە خەرجی تێدا تۆمار کرابێت ناسڕدرێتەوە.'],
+      ['A staff user with a personal vault pays expenses from it. The owner sees factory expenses and staff expenses on separate tabs.', 'کارمەندێک کە قاسەی کەسی هەیە خەرجی لەوێوە دەدات. خاوەن خەرجی کارگە و خەرجی کارمەندان لە دوو تابی جیادا دەبینێت.'],
     ],
   },
   {
@@ -232,6 +240,8 @@ export const ABOUT_SECTIONS: AboutSection[] = [
       ['The **owner** can do everything. Other users only open the pages the owner allowed.', '**خاوەن** دەتوانێت هەموو شتێک بکات. بەکارهێنەرانی تر تەنها ئەو پەڕانە دەکەنەوە کە خاوەن ڕێگەی داوە.'],
       ['Editing or deleting a transaction needs access to the page it belongs to (a sale → POS, a purchase → Suppliers, …).', 'دەستکاری یان سڕینەوەی مامەڵەیەک پێویستی بە مۆڵەتی ئەو پەڕەیە هەیە کە سەر بەوە (فرۆشتن ← POS، کڕین ← دابینکەران، …).'],
       ['Settings, users, backups and the audit log are owner only.', 'ڕێکخستنەکان، بەکارهێنەران، باکئەپ و تۆماری چاودێری تەنها بۆ خاوەنن.'],
+      ['For **Expenses**, the owner can limit a staff user to **only their own records**: they see only the expenses they saved themselves.', 'بۆ **خەرجییەکان**، خاوەن دەتوانێت کارمەندێک سنووردار بکات بۆ **تەنها تۆمارەکانی خۆی**: تەنها ئەو خەرجییانە دەبینێت کە خۆی تۆماری کردوون.'],
+      ['The Vault page can only be given to a staff user who has a personal vault, and then it always shows only that personal vault.', 'پەڕەی قاسە تەنها دەدرێت بە کارمەندێک کە قاسەی کەسی هەبێت، و ئەو کاتە هەمیشە تەنها قاسە کەسییەکەی پیشان دەدات.'],
       ['Sign-in pauses after **{loginTries} wrong passwords** in {loginWindow} minutes.', 'چوونەژوورەوە دوای **{loginTries} وشەی نهێنی هەڵە** لە {loginWindow} خولەکدا ڕادەگیرێت.'],
     ],
   },
@@ -268,6 +278,17 @@ export const ABOUT_SECTIONS: AboutSection[] = [
 
 /** Newest first. Add an entry here whenever a rule is added, changed or removed. */
 export const ABOUT_CHANGELOG: AboutChange[] = [
+  {
+    version: '1.9',
+    date: '2026-11-06',
+    items: [
+      { type: 'added', text: ['Several inventories: stock is kept per inventory, and every purchase, sale and processing run picks one.', 'چەند کۆگایەک: کاڵا بۆ هەر کۆگایەک جیا هەڵدەگیرێت، و هەر کڕین، فرۆشتن و پرۆسێسێک یەکێکیان هەڵدەبژێرێت.'] },
+      { type: 'added', text: ['Transfer stock between inventories (STR), at average cost, with no money moving.', 'گواستنەوەی کاڵا لە نێوان کۆگاکان (STR)، بە تێکڕای تێچوو، بەبێ جووڵەی پارە.'] },
+      { type: 'added', text: ['Monthly rent per inventory, paid as an expense from a vault.', 'کرێی مانگانە بۆ هەر کۆگایەک، وەک خەرجی لە قاسەیەک دەدرێت.'] },
+      { type: 'added', text: ['Personal staff vaults, funded by the owner from the main vault.', 'قاسەی کەسی کارمەندان، کە خاوەن لە قاسەی سەرەکییەوە پارەی تێدەکات.'] },
+      { type: 'added', text: ['Expenses can be limited to a staff user\'s own records.', 'خەرجییەکان دەتوانرێن سنووردار بکرێن بۆ تەنها تۆمارەکانی خۆی کارمەند.'] },
+    ],
+  },
   {
     version: '1.8',
     date: '2026-10-05',

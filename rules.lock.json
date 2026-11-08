@@ -1,22 +1,22 @@
 {
-  "version": "1.8",
-  "about": "4012bedcc7792dd5",
+  "version": "1.9",
+  "about": "a5fb91731a3cae3c",
   "files": {
     "src/lib/rules.ts": "4b4f02b085dba6c7",
     "src/lib/lock.ts": "efcbe54f3c625fbb",
     "src/lib/money.ts": "00655077608d7108",
     "src/lib/conversion.ts": "3f609c3ea905070f",
-    "src/lib/kinds.ts": "9d7d3f788a455ebb",
-    "src/lib/permissions.ts": "3b463c76d8d870c4",
-    "src/lib/server/txns.ts": "52a6f2a1ced33930",
-    "src/lib/server/ledger.ts": "a47792bcaa6dc372",
-    "src/lib/server/dues.ts": "0633251948fa73bf",
-    "src/lib/server/expenses.ts": "46ee140ea4a20943",
-    "src/lib/server/catalog.ts": "49f7dbedbc54db2c",
-    "src/lib/server/erase.ts": "961818cc9244d7ce",
-    "src/lib/server/backup.ts": "f9e431bda9c90b2c",
-    "src/lib/server/auth.ts": "d45122bdf9b27465",
+    "src/lib/kinds.ts": "e13718c1d7fb2ef6",
+    "src/lib/permissions.ts": "5a7eaf075053b126",
+    "src/lib/server/txns.ts": "cbc507342a088096",
+    "src/lib/server/ledger.ts": "de8e7ca274da3413",
+    "src/lib/server/dues.ts": "e9517681ac2fa9e7",
+    "src/lib/server/expenses.ts": "fc95d29f48f2125e",
+    "src/lib/server/catalog.ts": "3c191352e73ea93b",
+    "src/lib/server/erase.ts": "91dd4e5148e5a20b",
+    "src/lib/server/backup.ts": "0e01f788f5d22b35",
+    "src/lib/server/auth.ts": "841ae248444f83c9",
     "src/lib/server/q/alerts.ts": "657c1ce572e51044",
-    "prisma/seed.ts": "06115024a234e073"
+    "prisma/seed.ts": "9b07b39705312064"
   }
 }
