@@ -12,6 +12,7 @@ import { Logo } from '../Logo';
 import { ToastProvider, useToast } from '../Toast';
 import { AlertsBell } from '../AlertsBell';
 import { ExchangeRateFab } from '../ExchangeRateFab';
+import { StaffActivityNotices } from '../StaffActivityNotices';
 import { Dialog } from '../Dialog';
 import { Segmented } from '../ui';
 import { TxnPanelProvider } from '../TxnPanel';
@@ -376,6 +377,7 @@ function Shell({ children }: { children: ReactNode }) {
 
       <ExchangeRateFab />
       {user.isOwner ? <WeeklyBackup /> : null}
+      {user.isOwner ? <StaffActivityNotices /> : null}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { route } from '@/lib/server/api';
 import { AppError, notFound } from '@/lib/server/errors';
-import { canPage } from '@/lib/permissions';
+import { canPage, seesAll } from '@/lib/permissions';
 import { statementDocument } from '@/lib/server/docs/other-docs';
 import { fileName, htmlToPdf } from '@/lib/server/docs/pdf';
 import { audit } from '@/lib/server/audit';
@@ -10,7 +10,10 @@ import { audit } from '@/lib/server/audit';
 export const GET = route<{ kind: string; id: string }>({ fail: 'err.pdf' }, async ({ user, lang, params, url }) => {
   const kind = params.kind === 'customer' ? 'customer' : params.kind === 'beneficiary' ? 'beneficiary' : null;
   if (!kind) throw notFound();
-  if (!canPage(user, kind === 'customer' ? 'customers' : 'beneficiaries')) throw new AppError(403, 'err.forbidden');
+  const page = kind === 'customer' ? 'customers' : 'beneficiaries';
+  if (!canPage(user, page)) throw new AppError(403, 'err.forbidden');
+  // A full account statement shows everyone's documents, so staff need "see everyone's activity" for the page.
+  if (!seesAll(user, page)) throw new AppError(403, 'stmt.needsActivity');
   const sp = url.searchParams;
   const doc = await statementDocument(kind, params.id, lang, sp.get('from') ?? undefined, sp.get('to') ?? undefined);
   if (sp.get('format') === 'pdf') {

@@ -131,7 +131,7 @@ async function settle(tx: Tx, done: { number: string; vaults: Currency[]; keys: 
   for (const v of new Set(done.flatMap((d) => d.vaults))) {
     await tx.$executeRaw`
       UPDATE "VaultEntry" e SET "balanceAfter" = s.run
-      FROM (SELECT id, SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END) OVER (ORDER BY id) AS run
+      FROM (SELECT id, SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END) OVER (PARTITION BY "ownerUserId" ORDER BY id) AS run
             FROM "VaultEntry" WHERE vault = ${v}::"Currency") s
       WHERE e.id = s.id AND e."balanceAfter" <> s.run`;
   }

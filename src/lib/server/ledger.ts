@@ -19,6 +19,7 @@ export const COUNTER_FOR: Record<TxnKind, string> = {
   EXPENSE: 'EXP',
   STOCK_TRANSFER: 'STR',
   USER_VAULT_FUND: 'VLT',
+  USER_VAULT_COLLECT: 'VLT',
 };
 
 /**

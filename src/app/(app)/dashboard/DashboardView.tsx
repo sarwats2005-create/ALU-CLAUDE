@@ -67,7 +67,12 @@ export function DashboardView({ data }: { data: Data }) {
     );
   }, [lang, t]);
   const cash = D(c.vaultTotalUsd);
-  const dues = D(c.duesTotalUsd);
+  const dues = D(c.allDuesUsd);
+  const staffCash = D(c.staffTotalUsd);
+  const net = D(c.netPosition);
+  // Loud when the factory is short: unpaid dues, a vault below zero, or more owed to suppliers than cash held.
+  const shortOfCash = D(c.payable).gt(cash.plus(staffCash));
+  const inDebt = dues.gt(0) || c.mainVaultNegative || shortOfCash;
 
   return (
     <div className="flex flex-col gap-6">
@@ -115,6 +120,24 @@ export function DashboardView({ data }: { data: Data }) {
       {/* ── 1. Money position: one card, four equal cells ── */}
       <section aria-labelledby="dash-position">
         <SectionLabel id="dash-position">{t('dash.position')}</SectionLabel>
+        {inDebt ? (
+          <div role="alert" className="mb-3 flex items-start gap-3 rounded-card border border-danger/30 bg-danger-tint px-5 py-4 text-danger-ink">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <p className="text-body font-bold">{t('money.inDebt')}</p>
+              <ul className="mt-1 list-disc ps-5 text-meta">
+                {dues.gt(0) ? <li>{t('money.duesLine', { x: fmtMoney(dues), n: c.allDuesCount })}</li> : null}
+                {c.mainVaultNegative ? <li>{t('money.negativeLine')}</li> : null}
+                {shortOfCash ? <li>{t('money.shortLine', { owe: fmtMoney(c.payable), cash: fmtMoney(cash.plus(staffCash)) })}</li> : null}
+              </ul>
+            </div>
+            {can('vault') ? (
+              <Link href={dues.gt(0) ? '/vault/dues' : '/vault'} className="shrink-0 self-center rounded-ctl px-3 py-2 text-meta font-semibold underline-offset-4 hover:underline">
+                {t('money.open')}
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
         <SummaryStrip>
           <SummaryCell
             icon={<Wallet className="h-[18px] w-[18px]" aria-hidden="true" />}
@@ -124,6 +147,7 @@ export function DashboardView({ data }: { data: Data }) {
             sub={
               <span className="num">
                 {fmtMoney(c.vaultUsd)} · {fmtMoney(c.vaultIqd, 'IQD')}
+                {staffCash.gt(0) ? <span className="block">{t('money.plusStaff', { x: fmtMoney(staffCash) })}</span> : null}
               </span>
             }
             href={can('vault') ? '/vault' : undefined}
@@ -149,7 +173,7 @@ export function DashboardView({ data }: { data: Data }) {
               value={fmtMoney(dues)}
               tone="danger"
               alert
-              sub={t('dash.duesN', { n: c.duesCount })}
+              sub={t('dash.duesN', { n: c.allDuesCount })}
               href={can('vault') ? '/vault/dues' : undefined}
             />
           ) : (
@@ -161,6 +185,11 @@ export function DashboardView({ data }: { data: Data }) {
             />
           )}
         </SummaryStrip>
+        <p className={cx('mt-3 flex flex-wrap items-baseline gap-x-2 rounded-ctl px-4 py-2.5 text-meta', net.isNegative() ? 'bg-danger-tint text-danger-ink' : 'bg-tint text-ink')}>
+          <span className="font-semibold">{t('money.net')}</span>
+          <span className="num text-body font-bold">{fmtMoney(net)}</span>
+          <span className="text-caption opacity-80">{t('money.netHint')}</span>
+        </p>
       </section>
 
       {/* ── 2. Performance: one headline figure, one switchable chart ── */}
@@ -183,10 +212,11 @@ export function DashboardView({ data }: { data: Data }) {
                 </p>
               ) : null}
             </div>
-            <div className="grid grid-cols-1 gap-3 border-t border-line-soft pt-4 sm:grid-cols-3 lg:grid-cols-1">
+            <div className="grid grid-cols-1 gap-3 border-t border-line-soft pt-4 sm:grid-cols-2 lg:grid-cols-1">
               <Mini label={t('dash.salesMonth')} value={fmtMoney(c.salesMonth)} sub={t('dash.invoicesCount', { n: c.salesMonthCount })} />
               <Mini label={t('dash.expensesMonth')} value={fmtMoney(c.expensesMonth)} sub={t('dash.expensesN', { n: c.expensesMonthCount })} href={can('expenses') ? '/expenses' : undefined} />
-              <Mini label={t('dash.allTime')} value={fmtMoney(c.profit)} sub={t('dash.profitHint')} tone={D(c.profit).isNegative() ? 'danger' : 'success'} />
+              <Mini label={t('money.paperProfit')} value={fmtMoney(c.profit)} sub={t('money.paperProfitHint')} tone={D(c.profit).isNegative() ? 'danger' : 'success'} />
+              <Mini label={t('money.cashProfit')} value={fmtMoney(c.cashProfit)} sub={t('money.cashProfitHint', { x: fmtMoney(c.receivable) })} tone={D(c.cashProfit).isNegative() ? 'danger' : 'success'} />
             </div>
           </div>
           <div className="min-w-0">

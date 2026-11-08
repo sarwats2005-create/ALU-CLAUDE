@@ -181,6 +181,7 @@ export function ExpensesView({ editId }: { editId: string | null }) {
         <span className="block whitespace-nowrap">
           <span className="bidi block font-semibold text-ink">{r.category}</span>
           <span className="num block text-caption text-muted">{r.number}</span>
+          {r.createdByName ? <span className="bidi block text-caption text-muted">{t('common.by', { name: r.createdByName })}</span> : null}
         </span>
       ),
     },
@@ -275,6 +276,7 @@ export function ExpensesView({ editId }: { editId: string | null }) {
                   <span className="num block text-caption text-muted">
                     {fmtDate(r.date)} · {r.number}
                   </span>
+                  {r.createdByName ? <span className="bidi block text-caption text-muted">{t('common.by', { name: r.createdByName })}</span> : null}
                   {details(r) ? <span className="bidi block truncate text-caption text-muted">{details(r)}</span> : null}
                 </span>
                 <span className="flex shrink-0 flex-col items-end gap-1">

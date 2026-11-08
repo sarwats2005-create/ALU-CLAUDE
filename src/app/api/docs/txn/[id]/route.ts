@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { route } from '@/lib/server/api';
 import { prisma } from '@/lib/db';
+import { canSeeTxn } from '@/lib/server/scope';
 import { AppError, notFound } from '@/lib/server/errors';
 import { canAnyPage } from '@/lib/permissions';
 import { viewPages, type Kind } from '@/lib/kinds';
@@ -9,9 +10,10 @@ import { fileName, htmlToPdf } from '@/lib/server/docs/pdf';
 
 /** Invoice / receipt / voucher as HTML (preview + print) or PDF — the same document either way. ?size=A4|A5 (default A5). */
 export const GET = route<{ id: string }>({ fail: 'err.pdf' }, async ({ user, lang, params, url }) => {
-  const t = await prisma.txn.findUnique({ where: { id: params.id }, select: { kind: true } });
+  const t = await prisma.txn.findUnique({ where: { id: params.id }, select: { kind: true, createdById: true, vaultOwnerUserId: true } });
   if (!t) throw notFound();
   if (!canAnyPage(user, viewPages(t.kind as Kind))) throw new AppError(403, 'err.forbidden');
+  if (!canSeeTxn(user, t)) throw notFound();
   const doc = await txnDocument(params.id, lang, url.searchParams.get('size') === 'A4' ? 'A4' : 'A5');
   if (url.searchParams.get('format') === 'pdf') {
     const pdf = await htmlToPdf(doc.html);

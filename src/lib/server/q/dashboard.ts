@@ -41,7 +41,7 @@ export async function dashboard() {
   const today = todayIso();
   const monthStart = `${today.slice(0, 7)}-01`;
   const months = lastMonths(today, 12);
-  const [rate, vaults, salesAgg, monthAgg, topCustomers, topBens, monthly, recent, recv, pay, expAgg, dues] = await Promise.all([
+  const [rate, vaults, salesAgg, monthAgg, topCustomers, topBens, monthly, recent, recv, pay, expAgg, dues, staffCash, staffDues] = await Promise.all([
     currentRate(),
     vaultBalances(),
     prisma.$queryRaw<Record<string, unknown>[]>`
@@ -77,10 +77,26 @@ export async function dashboard() {
       SELECT COALESCE(SUM("totalUsd"),0) AS total, COUNT(*) AS cnt
       FROM "Txn" WHERE kind = 'EXPENSE' AND "deletedAt" IS NULL AND date >= ${monthStart}::date AND date <= ${today}::date`,
     duesSummary(),
+    // Cash the owner handed to staff: every personal vault together.
+    prisma.vaultEntry.groupBy({ by: ['vault', 'direction'], where: { ownerUserId: { not: null } }, _sum: { amount: true } }),
+    prisma.vaultDue.findMany({ where: { settledAt: null, ownerUserId: { not: null }, txn: { deletedAt: null } }, select: { vault: true, amount: true, paid: true } }),
   ]);
   const revenue = D(s(salesAgg[0]?.revenue));
+  const staff: Record<Currency, Dec> = { USD: new Dec(0), IQD: new Dec(0) };
+  for (const r of staffCash) staff[r.vault] = r.direction === 'IN' ? staff[r.vault].plus(D(r._sum.amount)) : staff[r.vault].minus(D(r._sum.amount));
+  const staffDuesUsd = staffDues.reduce((t, d) => {
+    const left = D(d.amount).minus(D(d.paid));
+    return t.plus(d.vault === 'USD' ? left : left.div(rate));
+  }, new Dec(0));
   const cogs = D(s(salesAgg[0]?.cogs));
   const iqdInUsd = round2(vaults.IQD.div(rate));
+  // Money position: what the factory really has once debts on both sides are counted.
+  const mainCashUsd = vaults.USD.plus(vaults.IQD.div(rate));
+  const staffCashUsd = staff.USD.plus(staff.IQD.div(rate));
+  const receivable = D(s(recv[0]?.total));
+  const payable = D(s(pay[0]?.total));
+  const duesUsd = dues.USD.total.plus(dues.IQD.total.div(rate)).plus(staffDuesUsd);
+  const paperProfit = round2(revenue.minus(cogs));
   return {
     rate: rate.toString(),
     cards: {
@@ -105,6 +121,16 @@ export async function dashboard() {
       duesIqd: dues.IQD.total.toString(),
       duesTotalUsd: round2(dues.USD.total.plus(dues.IQD.total.div(rate))).toString(),
       duesCount: dues.USD.count + dues.IQD.count,
+      staffUsd: staff.USD.toString(),
+      staffIqd: staff.IQD.toString(),
+      staffTotalUsd: round2(staffCashUsd).toString(),
+      /** Profit counting only money actually collected: sales − what customers still owe − cost of goods. */
+      cashProfit: round2(paperProfit.minus(receivable)).toString(),
+      /** Cash (main + staff vaults) + customers owe − factory owes suppliers − unpaid vault dues, in USD. */
+      netPosition: round2(mainCashUsd.plus(staffCashUsd).plus(receivable).minus(payable).minus(duesUsd)).toString(),
+      allDuesUsd: round2(duesUsd).toString(),
+      allDuesCount: dues.USD.count + dues.IQD.count + staffDues.length,
+      mainVaultNegative: vaults.USD.isNegative() || vaults.IQD.isNegative(),
       bestCustomer: topCustomers[0] ? { id: String(topCustomers[0].id), name: String(topCustomers[0].name), value: s(topCustomers[0].value), count: n(topCustomers[0].cnt) } : null,
       bestBeneficiary: topBens[0] ? { id: String(topBens[0].id), name: String(topBens[0].name), count: n(topBens[0].cnt), value: s(topBens[0].value) } : null,
     },
@@ -248,3 +274,95 @@ export async function vaultHistory(p: {
     })),
   };
 }
+
+/**
+ * A staff user's own dashboard: their vault, their unpaid dues, their sales and their recent documents.
+ * No factory totals, no cost of goods and no profit.
+ */
+export async function staffDashboard(userId: string) {
+  const today = todayIso();
+  const monthStart = `${today.slice(0, 7)}-01`;
+  const months = lastMonths(today, 6);
+  const [rate, vaults, dues, overview, monthAgg, byMonth, recent] = await Promise.all([
+    currentRate(),
+    vaultBalances(userId),
+    duesSummary(userId),
+    vaultOverview(userId),
+    prisma.$queryRaw<Record<string, unknown>[]>`
+      SELECT COALESCE(SUM("totalUsd"),0) AS revenue, COUNT(*) AS cnt, COALESCE(SUM("cashPaidUsd"),0) AS cash
+      FROM "Txn" WHERE kind = 'SALE' AND "deletedAt" IS NULL AND "createdById" = ${userId}
+        AND date >= ${monthStart}::date AND date <= ${today}::date`,
+    prisma.$queryRaw<Record<string, unknown>[]>`
+      SELECT to_char(date, 'YYYY-MM') AS m, COALESCE(SUM("totalUsd"),0) AS revenue, COUNT(*) AS cnt
+      FROM "Txn" WHERE kind = 'SALE' AND "deletedAt" IS NULL AND "createdById" = ${userId} AND date >= ${`${months[0]}-01`}::date
+      GROUP BY 1`,
+    prisma.txn.findMany({
+      where: { deletedAt: null, createdById: userId },
+      orderBy: [{ createdAt: 'desc' }],
+      take: 8,
+      select: { id: true, number: true, kind: true, date: true, total: true, currency: true, customer: { select: { name: true } }, beneficiary: { select: { name: true } }, label: true },
+    }),
+  ]);
+  const by = new Map(byMonth.map((r) => [String(r.m), r]));
+  return {
+    rate: rate.toString(),
+    vault: {
+      USD: vaults.USD.toString(),
+      IQD: vaults.IQD.toString(),
+      totalUsd: round2(vaults.USD.plus(vaults.IQD.div(rate))).toString(),
+      duesUsd: dues.USD.total.toString(),
+      duesIqd: dues.IQD.total.toString(),
+      duesCount: dues.USD.count + dues.IQD.count,
+      series: overview.vaults.map((v) => ({ vault: v.vault, series: v.series })),
+    },
+    month: { sales: D(s(monthAgg[0]?.revenue)).toString(), count: n(monthAgg[0]?.cnt), cash: D(s(monthAgg[0]?.cash)).toString() },
+    salesByMonth: months.map((m) => ({ month: m, revenue: D(s(by.get(m)?.revenue)).toString(), count: n(by.get(m)?.cnt) })),
+    recent: recent.map((t) => ({
+      id: t.id,
+      number: t.number,
+      kind: t.kind,
+      date: dbToIso(t.date),
+      total: t.total.toString(),
+      currency: t.currency,
+      party: t.customer?.name ?? t.beneficiary?.name ?? t.label ?? '',
+    })),
+  };
+}
+export type StaffDashboard = Awaited<ReturnType<typeof staffDashboard>>;
+
+/**
+ * The owner's money position in USD: what customers owe, what the factory owes suppliers, unpaid vault dues
+ * (main + staff) and cash held by staff. Shown on the vault page so debts are never out of sight.
+ */
+export async function moneyPosition() {
+  const [rate, recv, pay, dues, staffCash] = await Promise.all([
+    currentRate(),
+    prisma.$queryRaw<Record<string, unknown>[]>`
+      SELECT COALESCE(SUM(b),0) AS total, COUNT(*) AS cnt FROM (
+        SELECT "customerId", SUM("amountUsd") AS b FROM "PartyEntry" WHERE "customerId" IS NOT NULL GROUP BY 1
+      ) x WHERE b > 0`,
+    prisma.$queryRaw<Record<string, unknown>[]>`
+      SELECT COALESCE(SUM(b),0) AS total, COUNT(*) AS cnt FROM (
+        SELECT "beneficiaryId", SUM("amountUsd") AS b FROM "PartyEntry" WHERE "beneficiaryId" IS NOT NULL GROUP BY 1
+      ) x WHERE b > 0`,
+    prisma.vaultDue.findMany({ where: { settledAt: null, txn: { deletedAt: null } }, select: { vault: true, amount: true, paid: true } }),
+    prisma.vaultEntry.groupBy({ by: ['vault', 'direction'], where: { ownerUserId: { not: null } }, _sum: { amount: true } }),
+  ]);
+  let duesUsd = new Dec(0);
+  for (const d of dues) {
+    const left = D(d.amount).minus(D(d.paid));
+    duesUsd = duesUsd.plus(d.vault === 'USD' ? left : left.div(rate));
+  }
+  const staff: Record<Currency, Dec> = { USD: new Dec(0), IQD: new Dec(0) };
+  for (const r of staffCash) staff[r.vault] = r.direction === 'IN' ? staff[r.vault].plus(D(r._sum.amount)) : staff[r.vault].minus(D(r._sum.amount));
+  return {
+    receivable: D(s(recv[0]?.total)).toString(),
+    receivableCount: n(recv[0]?.cnt),
+    payable: D(s(pay[0]?.total)).toString(),
+    payableCount: n(pay[0]?.cnt),
+    duesUsd: round2(duesUsd).toString(),
+    duesCount: dues.length,
+    staffUsd: round2(staff.USD.plus(staff.IQD.div(rate))).toString(),
+  };
+}
+export type MoneyPosition = Awaited<ReturnType<typeof moneyPosition>>;

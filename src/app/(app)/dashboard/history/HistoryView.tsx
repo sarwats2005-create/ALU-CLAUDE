@@ -31,6 +31,7 @@ export function HistoryView() {
     { key: 'number', label: t('common.number'), sortable: true, render: (r) => <span className="num font-semibold text-brand-ink">{r.number}</span> },
     { key: 'date', label: t('common.date'), sortable: true, render: (r) => <span className="num text-muted">{fmtDate(r.date)}</span> },
     { key: 'kind', label: t('common.type'), sortable: true, render: (r) => <span className="text-ink">{t(`kind.${r.kind}` as 'kind.SALE')}</span> },
+    { key: 'by', label: t('common.createdBy'), render: (r) => <span className="bidi block max-w-[140px] truncate text-muted">{r.createdByName || '—'}</span> },
     {
       key: 'party',
       label: t('common.party'),
@@ -151,7 +152,10 @@ export function HistoryView() {
                   <span className="text-caption text-muted">{t(`kind.${r.kind}` as 'kind.SALE')}</span>
                 </span>
                 <span className="bidi mt-0.5 block truncate text-body text-ink">{r.partyName || r.label || r.products || '—'}</span>
-                <span className="num block text-caption text-muted">{fmtDate(r.date)}</span>
+                <span className="num block text-caption text-muted">
+                  {fmtDate(r.date)}
+                  {r.createdByName ? <span className="bidi"> · {t('common.by', { name: r.createdByName })}</span> : null}
+                </span>
               </span>
               <span className="flex shrink-0 flex-col items-end gap-1">
                 <span className="num text-body font-semibold text-ink">{r.kind === 'PROCESSING' ? fmtKg(r.kg) : fmtMoney(r.total, r.currency)}</span>

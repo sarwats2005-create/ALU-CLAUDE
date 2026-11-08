@@ -42,6 +42,8 @@ enum TxnKind {
   STOCK_TRANSFER
   /// Owner funds a staff personal vault from the main factory vault (receipt).
   USER_VAULT_FUND
+  /// Owner takes money back from a staff personal vault into the main factory vault.
+  USER_VAULT_COLLECT
 }
 
 enum RecurFrequency {
@@ -76,8 +78,10 @@ model User {
   lang         Lang      @default(en)
   /// Extensible permission keys: "page:<name>", "action:<name>", "scope:<page>:own".
   permissions  String[]  @default([])
-  /// When true, staff has personal USD+IQD vaults (funded by owner; never sees main vault).
-  hasPersonalVault Boolean @default(false)
+  /// Every staff user has personal USD+IQD vaults (funded by the owner; never sees the main vault).
+  hasPersonalVault Boolean @default(true)
+  /// Archived (deactivated) by the owner. Archived users can't sign in; the owner can restore them.
+  archivedAt   DateTime?
   /// Per-user UI preferences (e.g. remembered export columns per table).
   prefs        Json      @default("{}")
   lastLoginAt  DateTime?
@@ -513,6 +517,27 @@ model AuditLog {
   @@index([createdAt])
   @@index([module])
   @@index([action])
+}
+
+/// Owner notifications: one per document a staff user created, edited or deleted. Cleared with "I get it".
+model Notification {
+  id         Int       @id @default(autoincrement())
+  /// Recipient (the owner).
+  userId     String
+  /// create | update | delete
+  action     String
+  txnId      String?
+  number     String
+  kind       TxnKind
+  actorId    String
+  actorName  String
+  /// Short human summary (party / label), in the document's own words.
+  summary    String    @default("")
+  totalText  String    @default("")
+  createdAt  DateTime  @default(now())
+  ackAt      DateTime?
+
+  @@index([userId, ackAt, id])
 }
 
 model AlertRead {

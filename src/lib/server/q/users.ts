@@ -5,6 +5,7 @@ import { dbToIso } from '@/lib/dates';
 import { notFound } from '../errors';
 import { vaultBalances } from './dashboard';
 import { currentRate } from '../common';
+import { duesSummary } from '../dues';
 
 /** Owner-facing activity for one staff user: personal vault balances + recent txns they own or created. */
 export async function userActivity(userId: string) {
@@ -16,7 +17,7 @@ export async function userActivity(userId: string) {
       email: true,
       isOwner: true,
       active: true,
-      hasPersonalVault: true,
+      archivedAt: true,
       permissions: true,
       lastLoginAt: true,
       createdAt: true,
@@ -25,7 +26,7 @@ export async function userActivity(userId: string) {
   if (!u || u.isOwner) throw notFound();
 
   const rate = await currentRate();
-  const bal = u.hasPersonalVault ? await vaultBalances(u.id) : { USD: D(0), IQD: D(0) };
+  const bal = await vaultBalances(u.id);
   const txns = await prisma.txn.findMany({
     where: {
       deletedAt: null,
@@ -56,18 +57,16 @@ export async function userActivity(userId: string) {
       name: u.name,
       email: u.email,
       active: u.active,
-      hasPersonalVault: u.hasPersonalVault,
+      archivedAt: u.archivedAt?.toISOString() ?? null,
       permissions: u.permissions,
       lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
       createdAt: u.createdAt.toISOString(),
     },
-    vault: u.hasPersonalVault
-      ? {
-          USD: bal.USD.toString(),
-          IQD: bal.IQD.toString(),
-          totalUsd: round2(bal.USD.plus(bal.IQD.div(rate))).toString(),
-        }
-      : null,
+    vault: {
+      USD: bal.USD.toString(),
+      IQD: bal.IQD.toString(),
+      totalUsd: round2(bal.USD.plus(bal.IQD.div(rate))).toString(),
+    },
     rate: rate.toString(),
     rows: txns.map((t) => ({
       id: t.id,
@@ -86,3 +85,30 @@ export async function userActivity(userId: string) {
   };
 }
 export type UserActivity = Awaited<ReturnType<typeof userActivity>>;
+
+/** Owner: every staff vault (active staff first, then archived) with balances, unpaid dues and USD total. */
+export async function staffVaults() {
+  const rate = await currentRate();
+  const users = await prisma.user.findMany({
+    where: { isOwner: false },
+    orderBy: [{ archivedAt: { sort: 'asc', nulls: 'first' } }, { name: 'asc' }],
+    select: { id: true, name: true, email: true, archivedAt: true },
+  });
+  const out = [];
+  for (const u of users) {
+    const [bal, dues] = await Promise.all([vaultBalances(u.id), duesSummary(u.id)]);
+    out.push({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      archived: !!u.archivedAt,
+      USD: bal.USD.toString(),
+      IQD: bal.IQD.toString(),
+      duesUsd: dues.USD.total.toString(),
+      duesIqd: dues.IQD.total.toString(),
+      totalUsd: round2(bal.USD.plus(bal.IQD.div(rate))).toString(),
+    });
+  }
+  return { rate: rate.toString(), users: out };
+}
+export type StaffVaults = Awaited<ReturnType<typeof staffVaults>>;

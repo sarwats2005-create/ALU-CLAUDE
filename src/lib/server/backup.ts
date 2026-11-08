@@ -197,6 +197,8 @@ export async function snapshotFile(id: string): Promise<BackupFile> {
 // ─── Restore & fresh start ───────────────────────────────────────────────────────────────────────
 async function wipe(tx: Tx, keepUserId: string) {
   await tx.alertRead.deleteMany();
+  // Staff-activity notifications point at documents of the data being replaced.
+  await tx.notification.deleteMany();
   for (const t of [...TABLES].reverse()) {
     if (t === 'user') await tx.user.deleteMany({ where: { id: { not: keepUserId } } });
     else await model(tx, t).deleteMany();

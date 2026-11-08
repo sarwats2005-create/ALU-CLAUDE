@@ -284,7 +284,7 @@ function PaidRows({ d }: { d: TxnDetail }) {
 }
 
 export function TxnBody({ d }: { d: TxnDetail }) {
-  const { t, lang } = useApp();
+  const { t, lang, user } = useApp();
   const cur = d.currency as 'USD' | 'IQD';
   const party = d.customer ?? d.beneficiary;
   const kind = d.kind as Kind;
@@ -407,7 +407,8 @@ export function TxnBody({ d }: { d: TxnDetail }) {
               <span className="num">{fmtMoney(d.totalUsd)}</span>
             </Row>
           ) : null}
-          {kind === 'SALE' ? (
+          {/* Cost of goods and profit are owner only. */}
+          {kind === 'SALE' && user.isOwner ? (
             <>
               <Row label={t('detail.cogs')}>
                 <span className="num">{fmtMoney(D(d.cogsUsd).toDecimalPlaces(2))}</span>

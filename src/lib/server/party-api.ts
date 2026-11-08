@@ -3,23 +3,24 @@ import { NextResponse } from 'next/server';
 import type { TxnKind } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { t } from '@/lib/i18n';
-import type { Page } from '@/lib/permissions';
+import { seesAll, seesProfit, type ActivityPage, type Page } from '@/lib/permissions';
 import { route, body, listParams } from './api';
 import { saveParty, deleteParty, type PartyInput } from './catalog';
 import { notFound } from './errors';
 import { balanceSeries, listParties, lookupParties, pageStatement, partyDetail, statementRows, type BalanceFilter, type PartyKind } from './q/parties';
 
-const PAGE: Record<PartyKind, Page> = { customer: 'customers', beneficiary: 'beneficiaries' };
+const PAGE: Record<PartyKind, ActivityPage> = { customer: 'customers', beneficiary: 'beneficiaries' };
 
 /** GET list (paginated, filterable by balance state) + POST create. */
 export function partyCollection(kind: PartyKind) {
   const page = PAGE[kind];
   return {
-    GET: route({ pages: [page] }, async ({ url }) => {
+    GET: route({ pages: [page] }, async ({ url, user }) => {
       const p = listParams(url, ['name', 'balance', 'total', 'count', 'createdAt'], 'name', 'asc');
       const st = url.searchParams.get('state') ?? '';
       const state: BalanceFilter = st === 'owes' || st === 'settled' || st === 'credit' ? st : '';
-      return listParties(kind, { ...p, state });
+      // Staff who see only their own records: totals/counts from their own documents (balance stays complete).
+      return listParties(kind, { ...p, state, createdById: seesAll(user, page) ? undefined : user.id });
     }),
     POST: route({ pages: kind === 'customer' ? ['customers', 'pos'] : ['beneficiaries'] }, async ({ req, user }) => {
       const b = await body<PartyInput>(req);
@@ -33,9 +34,12 @@ export function partyCollection(kind: PartyKind) {
 export function partyItem(kind: PartyKind) {
   const page = PAGE[kind];
   return {
-    GET: route<{ id: string }>({ pages: [page] }, async ({ params }) => {
-      const [detail, rows] = await Promise.all([partyDetail(kind, params.id), statementRows(kind, params.id)]);
-      return { ...detail, series: balanceSeries(rows) };
+    GET: route<{ id: string }>({ pages: [page] }, async ({ params, user }) => {
+      const own = seesAll(user, page) ? undefined : user.id;
+      const [detail, rows] = await Promise.all([partyDetail(kind, params.id, own), statementRows(kind, params.id)]);
+      // Profit is owner only. Staff without "see everyone's activity" see only their own documents.
+      const cards = seesProfit(user) ? detail.cards : { ...detail.cards, profit: null };
+      return { ...detail, cards, ownOnly: !seesAll(user, page), series: balanceSeries(rows) };
     }),
     PUT: route<{ id: string }>({ pages: [page] }, async ({ req, user, params }) => {
       const b = await body<PartyInput>(req);
@@ -49,8 +53,10 @@ export function partyItem(kind: PartyKind) {
 /** Statement rows (running balance always computed over full history, then filtered/paged). */
 export function partyStatement(kind: PartyKind) {
   return {
-    GET: route<{ id: string }>({ pages: [PAGE[kind]] }, async ({ params, url, lang }) => {
-      const rows = await statementRows(kind, params.id);
+    GET: route<{ id: string }>({ pages: [PAGE[kind]] }, async ({ params, url, lang, user }) => {
+      const all = await statementRows(kind, params.id);
+      // Running balance stays computed over the full history; staff without the toggle see only their own lines.
+      const rows = seesAll(user, PAGE[kind]) ? all : all.filter((r) => r.createdById === user.id);
       const p = listParams(url, ['date', 'number', 'amount', 'effect'], 'date', 'desc');
       return pageStatement(rows, {
         ...p,
